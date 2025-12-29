@@ -1,63 +1,41 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, GitBranch, Users, UserCheck } from 'lucide-react';
+import { Plus, UserCheck, CheckCircle2 } from 'lucide-react';
 
 export function QuickActions() {
-  const actions = [
-    {
-      title: 'Create Program',
-      description: 'Set up a new mentorship program',
-      icon: Plus,
-      href: '/admin/programs/create',
-      bgColor: 'bg-blue-100',
-      iconColor: 'text-blue-600',
-    },
-    {
-      title: 'Generate Roadmap',
-      description: 'AI-powered learning path creation',
-      icon: GitBranch,
-      href: '/admin/roadmap/generate',
-      bgColor: 'bg-green-100',
-      iconColor: 'text-green-600',
-    },
-    {
-      title: 'View Enrollments',
-      description: 'Manage student enrollments',
-      icon: Users,
-      href: '/admin/enrollment/overview',
-      bgColor: 'bg-purple-100',
-      iconColor: 'text-purple-600',
-    },
-    {
-      title: 'Match Mentors',
-      description: 'AI mentor-mentee matching',
-      icon: UserCheck,
-      href: '/admin/matching/mentor-assignment',
-      bgColor: 'bg-orange-100',
-      iconColor: 'text-orange-600',
-    },
-  ];
-
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {actions.map((action) => (
-        <Link key={action.title} href={action.href}>
-          <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-border">
-            <CardContent className="pt-6">
-              <div className={`h-12 w-12 rounded-xl ${action.bgColor} flex items-center justify-center mb-4`}>
-                <action.icon className={`h-6 w-6 ${action.iconColor}`} />
-              </div>
-              <h3 className="font-semibold text-foreground mb-2">{action.title}</h3>
-              <p className="text-sm text-muted-foreground">
-                {action.description}
-              </p>
-            </CardContent>
-          </Card>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <h3 className="text-slate-900 font-semibold mb-4">Quick Actions</h3>
+      <div className="space-y-3">
+        <Link
+          href="/admin/programs/create"
+          className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
+        >
+          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+            <Plus className="w-5 h-5 text-indigo-600" />
+          </div>
+          <span className="text-slate-700">Create Program</span>
         </Link>
-      ))}
+        <Link
+          href="/admin/matching/mentor-assignment"
+          className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
+        >
+          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+            <UserCheck className="w-5 h-5 text-purple-600" />
+          </div>
+          <span className="text-slate-700">Assign Mentors</span>
+        </Link>
+        <Link
+          href="/admin/enrollment/overview"
+          className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
+        >
+          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+          </div>
+          <span className="text-slate-700">View Enrollments</span>
+        </Link>
+      </div>
     </div>
   );
 }

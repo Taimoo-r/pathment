@@ -12,7 +12,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-slate-900 mb-2">Admin Dashboard</h1>
+          <h1 className="text-slate-900 font-semibold mb-2">Admin Dashboard</h1>
           <p className="text-slate-600">Manage programs, mentors, and enrollments</p>
         </div>
         <Link href="/admin/programs/create">
@@ -25,11 +25,13 @@ export default function AdminDashboardPage() {
 
       <DashboardStats />
       
-      <QuickActions />
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid lg:grid-cols-3 gap-8">
         <ProgramListCard />
-        <RecentActivity />
+        
+        <div className="space-y-6">
+          <RecentActivity />
+          <QuickActions />
+        </div>
       </div>
     </div>
   );

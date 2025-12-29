@@ -1,67 +1,56 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { ArrowRight } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 export function RecentActivity() {
-  const activities = [
-    {
-      id: 1,
-      type: 'enrollment',
-      title: 'New Enrollment',
-      description: 'Alice Johnson enrolled in Full Stack Web Development',
-      time: '2 hours ago',
-      status: 'pending',
-    },
-    {
-      id: 2,
-      type: 'program',
-      title: 'Program Updated',
-      description: 'Data Science Fundamentals roadmap was updated',
-      time: '5 hours ago',
-      status: 'completed',
-    },
-    {
-      id: 3,
-      type: 'matching',
-      title: 'Mentor Matched',
-      description: 'Bob Williams matched with Sarah Lee',
-      time: '1 day ago',
-      status: 'completed',
-    },
+  const pendingMatches = [
+    { id: 1, mentee: 'Sarah Johnson', program: 'Full Stack Development', waitTime: '2 days' },
+    { id: 2, mentee: 'Michael Chen', program: 'UI/UX Design', waitTime: '1 day' },
+    { id: 3, mentee: 'Emma Wilson', program: 'Data Science', waitTime: '5 hours' },
   ];
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest system activities and updates</CardDescription>
+    <div>
+      <div className="bg-white rounded-2xl border border-slate-200">
+        <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-slate-900 font-semibold">Pending Matches</h2>
+            <span className="w-6 h-6 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-xs font-medium">
+              {pendingMatches.length}
+            </span>
           </div>
-          <Button variant="outline" size="sm">
-            View All
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {activities.map((activity) => (
-            <div key={activity.id} className="flex items-start justify-between p-3 border border-border rounded-lg">
-              <div className="flex-1">
-                <div className="font-medium">{activity.title}</div>
-                <div className="text-sm text-muted-foreground">{activity.description}</div>
-                <div className="text-xs text-muted-foreground mt-1">{activity.time}</div>
+        <div className="divide-y divide-slate-200">
+          {pendingMatches.map((match) => (
+            <div key={match.id} className="px-6 py-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-slate-600 text-sm font-medium">
+                    {match.mentee.split(' ').map(n => n[0]).join('')}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-slate-900 text-sm font-medium mb-1">{match.mentee}</div>
+                  <div className="text-slate-600 text-xs mb-2">{match.program}</div>
+                  <div className="flex items-center gap-1 text-orange-600 text-xs">
+                    <Clock className="w-3 h-3" />
+                    Waiting {match.waitTime}
+                  </div>
+                </div>
               </div>
-              <StatusBadge status={activity.status as 'pending' | 'completed'} />
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+        <div className="px-6 py-4 border-t border-slate-200">
+          <Link
+            href="/admin/matching/mentor-assignment"
+            className="block text-center text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+          >
+            Assign Mentors
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

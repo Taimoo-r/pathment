@@ -87,29 +87,29 @@ export default function AdminDashboard() {
           const Icon = stat.icon;
           return (
             <div key={stat.label} className="bg-card rounded-2xl p-6 border border-border">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`w-12 h-12 bg-${stat.color}-100 rounded-xl flex items-center justify-center`}>
-                      <Icon className={`w-6 h-6 text-${stat.color}-600`} />
-                    </div>
-                    <span className="text-green-600 text-sm flex items-center gap-1">
-                      <ArrowUpRight className="w-4 h-4" />
-                      {stat.change}
-                    </span>
-                  </div>
-                  <div className="text-slate-600 text-sm mb-1">{stat.label}</div>
-                  <div className="text-slate-900 text-2xl">{stat.value}</div>
+              <div className="flex items-start justify-between mb-4">
+                <div className={`w-12 h-12 bg-${stat.color}-100 rounded-xl flex items-center justify-center`}>
+                  <Icon className={`w-6 h-6 text-${stat.color}-600`} />
                 </div>
-              );
-            })}
-          </div>
+                <span className="text-green-600 text-sm flex items-center gap-1">
+                  <ArrowUpRight className="w-4 h-4" />
+                  {stat.change}
+                </span>
+              </div>
+              <div className="text-slate-600 text-sm mb-1">{stat.label}</div>
+              <div className="text-slate-900 text-2xl">{stat.value}</div>
+            </div>
+          );
+        })}
+      </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-8">
             {/* Recent Programs */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-2xl border border-slate-200">
                 <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
                   <h2 className="text-slate-900">Active Programs</h2>
-                  <Link to="/admin/programs" className="text-indigo-600 hover:text-indigo-700 text-sm">
+                  <Link href="/admin/programs" className="text-indigo-600 hover:text-indigo-700 text-sm">
                     View all
                   </Link>
                 </div>
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
                   {recentPrograms.map((program) => (
                     <Link
                       key={program.id}
-                      to={`/admin/programs/${program.id}`}
+                      href={`/admin/programs/${program.id}`}
                       className="block px-6 py-4 hover:bg-slate-50 transition-colors"
                     >
                       <div className="flex items-start justify-between mb-3">
@@ -193,7 +193,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="px-6 py-4 border-t border-slate-200">
                   <Link
-                    to="/admin/mentors/assign"
+                    href="/admin/mentors/assign"
                     className="block text-center text-indigo-600 hover:text-indigo-700 text-sm"
                   >
                     Assign Mentors
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
                 <h3 className="text-slate-900 mb-4">Quick Actions</h3>
                 <div className="space-y-3">
                   <Link
-                    to="/admin/programs/create"
+                    href="/admin/programs/create"
                     className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
                   >
                     <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -215,7 +215,7 @@ export default function AdminDashboard() {
                     <span className="text-slate-700">Create Program</span>
                   </Link>
                   <Link
-                    to="/admin/mentors/assign"
+                    href="/admin/mentors/assign"
                     className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
                   >
                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
                     <span className="text-slate-700">Assign Mentors</span>
                   </Link>
                   <Link
-                    to="/admin/enrollments"
+                    href="/admin/enrollments"
                     className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
                   >
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -236,7 +236,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-        </div>
     </>
   );
 }

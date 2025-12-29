@@ -1,330 +1,274 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Sparkles, Users, TrendingUp, Award, ChevronRight, Check, X } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import Link from 'next/link';
+import { ArrowLeft, Search, Sparkles, Star, Users } from 'lucide-react';
 
 export default function MentorAssignment() {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState('1');
+  const [showAISuggestions, setShowAISuggestions] = useState(true);
 
-  const unassignedMentees = [
+  const programs = [
+    { id: '1', name: 'Full Stack Development Bootcamp', unmatched: 8 },
+    { id: '2', name: 'UI/UX Design Mastery', unmatched: 3 },
+    { id: '3', name: 'Data Science Fundamentals', unmatched: 5 },
+  ];
+
+  const unmatchedMentees = [
     {
       id: 1,
-      name: 'Alice Johnson',
-      program: 'Full Stack Web Development',
-      skills: ['JavaScript', 'React', 'Node.js'],
-      level: 'Beginner',
-      interests: ['Web Development', 'Mobile Apps'],
+      name: 'Alex Thompson',
+      program: 'Full Stack Development',
+      skills: ['JavaScript', 'React'],
+      joinedDays: 2,
+      background: 'Career switcher from marketing'
     },
     {
       id: 2,
-      name: 'Bob Williams',
-      program: 'Data Science Fundamentals',
-      skills: ['Python', 'Statistics'],
-      level: 'Intermediate',
-      interests: ['Machine Learning', 'Data Analysis'],
+      name: 'Maria Garcia',
+      program: 'Full Stack Development',
+      skills: ['Python', 'Backend'],
+      joinedDays: 1,
+      background: 'Computer Science graduate'
+    },
+    {
+      id: 3,
+      name: 'James Wilson',
+      program: 'Full Stack Development',
+      skills: ['HTML', 'CSS', 'JavaScript'],
+      joinedDays: 3,
+      background: 'Self-taught developer'
     },
   ];
 
   const availableMentors = [
     {
       id: 1,
-      name: 'John Smith',
-      expertise: ['JavaScript', 'React', 'Node.js', 'TypeScript'],
-      availability: 5,
-      maxMentees: 8,
+      name: 'Sarah Johnson',
+      expertise: ['React', 'Node.js', 'JavaScript'],
       currentMentees: 3,
-      rating: 4.8,
-      matchScore: 95,
+      maxMentees: 6,
+      rating: 4.9,
+      matchScore: 95
     },
     {
       id: 2,
-      name: 'Sarah Lee',
-      expertise: ['Python', 'Machine Learning', 'Data Science'],
-      availability: 3,
+      name: 'Michael Chen',
+      expertise: ['Python', 'Django', 'PostgreSQL'],
+      currentMentees: 4,
       maxMentees: 6,
-      currentMentees: 3,
-      rating: 4.9,
-      matchScore: 92,
+      rating: 4.8,
+      matchScore: 88
     },
     {
       id: 3,
-      name: 'Michael Chen',
-      expertise: ['JavaScript', 'React', 'UI/UX'],
-      availability: 4,
-      maxMentees: 7,
-      currentMentees: 3,
-      rating: 4.7,
-      matchScore: 88,
+      name: 'Emma Wilson',
+      expertise: ['Full Stack', 'React', 'TypeScript'],
+      currentMentees: 2,
+      maxMentees: 5,
+      rating: 4.9,
+      matchScore: 92
     },
   ];
 
-  const handleGenerateSuggestions = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      setSuggestions([
-        {
-          mentee: unassignedMentees[0],
-          recommendedMentor: availableMentors[0],
-          reasons: [
-            'Skills alignment: JavaScript, React, Node.js',
-            'Availability: 5 slots remaining',
-            'High success rate with beginner students',
-            'Similar project interests',
-          ],
-        },
-        {
-          mentee: unassignedMentees[1],
-          recommendedMentor: availableMentors[1],
-          reasons: [
-            'Expertise in Python and Data Science',
-            'Proven track record with intermediate students',
-            'Active in mentee\'s area of interest',
-            'Availability: 3 slots remaining',
-          ],
-        },
-      ]);
-      setIsGenerating(false);
-    }, 2000);
-  };
-
-  const handleAssign = (suggestionIndex: number) => {
-    const newSuggestions = [...suggestions];
-    newSuggestions.splice(suggestionIndex, 1);
-    setSuggestions(newSuggestions);
-  };
-
-  const handleReject = (suggestionIndex: number) => {
-    const newSuggestions = [...suggestions];
-    newSuggestions.splice(suggestionIndex, 1);
-    setSuggestions(newSuggestions);
-  };
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">AI Mentor Matching</h1>
-        <p className="text-muted-foreground mt-2">
-          Intelligent mentor-mentee assignment using AI-powered matching
-        </p>
+    <>
+      {/* Header */}
+      <div className="mb-8">
+        <Link
+          href="/admin/dashboard"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Dashboard
+        </Link>
+        <h1 className="text-slate-900 mb-2">Mentor Assignment</h1>
+        <p className="text-slate-600">Match mentees with mentors using AI-powered recommendations</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unassigned Mentees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unassignedMentees.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Awaiting mentor assignment</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Mentors</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{availableMentors.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">With capacity for new mentees</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Match Accuracy</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">94%</div>
-            <p className="text-xs text-muted-foreground mt-1">Average match score</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Generate Suggestions */}
-      {suggestions.length === 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Generate AI Suggestions</CardTitle>
-            <CardDescription>
-              Use AI to analyze skills, availability, and preferences for optimal matches
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleGenerateSuggestions}
-              disabled={isGenerating}
-              size="lg"
-              className="w-full"
+      {/* AI Matching Banner */}
+      {showAISuggestions && (
+        <div className="bg-linear-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-6 mb-8">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-indigo-900 mb-2">AI Matching Enabled</h2>
+              <p className="text-indigo-700 text-sm mb-4">
+                Our AI analyzes mentee backgrounds, skills, and learning goals to suggest the best mentor matches 
+                based on expertise, availability, and teaching style compatibility.
+              </p>
+              <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors">
+                Auto-Match All Pending
+              </button>
+            </div>
+            <button
+              onClick={() => setShowAISuggestions(false)}
+              className="text-indigo-600 hover:text-indigo-700"
             >
-              {isGenerating ? (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  Analyzing Matches...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Mentor Suggestions
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+              ✕
+            </button>
+          </div>
+        </div>
       )}
 
-      {/* AI Suggestions */}
-      {suggestions.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">AI Match Suggestions</h2>
-            <Button variant="outline" onClick={handleGenerateSuggestions}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Regenerate
-            </Button>
-          </div>
+      {/* Program Filter */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+        <label className="block text-slate-900 mb-3">Filter by Program</label>
+        <select
+          value={selectedProgram}
+          onChange={(e) => setSelectedProgram(e.target.value)}
+          className="w-full md:w-96 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        >
+          {programs.map((program) => (
+            <option key={program.id} value={program.id}>
+              {program.name} ({program.unmatched} unmatched)
+            </option>
+          ))}
+        </select>
+      </div>
 
-          {suggestions.map((suggestion, index) => (
-            <Card key={index} className="overflow-hidden">
-              <div className="grid md:grid-cols-2 gap-0">
-                {/* Mentee Info */}
-                <div className="p-6 border-r border-border">
-                  <div className="flex items-start gap-3 mb-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {suggestion.mentee.name.split(' ').map((n: string) => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{suggestion.mentee.name}</h3>
-                      <p className="text-sm text-muted-foreground">{suggestion.mentee.program}</p>
-                      <Badge variant="outline" className="mt-2">
-                        {suggestion.mentee.level}
-                      </Badge>
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Unmatched Mentees */}
+        <div>
+          <div className="bg-white rounded-2xl border border-slate-200">
+            <div className="px-6 py-5 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-slate-900">Pending Matches</h2>
+                <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-sm">
+                  {unmatchedMentees.length}
+                </span>
+              </div>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {unmatchedMentees.map((mentee) => (
+                <div key={mentee.id} className="p-6">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center shrink-0">
+                      <span className="text-slate-600">
+                        {mentee.name.split(' ').map(n => n[0]).join('')}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-slate-900 mb-1">{mentee.name}</h3>
+                      <p className="text-slate-600 text-sm mb-2">{mentee.background}</p>
+                      <div className="flex items-center gap-2 text-slate-500 text-xs mb-3">
+                        <span>Joined {mentee.joinedDays}d ago</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {mentee.skills.map((skill) => (
+                          <span key={skill} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-1">Skills</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {suggestion.mentee.skills.map((skill: string) => (
-                          <Badge key={skill} variant="secondary" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
+                  {/* AI Suggested Mentor */}
+                  <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span className="text-indigo-900 text-sm">AI Recommended Match</span>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-1">Interests</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {suggestion.mentee.interests.map((interest: string) => (
-                          <Badge key={interest} variant="outline" className="text-xs">
-                            {interest}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mentor Match */}
-                <div className="p-6 bg-accent/20">
-                  <div className="flex items-start gap-3 mb-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {suggestion.recommendedMentor.name.split(' ').map((n: string) => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">{suggestion.recommendedMentor.name}</h3>
-                        <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-                          {suggestion.recommendedMentor.matchScore}% Match
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <Award
-                              key={i}
-                              className={`h-3 w-3 ${
-                                i < Math.floor(suggestion.recommendedMentor.rating)
-                                  ? 'text-yellow-500 fill-yellow-500'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center">
+                          <span className="text-indigo-700 text-sm">SJ</span>
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          {suggestion.recommendedMentor.rating} rating
-                        </span>
+                        <div>
+                          <div className="text-slate-900 text-sm">Sarah Johnson</div>
+                          <div className="text-slate-600 text-xs">95% match</div>
+                        </div>
                       </div>
+                      <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors">
+                        Assign
+                      </button>
                     </div>
-                  </div>
-
-                  <div className="space-y-3 mb-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-1">Expertise</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {suggestion.recommendedMentor.expertise.map((skill: string) => (
-                          <Badge key={skill} variant="default" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-1">Availability</h4>
-                      <div className="flex items-center gap-2">
-                        <Progress
-                          value={(suggestion.recommendedMentor.currentMentees / suggestion.recommendedMentor.maxMentees) * 100}
-                          className="flex-1"
-                        />
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">
-                          {suggestion.recommendedMentor.currentMentees}/{suggestion.recommendedMentor.maxMentees}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-2">Match Reasons</h4>
-                      <ul className="space-y-1">
-                        {suggestion.reasons.map((reason: string, i: number) => (
-                          <li key={i} className="text-sm flex items-start gap-2">
-                            <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                            <span>{reason}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button onClick={() => handleAssign(index)} className="flex-1">
-                      <Check className="h-4 w-4 mr-2" />
-                      Assign Mentor
-                    </Button>
-                    <Button onClick={() => handleReject(index)} variant="outline">
-                      <X className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              ))}
+            </div>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Available Mentors */}
+        <div>
+          <div className="bg-white rounded-2xl border border-slate-200">
+            <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-slate-900">Available Mentors</h2>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {availableMentors.map((mentor) => (
+                <div key={mentor.id} className="p-6">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center shrink-0">
+                      <span className="text-purple-700">
+                        {mentor.name.split(' ').map(n => n[0]).join('')}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-slate-900">{mentor.name}</h3>
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <span className="text-slate-700 text-sm">{mentor.rating}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {mentor.expertise.map((skill) => (
+                          <span key={skill} className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-slate-600">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          {mentor.currentMentees}/{mentor.maxMentees} mentees
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Capacity Bar */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
+                      <span>Capacity</span>
+                      <span>{Math.round((mentor.currentMentees / mentor.maxMentees) * 100)}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          mentor.currentMentees / mentor.maxMentees < 0.7
+                            ? 'bg-green-500'
+                            : mentor.currentMentees / mentor.maxMentees < 0.9
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                        }`}
+                        style={{ width: `${(mentor.currentMentees / mentor.maxMentees) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <button className="w-full px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm transition-colors">
+                    View Profile
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
