@@ -4,6 +4,8 @@ const router = express.Router();
 const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
 const programRoutes = require('./programs');
+const levelRoutes = require('./levels');
+const roadmapRoutes = require('./roadmaps');
 
 /**
  * API Routes
@@ -24,8 +26,14 @@ router.use('/auth', authRoutes);
 // Admin routes (protected)
 router.use('/admin', adminRoutes);
 
-// Program routes
+// Program routes (includes nested level and roadmap routes)
 router.use('/programs', programRoutes);
+router.use('/programs', levelRoutes);
+router.use('/programs', roadmapRoutes);
+
+// Standalone level and roadmap routes
+router.use('/', levelRoutes);
+router.use('/', roadmapRoutes);
 
 // TODO: Add more route modules here
 // router.use('/users', userRoutes);

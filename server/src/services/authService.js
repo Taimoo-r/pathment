@@ -187,7 +187,7 @@ class AuthService {
       where: {
         token: refreshToken,
         userId: decoded.id,
-        isRevoked: false,
+        revokedAt: null,
         expiresAt: { [Op.gt]: new Date() }
       }
     });
@@ -218,7 +218,7 @@ class AuthService {
   async logout(refreshToken) {
     // Revoke refresh token
     await models.RefreshToken.update(
-      { isRevoked: true, revokedAt: new Date() },
+      { revokedAt: new Date() },
       { where: { token: refreshToken } }
     );
 

@@ -17,10 +17,12 @@ module.exports = {
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d'
   },
 
-  // OpenAI
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
-    model: process.env.OPENAI_MODEL || 'gpt-4'
+  // AI API (Groq/OpenAI)
+  ai: {
+    apiKey: process.env.AI_API_KEY || process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY || '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',
+    model: process.env.AI_MODEL || 'llama-3.1-8b-instant',
+    baseURL: process.env.AI_BASE_URL || 'https://api.groq.com/openai/v1',
+    provider: process.env.AI_PROVIDER || 'groq'
   },
 
   // Email

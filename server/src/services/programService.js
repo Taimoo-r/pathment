@@ -11,7 +11,7 @@ const {
 async function createAuditLog(logData) {
   try {
     if (models.AuditLog) {
-      await createAuditLog(logData);
+      await models.AuditLog.create(logData);
     }
   } catch (error) {
     console.warn('Audit log failed:', error.message);
@@ -134,6 +134,12 @@ class ProgramService {
           model: models.User,
           as: 'creator',
           attributes: ['id', 'firstName', 'lastName', 'email']
+        },
+        {
+          model: models.Enrollment,
+          as: 'enrollments',
+          attributes: ['id'],
+          required: false
         }
       ],
       limit,
@@ -142,8 +148,21 @@ class ProgramService {
       distinct: true
     });
 
+    // Add completion field to each program (default 0 for now)
+    const programsWithCompletion = rows.map(program => {
+      const programJSON = program.toJSON();
+      return {
+        ...programJSON,
+        completion: 0, // TODO: Calculate actual completion based on roadmap progress
+        _count: {
+          enrollments: program.enrollments?.length || 0,
+          mentors: 0 // TODO: Get mentor count from assignments
+        }
+      };
+    });
+
     return {
-      programs: rows,
+      programs: programsWithCompletion,
       pagination: {
         total: count,
         page: parseInt(page),
@@ -186,7 +205,16 @@ class ProgramService {
       throw new ForbiddenError('You do not have permission to view this program');
     }
 
-    return program;
+    // Add completion and counts
+    const programJSON = program.toJSON();
+    return {
+      ...programJSON,
+      completion: 0, // TODO: Calculate actual completion based on roadmap progress
+      _count: {
+        enrollments: program.enrollments?.length || 0,
+        mentors: 0 // TODO: Get mentor count from assignments
+      }
+    };
   }
 
   /**

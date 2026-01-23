@@ -1,6 +1,6 @@
 const { models } = require('../db');
-const { NotFoundError, ForbiddenError, BadRequestError } = require('../utils/errors/errorTypes');
-const openaiService = require('./openaiService');
+const { NotFoundError, ForbiddenError, ValidationError } = require('../utils/errors/errorTypes');
+const groqService = require('./groqService');
 
 class RoadmapService {
   /**
@@ -26,7 +26,7 @@ class RoadmapService {
     }
 
     // Generate roadmap using OpenAI
-    const roadmapData = await openaiService.generateRoadmap({
+    const roadmapData = await groqService.generateRoadmap({
       programName: program.name,
       programDescription: program.description,
       programType: program.type,
@@ -42,11 +42,12 @@ class RoadmapService {
     const roadmap = await models.Roadmap.create({
       programId,
       levelId,
+      name: `${level.name} - AI Generated Roadmap`,
+      description: `AI-generated learning roadmap for ${level.name} level of ${program.name}`,
       totalWeeks: roadmapData.totalWeeks,
-      generatedBy: 'ai',
-      aiModel: openaiService.model || 'gpt-4',
-      adaptationLevel: 'base',
-      promptVersion: '1.0'
+      generatedByAi: true,
+      aiModelVersion: groqService.model || 'llama-3.1-8b-instant',
+      isBaseRoadmap: true
     });
 
     // Create weeks and tasks
@@ -62,13 +63,13 @@ class RoadmapService {
       if (weekData.tasks && Array.isArray(weekData.tasks)) {
         for (const taskData of weekData.tasks) {
           await models.RoadmapTask.create({
-            weekId: week.id,
+            roadmapWeekId: week.id,
             title: taskData.title,
             description: taskData.description,
             type: taskData.type || 'exercise',
             difficulty: taskData.difficulty || 'medium',
             estimatedHours: taskData.estimatedHours || 5,
-            orderIndex: taskData.orderIndex || 1,
+            taskOrder: taskData.orderIndex || 1,
             acceptanceCriteria: taskData.acceptanceCriteria || [],
             deliverable: taskData.deliverable || 'Task completion'
           });
@@ -112,7 +113,7 @@ class RoadmapService {
         [
           { model: models.RoadmapWeek, as: 'weeks' },
           { model: models.RoadmapTask, as: 'tasks' },
-          'orderIndex',
+          'taskOrder',
           'ASC'
         ]
       ]
@@ -379,6 +380,356 @@ class RoadmapService {
     }
 
     return this.getRoadmapById(clonedRoadmap.id);
+  }
+
+  /**
+   * Create manual roadmap (non-AI)
+   */
+  async createRoadmap(programId, levelId, data, userId) {
+    // Get program and level
+    const program = await models.Program.findByPk(programId);
+    const level = await models.ProgramLevel.findByPk(levelId);
+
+    if (!program) {
+      throw new NotFoundError('Program not found');
+    }
+
+    if (!level || level.programId !== programId) {
+      throw new NotFoundError('Level not found in this program');
+    }
+
+    // Check permissions
+    if (program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to create roadmap');
+    }
+
+    // Create roadmap
+    const roadmap = await models.Roadmap.create({
+      programId,
+      levelId,
+      totalWeeks: data.totalWeeks,
+      generatedBy: data.generatedBy || 'manual',
+      adaptationLevel: 'base'
+    });
+
+    // Create weeks and tasks if provided
+    if (data.weeks && Array.isArray(data.weeks)) {
+      for (const weekData of data.weeks) {
+        const week = await models.RoadmapWeek.create({
+          roadmapId: roadmap.id,
+          weekNumber: weekData.weekNumber,
+          title: weekData.title,
+          objectives: weekData.objectives || [],
+          milestone: weekData.milestone || ''
+        });
+
+        if (weekData.tasks && Array.isArray(weekData.tasks)) {
+          for (const taskData of weekData.tasks) {
+            await models.RoadmapTask.create({
+              weekId: week.id,
+              title: taskData.title,
+              description: taskData.description,
+              type: taskData.type || 'exercise',
+              difficulty: taskData.difficulty || 'medium',
+              estimatedHours: taskData.estimatedHours || 5,
+              orderIndex: taskData.orderIndex || 1,
+              acceptanceCriteria: taskData.acceptanceCriteria || [],
+              deliverable: taskData.deliverable || 'Task completion'
+            });
+          }
+        }
+      }
+    }
+
+    return this.getRoadmapById(roadmap.id);
+  }
+
+  /**
+   * Get roadmap for a specific level
+   */
+  async getLevelRoadmap(programId, levelId) {
+    const roadmap = await models.Roadmap.findOne({
+      where: { programId, levelId },
+      include: [
+        {
+          model: models.Program,
+          as: 'program',
+          attributes: ['id', 'name', 'type', 'description']
+        },
+        {
+          model: models.ProgramLevel,
+          as: 'level',
+          attributes: ['id', 'name', 'durationWeeks', 'learningOutcomes']
+        },
+        {
+          model: models.RoadmapWeek,
+          as: 'weeks',
+          include: [
+            {
+              model: models.RoadmapTask,
+              as: 'tasks'
+            }
+          ],
+          order: [['weekNumber', 'ASC']]
+        }
+      ],
+      order: [
+        [{ model: models.RoadmapWeek, as: 'weeks' }, 'weekNumber', 'ASC'],
+        [
+          { model: models.RoadmapWeek, as: 'weeks' },
+          { model: models.RoadmapTask, as: 'tasks' },
+          'taskOrder',
+          'ASC'
+        ]
+      ]
+    });
+
+    if (!roadmap) {
+      throw new NotFoundError('Roadmap not found for this level');
+    }
+
+    return roadmap;
+  }
+
+  /**
+   * Update roadmap
+   */
+  async updateRoadmap(roadmapId, data, userId, userRole) {
+    const roadmap = await models.Roadmap.findByPk(roadmapId, {
+      include: [{ model: models.Program, as: 'program' }]
+    });
+
+    if (!roadmap) {
+      throw new NotFoundError('Roadmap not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to update this roadmap');
+    }
+
+    await roadmap.update(data);
+    return this.getRoadmapById(roadmapId);
+  }
+
+  /**
+   * Delete roadmap
+   */
+  async deleteRoadmap(roadmapId, userId, userRole) {
+    const roadmap = await models.Roadmap.findByPk(roadmapId, {
+      include: [{ model: models.Program, as: 'program' }]
+    });
+
+    if (!roadmap) {
+      throw new NotFoundError('Roadmap not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to delete this roadmap');
+    }
+
+    // Delete all associated weeks and tasks
+    const weeks = await models.RoadmapWeek.findAll({ where: { roadmapId } });
+    for (const week of weeks) {
+      await models.RoadmapTask.destroy({ where: { weekId: week.id } });
+      await week.destroy();
+    }
+
+    await roadmap.destroy();
+    return { message: 'Roadmap deleted successfully' };
+  }
+
+  /**
+   * Add week to roadmap
+   */
+  async addWeek(roadmapId, data, userId, userRole) {
+    const roadmap = await models.Roadmap.findByPk(roadmapId, {
+      include: [{ model: models.Program, as: 'program' }]
+    });
+
+    if (!roadmap) {
+      throw new NotFoundError('Roadmap not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to add weeks');
+    }
+
+    const week = await models.RoadmapWeek.create({
+      roadmapId,
+      ...data
+    });
+
+    return week;
+  }
+
+  /**
+   * Update week
+   */
+  async updateWeek(weekId, data, userId, userRole) {
+    const week = await models.RoadmapWeek.findByPk(weekId, {
+      include: [
+        {
+          model: models.Roadmap,
+          as: 'roadmap',
+          include: [{ model: models.Program, as: 'program' }]
+        }
+      ]
+    });
+
+    if (!week) {
+      throw new NotFoundError('Week not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && week.roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to update this week');
+    }
+
+    await week.update(data);
+    return week;
+  }
+
+  /**
+   * Delete week
+   */
+  async deleteWeek(weekId, userId, userRole) {
+    const week = await models.RoadmapWeek.findByPk(weekId, {
+      include: [
+        {
+          model: models.Roadmap,
+          as: 'roadmap',
+          include: [{ model: models.Program, as: 'program' }]
+        }
+      ]
+    });
+
+    if (!week) {
+      throw new NotFoundError('Week not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && week.roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to delete this week');
+    }
+
+    // Delete all tasks in this week
+    await models.RoadmapTask.destroy({ where: { weekId } });
+    await week.destroy();
+
+    return { message: 'Week deleted successfully' };
+  }
+
+  /**
+   * Add task to week
+   */
+  async addTask(weekId, data, userId, userRole) {
+    const week = await models.RoadmapWeek.findByPk(weekId, {
+      include: [
+        {
+          model: models.Roadmap,
+          as: 'roadmap',
+          include: [{ model: models.Program, as: 'program' }]
+        }
+      ]
+    });
+
+    if (!week) {
+      throw new NotFoundError('Week not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && week.roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to add tasks');
+    }
+
+    const task = await models.RoadmapTask.create({
+      weekId,
+      ...data
+    });
+
+    // Add resources if provided
+    if (data.resources && Array.isArray(data.resources)) {
+      for (const resourceData of data.resources) {
+        await models.TaskResource.create({
+          taskId: task.id,
+          ...resourceData
+        });
+      }
+    }
+
+    return task;
+  }
+
+  /**
+   * Update task
+   */
+  async updateTask(taskId, data, userId, userRole) {
+    const task = await models.RoadmapTask.findByPk(taskId, {
+      include: [
+        {
+          model: models.RoadmapWeek,
+          as: 'week',
+          include: [
+            {
+              model: models.Roadmap,
+              as: 'roadmap',
+              include: [{ model: models.Program, as: 'program' }]
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!task) {
+      throw new NotFoundError('Task not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && task.week.roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to update this task');
+    }
+
+    await task.update(data);
+    return task;
+  }
+
+  /**
+   * Delete task
+   */
+  async deleteTask(taskId, userId, userRole) {
+    const task = await models.RoadmapTask.findByPk(taskId, {
+      include: [
+        {
+          model: models.RoadmapWeek,
+          as: 'week',
+          include: [
+            {
+              model: models.Roadmap,
+              as: 'roadmap',
+              include: [{ model: models.Program, as: 'program' }]
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!task) {
+      throw new NotFoundError('Task not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && task.week.roadmap.program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to delete this task');
+    }
+
+    // Delete associated resources
+    await models.TaskResource.destroy({ where: { taskId } });
+    await task.destroy();
+
+    return { message: 'Task deleted successfully' };
   }
 }
 

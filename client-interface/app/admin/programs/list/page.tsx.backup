@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { 
   Search, 
@@ -12,57 +12,76 @@ import {
   MoreVertical,
   Eye,
   Edit,
-  Trash2,
-  Loader2
+  Trash2
 } from 'lucide-react';
-import { programManagementApi } from '@/lib/services/program-api';
-import { toast } from 'sonner';
 
 export default function ProgramListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy] = useState('name');
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPrograms();
-  }, []);
-
-  const fetchPrograms = async () => {
-    try {
-      setLoading(true);
-      const response = await programManagementApi.programs.getAll();
-      const programsList = response || response?.programs || [];
-      setPrograms(Array.isArray(programsList) ? programsList : []);
-    } catch (error) {
-      console.error('Failed to fetch programs:', error);
-      toast.error(error.response?.data?.message || 'Failed to load programs');
-      setPrograms([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
-
-    try {
-      await programManagementApi.programs.delete(id);
-      toast.success('Program deleted successfully');
-      fetchPrograms();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete program');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
+  const programs = [
+    {
+      id: 1,
+      name: 'Full Stack Development Bootcamp',
+      type: 'Bootcamp',
+      level: 'Intermediate',
+      enrollments: 45,
+      mentors: 8,
+      status: 'active',
+      startDate: '2024-01-15',
+      completion: 68,
+      tags: ['React', 'Node.js', 'PostgreSQL']
+    },
+    {
+      id: 2,
+      name: 'UI/UX Design Mastery',
+      type: 'Course',
+      level: 'Foundation',
+      enrollments: 32,
+      mentors: 5,
+      status: 'active',
+      startDate: '2024-01-20',
+      completion: 82,
+      tags: ['Figma', 'Design Systems', 'User Research']
+    },
+    {
+      id: 3,
+      name: 'Data Science Fundamentals',
+      type: 'Bootcamp',
+      level: 'Intermediate',
+      enrollments: 28,
+      mentors: 6,
+      status: 'active',
+      startDate: '2024-02-01',
+      completion: 45,
+      tags: ['Python', 'Machine Learning', 'Statistics']
+    },
+    {
+      id: 4,
+      name: 'Mobile App Development',
+      type: 'Course',
+      level: 'Advanced',
+      enrollments: 51,
+      mentors: 0,
+      status: 'draft',
+      startDate: '2024-03-01',
+      completion: 0,
+      tags: ['React Native', 'Flutter', 'iOS', 'Android']
+    },
+    {
+      id: 5,
+      name: 'DevOps Engineering',
+      type: 'Certification',
+      level: 'Advanced',
+      enrollments: 19,
+      mentors: 4,
+      status: 'completed',
+      startDate: '2023-11-01',
+      completion: 100,
+      tags: ['Docker', 'Kubernetes', 'CI/CD']
+    },
+  ];
 
   return (
     <>
@@ -173,42 +192,40 @@ export default function ProgramListPage() {
                 </div>
 
                 {/* Tags */}
-                {program.tags && program.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {program.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {program.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
 
                 {/* Progress */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1 max-w-xs h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-indigo-600 rounded-full"
-                      style={{ width: `${program.completion || 0}%` }}
+                      style={{ width: `${program.completion}%` }}
                     />
                   </div>
-                  <span className="text-sm text-slate-600">{program.completion || 0}%</span>
+                  <span className="text-sm text-slate-600">{program.completion}%</span>
                 </div>
               </div>
 
               {/* Stats */}
               <div className="flex items-center gap-6">
                 <div className="text-center">
-                  <div className="text-slate-900 text-2xl mb-1">{program._count?.enrollments || program.enrollments || 0}</div>
+                  <div className="text-slate-900 text-2xl mb-1">{program.enrollments}</div>
                   <div className="text-slate-600 text-sm flex items-center gap-1">
                     <Users className="w-4 h-4" />
                     Mentees
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-slate-900 text-2xl mb-1">{program._count?.mentors || program.mentors || 0}</div>
+                  <div className="text-slate-900 text-2xl mb-1">{program.mentors}</div>
                   <div className="text-slate-600 text-sm">Mentors</div>
                 </div>
 
@@ -232,10 +249,7 @@ export default function ProgramListPage() {
                       <Edit className="w-4 h-4" />
                       Edit Roadmap
                     </Link>
-                    <button 
-                      onClick={() => handleDelete(program.id, program.name)}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 w-full last:rounded-b-xl"
-                    >
+                    <button className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 w-full last:rounded-b-xl">
                       <Trash2 className="w-4 h-4" />
                       Delete Program
                     </button>

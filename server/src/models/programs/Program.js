@@ -66,7 +66,7 @@ module.exports = (sequelize, DataTypes) => {
       field: 'learning_outcomes'
     },
     prerequisites: {
-      type: DataTypes.TEXT
+      type: DataTypes.ARRAY(DataTypes.TEXT)
     },
     targetAudience: {
       type: DataTypes.TEXT,

@@ -31,26 +31,45 @@ class ApiClient {
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try to refresh token
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
           try {
             const refreshToken = this.getRefreshToken();
-            if (refreshToken) {
-              const response = await this.client.post(apiConfig.endpoints.refreshToken, {
-                refreshToken,
-              });
-
-              const { token } = response.data.data;
-              this.setToken(token);
-
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-              return this.client(originalRequest);
+            if (!refreshToken) {
+              // No refresh token, clear and redirect
+              this.clearTokens();
+              if (typeof window !== 'undefined') {
+                window.location.href = '/login';
+              }
+              return Promise.reject(error);
             }
+
+            // Try to refresh the token
+            const response = await axios.post(
+              `${apiConfig.baseUrl}${apiConfig.endpoints.refreshToken}`,
+              { refreshToken },
+              { headers: { 'Content-Type': 'application/json' } }
+            );
+
+            // Extract new token from response
+            const newToken = response.data?.data?.token || response.data?.token;
+            if (!newToken) {
+              throw new Error('No token in refresh response');
+            }
+
+            // Save new token and retry original request
+            this.setToken(newToken);
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return this.client(originalRequest);
           } catch (refreshError) {
+            // Refresh failed, clear tokens and redirect
+            console.error('Token refresh failed:', refreshError);
             this.clearTokens();
-            window.location.href = '/login';
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+            }
             return Promise.reject(refreshError);
           }
         }

@@ -78,7 +78,7 @@ export default function LoginPage() {
         )}
 
         {/* Demo Credentials */}
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+        {/* <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
           <p className="text-blue-900 text-sm mb-2">Demo Credentials:</p>
           <div className="text-blue-700 text-sm space-y-1">
             <p>• Admin: admin@pathment.com</p>
@@ -86,7 +86,7 @@ export default function LoginPage() {
             <p>• Mentee: mentee@pathment.com</p>
             <p className="text-blue-600 mt-2">Password: any text</p>
           </div>
-        </div>
+        </div> */}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email */}

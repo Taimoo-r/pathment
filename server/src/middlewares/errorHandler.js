@@ -69,6 +69,10 @@ const sendErrorProd = (err, res) => {
  * Global error handler middleware
  */
 const errorHandler = (err, req, res, next) => {
+  // Handle JWT errors first (both dev and prod)
+  if (err.name === 'JsonWebTokenError') err = handleJWTError();
+  if (err.name === 'TokenExpiredError') err = handleJWTExpiredError();
+  
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
@@ -82,8 +86,6 @@ const errorHandler = (err, req, res, next) => {
     if (err.name === 'SequelizeValidationError') error = handleSequelizeValidationError(err);
     if (err.name === 'SequelizeUniqueConstraintError') error = handleSequelizeUniqueConstraintError(err);
     if (err.name === 'SequelizeForeignKeyConstraintError') error = handleSequelizeForeignKeyConstraintError(err);
-    if (err.name === 'JsonWebTokenError') error = handleJWTError();
-    if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
 
     sendErrorProd(error, res);
   }

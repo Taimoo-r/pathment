@@ -100,12 +100,13 @@ const programValidation = {
         'string.max': 'Each outcome cannot exceed 500 characters'
       }),
 
-    prerequisites: Joi.string()
-      .max(2000)
+    prerequisites: Joi.array()
+      .items(Joi.string().max(200))
+      .max(10)
       .optional()
-      .allow('', null)
       .messages({
-        'string.max': 'Prerequisites cannot exceed 2000 characters'
+        'array.max': 'Cannot have more than 10 prerequisites',
+        'string.max': 'Each prerequisite cannot exceed 200 characters'
       }),
 
     targetAudience: Joi.string()

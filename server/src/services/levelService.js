@@ -18,8 +18,15 @@ class LevelService {
     }
 
     const level = await models.ProgramLevel.create({
-      ...data,
-      programId
+      programId,
+      name: data.name,
+      description: data.description,
+      levelOrder: data.orderIndex ?? data.levelOrder,
+      durationWeeks: data.durationWeeks,
+      learningOutcomes: data.learningOutcomes || [],
+      prerequisites: data.prerequisites || [],
+      targetAudience: data.targetAudience,
+      isOptional: data.isOptional
     });
 
     return level;
@@ -35,10 +42,10 @@ class LevelService {
         {
           model: models.Roadmap,
           as: 'roadmaps',
-          attributes: ['id', 'totalWeeks', 'generatedBy', 'adaptationLevel']
+          attributes: ['id', 'name', 'totalWeeks', 'generatedByAi', 'isBaseRoadmap']
         }
       ],
-      order: [['orderIndex', 'ASC']]
+      order: [['levelOrder', 'ASC']]
     });
 
     return levels;
@@ -194,6 +201,70 @@ class LevelService {
     });
 
     return assignments;
+  }
+
+  /**
+   * Get level by ID
+   */
+  async getLevelById(levelId) {
+    const level = await models.ProgramLevel.findByPk(levelId, {
+      include: [
+        {
+          model: models.Program,
+          as: 'program',
+          attributes: ['id', 'name', 'type', 'status']
+        },
+        {
+          model: models.Roadmap,
+          as: 'roadmaps',
+          attributes: ['id', 'totalWeeks', 'generatedBy', 'adaptationLevel']
+        }
+      ]
+    });
+
+    if (!level) {
+      throw new NotFoundError('Level not found');
+    }
+
+    return level;
+  }
+
+  /**
+   * Reorder levels
+   */
+  async reorderLevels(programId, levelIds, userId, userRole) {
+    const program = await models.Program.findByPk(programId);
+
+    if (!program) {
+      throw new NotFoundError('Program not found');
+    }
+
+    // Check permissions
+    if (userRole !== 'admin' && program.createdBy !== userId) {
+      throw new ForbiddenError('You do not have permission to reorder levels');
+    }
+
+    // Verify all level IDs belong to this program
+    const levels = await models.ProgramLevel.findAll({
+      where: {
+        id: levelIds,
+        programId
+      }
+    });
+
+    if (levels.length !== levelIds.length) {
+      throw new ValidationError('Some level IDs do not belong to this program');
+    }
+
+    // Update order indexes
+    for (let i = 0; i < levelIds.length; i++) {
+      await models.ProgramLevel.update(
+        { orderIndex: i },
+        { where: { id: levelIds[i] } }
+      );
+    }
+
+    return { message: 'Levels reordered successfully' };
   }
 }
 

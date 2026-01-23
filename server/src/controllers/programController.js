@@ -11,11 +11,11 @@ class ProgramController {
   createProgram = catchAsync(async (req, res) => {
     const program = await programService.createProgram(req.body, req.user.id);
 
-    return successResponse(res, {
-      message: 'Program created successfully',
-      statusCode: 201,
-      data: { program }
-    });
+    res.status(201).json(successResponse(
+      'Program created successfully',
+      { program },
+      201
+    ));
   });
 
   /**
@@ -30,11 +30,11 @@ class ProgramController {
       req.user?.role
     );
 
-    return paginatedResponse(res, {
-      message: 'Programs retrieved successfully',
-      data: result.programs,
-      pagination: result.pagination
-    });
+    res.status(200).json(paginatedResponse(
+      'Programs retrieved successfully',
+      result.programs,
+      result.pagination
+    ));
   });
 
   /**
@@ -49,10 +49,10 @@ class ProgramController {
       req.user?.role
     );
 
-    return successResponse(res, {
-      message: 'Program retrieved successfully',
-      data: { program }
-    });
+    res.status(200).json(successResponse(
+      'Program retrieved successfully',
+      { program }
+    ));
   });
 
   /**
@@ -68,10 +68,10 @@ class ProgramController {
       req.user.role
     );
 
-    return successResponse(res, {
-      message: 'Program updated successfully',
-      data: { program }
-    });
+    res.status(200).json(successResponse(
+      'Program updated successfully',
+      { program }
+    ));
   });
 
   /**
@@ -86,10 +86,9 @@ class ProgramController {
       req.user.role
     );
 
-    return successResponse(res, {
-      message: result.message,
-      statusCode: 200
-    });
+    res.status(200).json(successResponse(
+      result.message
+    ));
   });
 
   /**
@@ -103,11 +102,11 @@ class ProgramController {
       req.user.id
     );
 
-    return successResponse(res, {
-      message: 'Successfully enrolled in program',
-      statusCode: 201,
-      data: { enrollment }
-    });
+    res.status(201).json(successResponse(
+      'Successfully enrolled in program',
+      { enrollment },
+      201
+    ));
   });
 
   /**
@@ -122,10 +121,10 @@ class ProgramController {
       req.user.role
     );
 
-    return successResponse(res, {
-      message: 'Enrollments retrieved successfully',
-      data: { enrollments }
-    });
+    res.status(200).json(successResponse(
+      'Enrollments retrieved successfully',
+      { enrollments }
+    ));
   });
 
   /**
@@ -140,11 +139,11 @@ class ProgramController {
       req.body
     );
 
-    return successResponse(res, {
-      message: 'Program cloned successfully',
-      statusCode: 201,
-      data: { program }
-    });
+    res.status(201).json(successResponse(
+      'Program cloned successfully',
+      { program },
+      201
+    ));
   });
 
   /**
@@ -159,10 +158,10 @@ class ProgramController {
       req.user.role
     );
 
-    return successResponse(res, {
-      message: 'Program statistics retrieved successfully',
-      data: stats
-    });
+    res.status(200).json(successResponse(
+      'Program statistics retrieved successfully',
+      stats
+    ));
   });
 }
 

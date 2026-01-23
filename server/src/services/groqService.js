@@ -58,7 +58,7 @@ class GroqService {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert curriculum designer and educational content creator. You create structured, practical learning roadmaps for professional development programs. You ONLY respond with valid JSON, no additional text.'
+            content: 'You are an expert curriculum designer. You MUST respond with ONLY valid, properly escaped JSON. No markdown, no explanations, just pure JSON.'
           },
           {
             role: 'user',
@@ -66,23 +66,103 @@ class GroqService {
           }
         ],
         temperature: 0.7,
-        max_tokens: 4000
+        max_tokens: 8000
       });
 
       let content = response.choices[0].message.content.trim();
       
-      // Extract JSON if wrapped in markdown code blocks
-      const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-      if (jsonMatch) {
-        content = jsonMatch[1];
+      console.log('📥 Raw Groq response length:', content.length);
+      console.log('📥 First 200 chars:', content.substring(0, 200));
+      console.log('📥 Last 200 chars:', content.substring(content.length - 200));
+      
+      // Try multiple extraction methods
+      let jsonContent = content;
+      
+      // Method 1: Extract from markdown code blocks
+      const codeBlockMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (codeBlockMatch) {
+        console.log('✓ Extracted JSON from markdown code block');
+        jsonContent = codeBlockMatch[1];
       }
       
-      const roadmapData = JSON.parse(content);
+      // Method 2: Find first { to last }
+      const firstBrace = content.indexOf('{');
+      const lastBrace = content.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+        const extracted = content.substring(firstBrace, lastBrace + 1);
+        if (!codeBlockMatch) {
+          console.log('✓ Extracted JSON using brace matching');
+          jsonContent = extracted;
+        }
+      }
+      
+      // Clean up common JSON issues
+      jsonContent = this.sanitizeJSON(jsonContent);
+      
+      console.log('🔧 Cleaned JSON length:', jsonContent.length);
+      
+      let roadmapData;
+      try {
+        roadmapData = JSON.parse(jsonContent);
+        console.log('✓ JSON parsed successfully');
+      } catch (parseError) {
+        console.error('❌ JSON Parse Error:', parseError.message);
+        console.error('📄 Failed content (first 1000 chars):', jsonContent.substring(0, 1000));
+        console.error('📄 Around error position:', jsonContent.substring(Math.max(0, parseError.message.match(/\d+/)?.[0] - 100), parseError.message.match(/\d+/)?.[0] + 100));
+        console.error('📄 Failed content (last 500 chars):', jsonContent.substring(jsonContent.length - 500));
+        
+        // Try one more time with aggressive fixing
+        try {
+          const fixed = this.aggressiveJSONFix(jsonContent);
+          roadmapData = JSON.parse(fixed);
+          console.log('✓ JSON parsed after aggressive fix');
+        } catch (secondError) {
+          throw new Error(`JSON parsing failed: ${parseError.message}`);
+        }
+      }
+      
       return this.validateAndFormatRoadmap(roadmapData, levelDuration);
     } catch (error) {
-      console.error(`Groq API Error:`, error.message);
+      console.error(`❌ Groq API Error:`, error.message);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
       throw new ValidationError(`Failed to generate roadmap: ${error.message}`);
     }
+  }
+
+  /**
+   * Sanitize JSON content - fix common issues
+   */
+  sanitizeJSON(content) {
+    return content
+      .replace(/\r\n/g, ' ')   // Replace Windows line endings
+      .replace(/\n/g, ' ')     // Replace newlines with spaces
+      .replace(/\r/g, '')      // Remove carriage returns
+      .replace(/\t/g, ' ')     // Replace tabs with spaces
+      .replace(/\s+/g, ' ')    // Collapse multiple spaces
+      .replace(/,\s*}/g, '}')  // Remove trailing commas before }
+      .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
+      .trim();
+  }
+
+  /**
+   * Aggressive JSON fix - try to salvage malformed JSON
+   */
+  aggressiveJSONFix(content) {
+    let fixed = content;
+    
+    // Fix common issues
+    fixed = fixed
+      .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+      .replace(/([}\]])(\s*)([{[])/g, '$1,$2$3')  // Add missing commas between objects/arrays
+      .replace(/"([^"]*)"(\s*):/g, '"$1":')  // Ensure proper key formatting
+      .replace(/:\s*'([^']*)'/g, ':"$1"')  // Replace single quotes with double
+      .replace(/\\'/g, "'")  // Unescape single quotes
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');  // Remove control characters
+    
+    return fixed;
   }
 
   /**
@@ -142,32 +222,41 @@ Create a ${levelDuration}-week roadmap with:
 - expert: Advanced, requires deep understanding
 
 **Output Format (JSON):**
-Return ONLY valid JSON with this exact structure:
+You MUST return ONLY valid JSON. Do NOT include any markdown formatting, explanations, or extra text.
+Make sure all strings are properly escaped and there are no unterminated strings.
+
+Respond with this exact structure:
 {
   "totalWeeks": ${levelDuration},
   "weeks": [
     {
       "weekNumber": 1,
-      "title": "Week title",
-      "objectives": ["objective 1", "objective 2"],
+      "title": "Week title here",
+      "objectives": ["objective 1", "objective 2", "objective 3"],
       "milestone": "What learner should achieve by end of week",
       "tasks": [
         {
           "title": "Task title",
-          "description": "Detailed task description with what to do",
-          "type": "reading|video|exercise|project|quiz|discussion",
-          "difficulty": "easy|medium|hard|expert",
+          "description": "Detailed task description",
+          "type": "reading",
+          "difficulty": "medium",
           "estimatedHours": 5,
           "orderIndex": 1,
           "acceptanceCriteria": ["criteria 1", "criteria 2"],
-          "deliverable": "What to submit (e.g., GitHub link, written summary, screenshot)"
+          "deliverable": "What to submit"
         }
       ]
     }
   ]
 }
 
-IMPORTANT: Return ONLY the JSON object, no additional text or explanation.`;
+CRITICAL RULES:
+- Return ONLY the JSON object
+- NO markdown code blocks (no \`\`\`)
+- NO explanations before or after the JSON
+- Ensure all quotes are properly escaped
+- Make sure all strings are complete (no unterminated strings)
+- Keep descriptions concise (max 200 characters each)`;
   }
 
   /**

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Sparkles,
@@ -13,138 +13,56 @@ import {
   RotateCw,
   BookOpen,
   Link as LinkIcon,
-  GripVertical,
-  Loader2
+  GripVertical
 } from 'lucide-react';
-import { programManagementApi } from '@/lib/services/program-api';
-import { toast } from 'sonner';
 
 export default function RoadmapGenerator() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const id = params?.id as string;
-  const levelParam = searchParams.get('level');
-  
+  const id = params?.id;
   const [isGenerating, setIsGenerating] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [roadmap, setRoadmap] = useState<any[]>([]);
-  const [levels, setLevels] = useState<any[]>([]);
-  const [selectedLevelId, setSelectedLevelId] = useState<string>(levelParam || '');
+  const [roadmap, setRoadmap] = useState([
+    {
+      week: 1,
+      title: 'Web Fundamentals & Setup',
+      objectives: ['Understand HTML5 structure', 'Master CSS layouts', 'Setup development environment'],
+      tasks: [
+        {
+          id: 1,
+          title: 'Build a responsive landing page',
+          description: 'Create a fully responsive landing page using HTML5 and CSS3',
+          resources: ['MDN Web Docs', 'CSS-Tricks Flexbox Guide']
+        },
+        {
+          id: 2,
+          title: 'Setup Git and GitHub',
+          description: 'Initialize a Git repository and push to GitHub',
+          resources: ['GitHub Docs', 'Git Documentation']
+        }
+      ]
+    },
+    {
+      week: 2,
+      title: 'Modern JavaScript Essentials',
+      objectives: ['Master ES6+ features', 'Understand asynchronous programming', 'Work with APIs'],
+      tasks: [
+        {
+          id: 3,
+          title: 'Build a weather app with API integration',
+          description: 'Fetch data from a weather API and display it dynamically',
+          resources: ['JavaScript.info', 'OpenWeather API Docs']
+        }
+      ]
+    }
+  ]);
+
   const [editingWeek, setEditingWeek] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      fetchLevels();
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (selectedLevelId) {
-      fetchRoadmap();
-    }
-  }, [selectedLevelId]);
-
-  const fetchLevels = async () => {
-    try {
-      const response = await programManagementApi.levels.getByProgram(id);
-      const levelsList = response?.data?.levels || response?.levels || response || [];
-      const levelsArray = Array.isArray(levelsList) ? levelsList : [];
-      setLevels(levelsArray);
-      
-      // Use URL param if available, otherwise use first level
-      if (!selectedLevelId && levelsArray.length > 0) {
-        setSelectedLevelId(levelParam || levelsArray[0].id);
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch levels:', error);
-      toast.error('Failed to load levels');
-    }
-  };
-
-  const fetchRoadmap = async () => {
-    if (!selectedLevelId) return;
-    
-    try {
-      setLoading(true);
-      const response = await programManagementApi.roadmaps.getByLevel(id, selectedLevelId);
-      const roadmapData = response?.data?.roadmap || response?.roadmap || response;
-      
-      if (roadmapData?.weeks) {
-        const formattedWeeks = roadmapData.weeks.map((week: any) => ({
-          week: week.weekNumber,
-          title: week.title,
-          objectives: week.objectives || [],
-          tasks: (week.tasks || []).map((task: any) => ({
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            resources: task.resources || []
-          }))
-        }));
-        setRoadmap(formattedWeeks);
-      } else {
-        setRoadmap([]);
-      }
-    } catch (error: any) {
-      // 404 is expected when no roadmap exists for this level
-      if (error.response?.status === 404) {
-        setRoadmap([]);
-      } else {
-        console.error('Failed to fetch roadmap:', error);
-        toast.error('Failed to load roadmap');
-        setRoadmap([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateRoadmap = async () => {
-    if (!selectedLevelId) {
-      toast.error('Please select a level first');
-      return;
-    }
-
-    const confirmGenerate = confirm(
-      roadmap.length > 0
-        ? 'This will replace the existing roadmap. Continue?' 
-        : 'Generate AI roadmap for this level?'
-    );
-    
-    if (!confirmGenerate) return;
-
-    try {
-      setIsGenerating(true);
-      const response = await programManagementApi.roadmaps.generate(
-        id,
-        selectedLevelId,
-        'Generate a comprehensive roadmap with practical tasks and learning objectives'
-      );
-      
-      const newRoadmap = response?.data?.roadmap || response?.roadmap || response;
-      
-      if (newRoadmap?.weeks) {
-        const formattedWeeks = newRoadmap.weeks.map((week: any) => ({
-          week: week.weekNumber,
-          title: week.title,
-          objectives: week.objectives || [],
-          tasks: (week.tasks || []).map((task: any) => ({
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            resources: task.resources || []
-          }))
-        }));
-        setRoadmap(formattedWeeks);
-        toast.success('Roadmap generated successfully!');
-      }
-    } catch (error: any) {
-      console.error('Failed to generate roadmap:', error);
-      toast.error(error.response?.data?.message || 'Failed to generate roadmap');
-    } finally {
+  const handleGenerateRoadmap = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
       setIsGenerating(false);
-    }
+    }, 2000);
   };
 
   const addWeek = () => {
@@ -161,7 +79,7 @@ export default function RoadmapGenerator() {
   const addTask = (weekIndex: number) => {
     const newRoadmap = [...roadmap];
     const newTask = {
-      id: `temp-${Math.random()}`,
+      id: Math.random(),
       title: 'New Task',
       description: '',
       resources: []
@@ -169,22 +87,6 @@ export default function RoadmapGenerator() {
     newRoadmap[weekIndex].tasks.push(newTask);
     setRoadmap(newRoadmap);
   };
-
-  const handleLevelChange = (levelId: string) => {
-    setSelectedLevelId(levelId);
-    // Update URL with new level param
-    router.push(`/admin/programs/${id}/roadmap?level=${levelId}`);
-  };
-
-  const selectedLevel = levels.find(l => l.id === selectedLevelId);
-
-  if (loading && selectedLevelId) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
 
   return (
     <>
@@ -201,15 +103,13 @@ export default function RoadmapGenerator() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-slate-900 mb-2">AI Roadmap Generator</h1>
-            <p className="text-slate-600">
-              {selectedLevel ? selectedLevel.name : 'Select a level'}
-            </p>
+            <p className="text-slate-600">Full Stack Development Bootcamp</p>
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={handleGenerateRoadmap}
-              disabled={isGenerating || !selectedLevelId}
+              disabled={isGenerating}
               className="px-4 py-2 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-indigo-400 disabled:to-purple-400 text-white rounded-xl transition-colors flex items-center gap-2"
             >
               {isGenerating ? (
@@ -220,7 +120,7 @@ export default function RoadmapGenerator() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  {roadmap.length > 0 ? 'Regenerate with AI' : 'Generate with AI'}
+                  Regenerate with AI
                 </>
               )}
             </button>
@@ -234,33 +134,6 @@ export default function RoadmapGenerator() {
           </div>
         </div>
       </div>
-
-      {/* Level Selector */}
-      {levels.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-3">
-            Select Level
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {levels.map((level: any) => (
-              <button
-                key={level.id}
-                onClick={() => handleLevelChange(level.id)}
-                className={`p-4 border-2 rounded-xl transition-all text-left ${
-                  selectedLevelId === level.id
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-slate-200 hover:border-indigo-300'
-                }`}
-              >
-                <div className="font-medium text-slate-900">{level.name}</div>
-                <div className="text-sm text-slate-600 mt-1">
-                  {level.durationWeeks} weeks
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* AI Generation Info */}
       <div className="bg-linear-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-6 mb-8">
@@ -287,38 +160,9 @@ export default function RoadmapGenerator() {
         </div>
       </div>
 
-      {/* No Roadmap State */}
-      {roadmap.length === 0 && !loading && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-          <Sparkles className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">No Roadmap Yet</h2>
-          <p className="text-slate-600 mb-6">
-            Generate an AI-powered learning roadmap for this program to get started.
-          </p>
-          <button
-            onClick={handleGenerateRoadmap}
-            disabled={isGenerating}
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl transition-colors flex items-center gap-2 mx-auto"
-          >
-            {isGenerating ? (
-              <>
-                <RotateCw className="w-5 h-5 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                Generate AI Roadmap
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
       {/* Roadmap Editor */}
-      {roadmap.length > 0 && (
-        <div className="space-y-6">
-        {roadmap.map((week: any, weekIndex: number) => (
+      <div className="space-y-6">
+        {roadmap.map((week, weekIndex) => (
           <div key={week.week} className="bg-white rounded-2xl border border-slate-200">
             {/* Week Header */}
             <div className="p-6 border-b border-slate-200">
@@ -343,7 +187,7 @@ export default function RoadmapGenerator() {
                   <div className="mb-4">
                     <div className="text-slate-700 text-sm mb-2">Learning Objectives</div>
                     <div className="space-y-2">
-                      {week.objectives.map((objective: any, idx: number) => (
+                      {week.objectives.map((objective, idx) => (
                         <div key={idx} className="flex items-center gap-2 text-slate-600 text-sm">
                           <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />
                           {objective}
@@ -363,7 +207,7 @@ export default function RoadmapGenerator() {
 
             {/* Tasks */}
             <div className="p-6 space-y-4">
-              {week.tasks.map((task: any) => (
+              {week.tasks.map((task) => (
                 <div key={task.id} className="p-5 border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors">
                   <div className="flex items-start gap-4">
                     <div className="flex-1">
@@ -378,7 +222,7 @@ export default function RoadmapGenerator() {
                         <div className="ml-8">
                           <div className="text-slate-700 text-sm mb-2">Learning Resources</div>
                           <div className="space-y-1">
-                            {task.resources.map((resource: any, idx: number) => (
+                            {task.resources.map((resource, idx) => (
                               <div key={idx} className="flex items-center gap-2 text-indigo-600 text-sm">
                                 <LinkIcon className="w-4 h-4" />
                                 {resource}
@@ -420,8 +264,7 @@ export default function RoadmapGenerator() {
           <Plus className="w-5 h-5" />
           Add Week
         </button>
-        </div>
-      )}
+      </div>
 
       {/* Save Actions */}
       <div className="mt-8 flex justify-end gap-4">
