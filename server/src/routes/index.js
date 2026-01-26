@@ -10,6 +10,7 @@ const enrollmentRoutes = require('./enrollments');
 const matchingRoutes = require('./matching');
 const levelMentorRoutes = require('./levelMentors');
 const mentorRoutes = require('./mentors');
+const taskRoutes = require('./tasks');
 
 /**
  * API Routes
@@ -43,15 +44,18 @@ router.use('/', roadmapRoutes);
 router.use('/enrollments', enrollmentRoutes);
 router.use('/matches', matchingRoutes);
 
-// Level mentor assignment routes
-router.use('/', levelMentorRoutes);
-
 // Mentor routes
 router.use('/mentors', mentorRoutes);
 
+// Task routes
+router.use('/tasks', taskRoutes);
+
+// Level mentor assignment routes
+router.use('/', levelMentorRoutes);
+
+
 // TODO: Add more route modules here
 // router.use('/users', userRoutes);
-// router.use('/tasks', taskRoutes);
 // router.use('/notifications', notificationRoutes);
 
 module.exports = router;

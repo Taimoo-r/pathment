@@ -166,8 +166,20 @@ class MatchingService {
       where,
       include: [
         { model: models.User, as: 'mentor', attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: models.User, as: 'mentee', attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: models.Enrollment, as: 'enrollment' },
+        { 
+          model: models.User, 
+          as: 'mentee', 
+          attributes: ['id', 'firstName', 'lastName', 'email'],
+          include: [{ model: models.MenteeProfile, as: 'menteeProfile' }]
+        },
+        { 
+          model: models.Enrollment, 
+          as: 'enrollment',
+          include: [
+            { model: models.Program, as: 'program' },
+            { model: models.ProgramLevel, as: 'currentLevel' }
+          ]
+        },
         { model: models.ProgramLevel, as: 'level' }
       ],
       order: [['matchedAt', 'DESC']]

@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     roadmapWeekId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true, // Nullable for custom tasks
       field: 'roadmap_week_id'
     },
     title: {

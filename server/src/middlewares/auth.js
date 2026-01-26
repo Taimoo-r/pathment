@@ -43,10 +43,12 @@ const authenticate = catchAsync(async (req, res, next) => {
  */
 const authorize = (roles) => {
   return (req, res, next) => {
+    console.log('Authorize middleware - Roles allowed:', roles, 'User role:', req.user?.role);
+    
     if (!req.user) {
       throw new AuthenticationError('You must be logged in to access this resource');
     }
-
+    console.log('User is authenticated with role:', req.user.role);
     if (!roles.includes(req.user.role)) {
       throw new AuthorizationError(`This resource is only accessible to ${roles.join(', ')} users`);
     }

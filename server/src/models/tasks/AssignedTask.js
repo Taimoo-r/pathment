@@ -85,6 +85,21 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
       field: 'is_custom_task'
+    },
+    cancelledBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'cancelled_by'
+    },
+    cancelledAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'cancelled_at'
+    },
+    cancellationReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: 'cancellation_reason'
     }
   }, {
     tableName: 'assigned_tasks',

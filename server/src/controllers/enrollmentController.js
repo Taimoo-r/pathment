@@ -61,9 +61,21 @@ exports.updateEnrollmentStatus = catchAsync(async (req, res) => {
  */
 exports.approveEnrollment = catchAsync(async (req, res) => {
   const { id } = req.params;
+  const taskService = require('../services/taskService');
   
+  // Approve the enrollment
   const enrollment = await enrollmentService.updateEnrollmentStatus(id, 'approved', req.user.id, req.user.role);
-  res.status(200).json(successResponse('Enrollment approved successfully', { enrollment }));
+  
+  // Auto-assign Week 1 roadmap tasks to the mentee
+  try {
+    await taskService.autoAssignWeekTasks(id, 1);
+    console.log(`✓ Auto-assigned Week 1 tasks for enrollment ${id}`);
+  } catch (error) {
+    console.error(`Failed to auto-assign tasks for enrollment ${id}:`, error.message);
+    // Don't fail the approval if task assignment fails
+  }
+  
+  res.status(200).json(successResponse('Enrollment approved and Week 1 tasks assigned', { enrollment }));
 });
 
 /**

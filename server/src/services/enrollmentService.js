@@ -141,7 +141,7 @@ class EnrollmentService {
       throw new ForbiddenError('Not authorized to update this enrollment');
     }
 
-    const validStatuses = ['pending_match', 'matched', 'active', 'level_completed', 'program_completed', 'dropped'];
+    const validStatuses = ['pending_match', 'matched', 'active', 'approved', 'rejected', 'level_completed', 'program_completed', 'dropped'];
     if (!validStatuses.includes(status)) {
       throw new ValidationError('Invalid status');
     }
