@@ -199,15 +199,15 @@ export default function EnrollmentOverview() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {enrollment.mentor ? (
+                      {enrollment.matches?.[0]?.mentor ? (
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-purple-200 rounded-full flex items-center justify-center">
                             <span className="text-purple-700 text-xs">
-                              {enrollment.mentor.firstName?.[0]}{enrollment.mentor.lastName?.[0]}
+                              {enrollment.matches[0].mentor.firstName?.[0]}{enrollment.matches[0].mentor.lastName?.[0]}
                             </span>
                           </div>
                           <span className="text-slate-900 text-sm">
-                            {enrollment.mentor.firstName} {enrollment.mentor.lastName}
+                            {enrollment.matches[0].mentor.firstName} {enrollment.matches[0].mentor.lastName}
                           </span>
                         </div>
                       ) : (

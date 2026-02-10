@@ -109,6 +109,7 @@ module.exports = (sequelize, DataTypes) => {
     Enrollment.belongsTo(models.User, { foreignKey: 'mentee_id', as: 'mentee' });
     Enrollment.belongsTo(models.Program, { foreignKey: 'program_id', as: 'program' });
     Enrollment.belongsTo(models.ProgramLevel, { foreignKey: 'current_level_id', as: 'currentLevel' });
+    Enrollment.hasMany(models.MentorMenteeMatch, { foreignKey: 'enrollment_id', as: 'matches' });
   };
 
   return Enrollment;

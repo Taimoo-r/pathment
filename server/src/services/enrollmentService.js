@@ -34,6 +34,17 @@ class EnrollmentService {
           model: models.ProgramLevel,
           as: 'currentLevel',
           attributes: ['id', 'name', 'durationWeeks']
+        },
+        {
+          model: models.MentorMenteeMatch,
+          as: 'matches',
+          where: { status: 'active' },
+          required: false,
+          include: [{
+            model: models.User,
+            as: 'mentor',
+            attributes: ['id', 'firstName', 'lastName', 'email']
+          }]
         }
       ],
       limit,
