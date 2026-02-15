@@ -744,8 +744,9 @@ class TaskService {
 
   /**
    * Get roadmap tasks for a program level (for mentors to view and assign)
+   * If menteeId is provided, include assignment status for that mentee
    */
-  async getRoadmapTasks(programId, levelId) {
+  async getRoadmapTasks(programId, levelId, menteeId = null) {
     // Get the roadmap for this program/level
     const roadmap = await models.Roadmap.findOne({
       where: {
@@ -764,14 +765,43 @@ class TaskService {
               where: { isCustomTask: false },
               required: false
             }
-          ],
-          order: [['weekNumber', 'ASC']]
+          ]
         }
-      ]
+      ],
+      order: [[{ model: models.RoadmapWeek, as: 'weeks' }, 'weekNumber', 'ASC']]
     });
 
     if (!roadmap) {
       throw new NotFoundError('Roadmap not found for this program level');
+    }
+
+    // If menteeId is provided, check which tasks are already assigned to this mentee
+    if (menteeId && roadmap.weeks) {
+      for (const week of roadmap.weeks) {
+        if (week.tasks) {
+          for (const task of week.tasks) {
+            // Check if this roadmap task is assigned to the mentee
+            const assignedTask = await models.AssignedTask.findOne({
+              where: {
+                menteeId,
+                roadmapTaskId: task.id
+              },
+              attributes: ['id', 'status', 'submittedAt', 'completedAt']
+            });
+
+            // Add assignment status to the task object
+            task.dataValues.assignmentStatus = assignedTask ? {
+              isAssigned: true,
+              taskId: assignedTask.id,
+              status: assignedTask.status,
+              submittedAt: assignedTask.submittedAt,
+              completedAt: assignedTask.completedAt
+            } : {
+              isAssigned: false
+            };
+          }
+        }
+      }
     }
 
     return roadmap;

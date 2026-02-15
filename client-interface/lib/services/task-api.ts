@@ -59,8 +59,10 @@ export const taskApi = {
     apiClient.delete(`/tasks/${taskId}`),
 
   // Roadmap APIs
-  getRoadmapTasks: (programId: string, levelId: string) =>
-    apiClient.get(`/tasks/roadmap/program/${programId}/level/${levelId}`),
+  getRoadmapTasks: (programId: string, levelId: string, menteeId?: string) =>
+    apiClient.get(`/tasks/roadmap/program/${programId}/level/${levelId}`, {
+      params: menteeId ? { menteeId } : undefined
+    }),
 
   // Admin APIs
   autoAssignWeekTasks: (enrollmentId: string, weekNumber: number) =>

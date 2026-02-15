@@ -86,9 +86,9 @@ export default function MentorTasks() {
     }
   };
 
-  const fetchRoadmap = async (programId: string, levelId: string) => {
+  const fetchRoadmap = async (programId: string, levelId: string, menteeId?: string) => {
     try {
-      const response = await taskApi.getRoadmapTasks(programId, levelId);
+      const response = await taskApi.getRoadmapTasks(programId, levelId, menteeId);
       setRoadmapData(response.data.roadmap);
     } catch (error: any) {
       console.error('Failed to fetch roadmap:', error);
@@ -127,7 +127,15 @@ export default function MentorTasks() {
     setSelectedProgram(programId);
     setSelectedLevel(levelId);
     if (programId && levelId) {
-      fetchRoadmap(programId, levelId);
+      fetchRoadmap(programId, levelId, selectedMenteeForAssign);
+    }
+  };
+
+  // Re-fetch roadmap when mentee selection changes
+  const handleMenteeForAssignChange = (menteeId: string) => {
+    setSelectedMenteeForAssign(menteeId);
+    if (selectedProgram && selectedLevel) {
+      fetchRoadmap(selectedProgram, selectedLevel, menteeId);
     }
   };
 
@@ -215,6 +223,89 @@ export default function MentorTasks() {
       <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">Custom</span>
     ) : (
       <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">Roadmap</span>
+    );
+  };
+
+  const getTaskAssignmentButton = (task: any, weekNumber: number) => {
+    const assignmentStatus = task.assignmentStatus;
+    
+    if (!selectedMenteeForAssign) {
+      return (
+        <button
+          disabled
+          className="px-4 py-2 bg-slate-200 text-slate-400 cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+        >
+          Select a mentee first
+        </button>
+      );
+    }
+
+    if (!assignmentStatus || !assignmentStatus.isAssigned) {
+      // Task not assigned - show assign button
+      return (
+        <button
+          onClick={() => handleAssignRoadmapTask(task.id, weekNumber)}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          Assign to Mentee
+        </button>
+      );
+    }
+
+    // Task is assigned - show status-based button/badge
+    const { status, taskId } = assignmentStatus;
+    
+    if (status === 'completed') {
+      return (
+        <Link
+          href={`/mentor/tasks/${taskId}/feedback`}
+          className="px-4 py-2 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          Completed - View
+        </Link>
+      );
+    }
+
+    if (status === 'submitted') {
+      return (
+        <Link
+          href={`/mentor/tasks/${taskId}/feedback`}
+          className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+        >
+          <AlertCircle className="w-4 h-4" />
+          Awaiting Review
+        </Link>
+      );
+    }
+
+    if (status === 'revision_needed') {
+      return (
+        <Link
+          href={`/mentor/tasks/${taskId}/feedback`}
+          className="px-4 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+        >
+          <AlertCircle className="w-4 h-4" />
+          Needs Revision
+        </Link>
+      );
+    }
+
+    if (status === 'in_progress') {
+      return (
+        <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium inline-flex items-center gap-2">
+          <Clock className="w-4 h-4" />
+          In Progress
+        </div>
+      );
+    }
+
+    // Default: assigned but not started
+    return (
+      <div className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium inline-flex items-center gap-2">
+        <CheckCircle2 className="w-4 h-4" />
+        Already Assigned
+      </div>
     );
   };
 
@@ -606,7 +697,7 @@ export default function MentorTasks() {
                   <label className="block text-slate-700 text-sm mb-2">Select Mentee to Assign</label>
                   <select
                     value={selectedMenteeForAssign}
-                    onChange={(e) => setSelectedMenteeForAssign(e.target.value)}
+                    onChange={(e) => handleMenteeForAssignChange(e.target.value)}
                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Choose mentee...</option>
@@ -717,17 +808,7 @@ export default function MentorTasks() {
                                 </div>
                               )}
 
-                              <button
-                                onClick={() => handleAssignRoadmapTask(task.id, week.weekNumber)}
-                                disabled={!selectedMenteeForAssign}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                  selectedMenteeForAssign
-                                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                }`}
-                              >
-                                {selectedMenteeForAssign ? 'Assign to Mentee' : 'Select a mentee first'}
-                              </button>
+                              {getTaskAssignmentButton(task, week.weekNumber)}
                             </div>
                           ))
                         ) : (
