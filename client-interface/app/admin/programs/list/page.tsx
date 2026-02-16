@@ -56,6 +56,35 @@ export default function ProgramListPage() {
     }
   };
 
+  // Filter and sort programs
+  const filteredAndSortedPrograms = programs
+    .filter((program) => {
+      // Search filter
+      const matchesSearch = searchTerm === '' || 
+        program.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        program.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        program.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      // Status filter
+      const matchesStatus = filterStatus === 'all' || program.status === filterStatus;
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name?.localeCompare(b.name || '') || 0;
+        case 'enrollments':
+          return (b._count?.enrollments || 0) - (a._count?.enrollments || 0);
+        case 'startDate':
+          return new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime();
+        case 'completion':
+          return (b.completion || 0) - (a.completion || 0);
+        default:
+          return 0;
+      }
+    });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -105,7 +134,7 @@ export default function ProgramListPage() {
               className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none"
             >
               <option value="all">All Status</option>
-              <option value="active">Active</option>
+              <option value="published">Published</option>
               <option value="draft">Draft</option>
               <option value="completed">Completed</option>
             </select>
@@ -130,7 +159,12 @@ export default function ProgramListPage() {
 
       {/* Programs List */}
       <div className="space-y-4">
-        {programs.map((program) => (
+        {filteredAndSortedPrograms.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+            <p className="text-slate-500">No programs found matching your filters.</p>
+          </div>
+        ) : (
+          filteredAndSortedPrograms.map((program) => (
           <div
             key={program.id}
             className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow"
@@ -244,7 +278,8 @@ export default function ProgramListPage() {
               </div>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </>
   );
