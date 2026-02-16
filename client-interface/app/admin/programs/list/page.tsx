@@ -162,7 +162,7 @@ export default function ProgramListPage() {
                     <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
                       <span>{program.type}</span>
                       <span>•</span>
-                      <span>{program.level}</span>
+                      <span>{program.totalDurationWeeks} weeks</span>
                       <span>•</span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
