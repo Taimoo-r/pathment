@@ -1,4 +1,4 @@
-const { models } = require('../db');
+const { sequelize, models } = require('../db');
 const { NotFoundError, BadRequestError } = require('../utils/errors/errorTypes');
 
 /**
@@ -168,13 +168,47 @@ const getProgramMentorAssignments = async (programId) => {
     }]
   });
 
+  // Get mentee counts for all mentors in this program
+  const mentorIds = levels.flatMap(level => 
+    level.mentorAssignments?.map(a => a.mentorId) || []
+  );
+
+  const menteeCounts = {};
+  if (mentorIds.length > 0) {
+    const counts = await models.MentorMenteeMatch.findAll({
+      where: {
+        mentorId: mentorIds,
+        status: 'active'
+      },
+      attributes: [
+        'mentorId',
+        [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('mentee_id'))), 'menteeCount']
+      ],
+      group: ['mentorId'],
+      raw: true
+    });
+
+    counts.forEach((count) => {
+      menteeCounts[count.mentorId] = parseInt(count.menteeCount) || 0;
+    });
+  }
+
   return levels.map(level => ({
     level: {
       id: level.id,
       name: level.name,
       order: level.order
     },
-    mentors: level.mentorAssignments?.map(a => a.mentor) || []
+    mentors: level.mentorAssignments?.map(a => {
+      const mentor = a.mentor.toJSON();
+      return {
+        ...mentor,
+        mentorProfile: {
+          ...mentor.mentorProfile,
+          currentMenteeCount: menteeCounts[mentor.id] || 0
+        }
+      };
+    }) || []
   }));
 };
 

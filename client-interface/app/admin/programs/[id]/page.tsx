@@ -305,9 +305,9 @@ export default function ProgramDetails() {
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
               <Clock className="w-5 h-5 text-blue-600" />
             </div>
-            <span className="text-slate-600 text-sm">Duration</span>
+            <span className="text-slate-600 text-sm">Duration (Weeks)</span>
           </div>
-          <div className="text-slate-900 text-2xl">{program.duration || 'N/A'}</div>
+          <div className="text-slate-900 text-2xl">{program.totalDurationWeeks || 'N/A'}</div>
         </div>
       </div>
 
@@ -350,8 +350,8 @@ export default function ProgramDetails() {
                     <div className="text-slate-900">{program.type}</div>
                   </div>
                   <div>
-                    <div className="text-slate-600 text-sm mb-1">Level</div>
-                    <div className="text-slate-900">{program.level}</div>
+                    <div className="text-slate-600 text-sm mb-1">Hours Per Week</div>
+                    <div className="text-slate-900">{program.estimatedHoursPerWeek}</div>
                   </div>
                   <div>
                     <div className="text-slate-600 text-sm mb-1">Start Date</div>
