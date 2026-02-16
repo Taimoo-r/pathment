@@ -148,18 +148,33 @@ class ProgramService {
       distinct: true
     });
 
-    // Add completion field to each program (default 0 for now)
-    const programsWithCompletion = rows.map(program => {
+    // Add completion field and mentor count to each program
+    const programsWithCompletion = await Promise.all(rows.map(async program => {
       const programJSON = program.toJSON();
+      
+      // Count unique mentors assigned to any level of this program
+      const mentorCount = await models.LevelMentorAssignment.count({
+        distinct: true,
+        col: 'mentor_id',
+        where: { isActive: true },
+        include: [{
+          model: models.ProgramLevel,
+          as: 'level',
+          where: { programId: program.id },
+          attributes: [],
+          required: true
+        }]
+      });
+      
       return {
         ...programJSON,
         completion: 0, // TODO: Calculate actual completion based on roadmap progress
         _count: {
           enrollments: program.enrollments?.length || 0,
-          mentors: 0 // TODO: Get mentor count from assignments
+          mentors: mentorCount
         }
       };
-    });
+    }));
 
     return {
       programs: programsWithCompletion,
@@ -205,6 +220,20 @@ class ProgramService {
       throw new ForbiddenError('You do not have permission to view this program');
     }
 
+    // Count unique mentors assigned to any level of this program
+    const mentorCount = await models.LevelMentorAssignment.count({
+      distinct: true,
+      col: 'mentor_id',
+      where: { isActive: true },
+      include: [{
+        model: models.ProgramLevel,
+        as: 'level',
+        where: { programId: program.id },
+        attributes: [],
+        required: true
+      }]
+    });
+    
     // Add completion and counts
     const programJSON = program.toJSON();
     return {
@@ -212,7 +241,7 @@ class ProgramService {
       completion: 0, // TODO: Calculate actual completion based on roadmap progress
       _count: {
         enrollments: program.enrollments?.length || 0,
-        mentors: 0 // TODO: Get mentor count from assignments
+        mentors: mentorCount
       }
     };
   }
