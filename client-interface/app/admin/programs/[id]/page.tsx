@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -14,6 +14,8 @@ import {
   Circle,
   Sparkles,
   Share2,
+  Copy,
+  Link as LinkIcon,
   Loader2,
   RotateCw,
   BookOpen,
@@ -40,6 +42,27 @@ export default function ProgramDetails() {
   const [assignedMentors, setAssignedMentors] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
+        setShareOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success(`${label} copied to clipboard!`);
+      setShareOpen(false);
+    }).catch(() => {
+      toast.error('Failed to copy to clipboard');
+    });
+  };
 
   useEffect(() => {
     if (id) {
@@ -253,7 +276,7 @@ export default function ProgramDetails() {
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Link
               href={`/admin/programs/${id}/roadmap`}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors flex items-center gap-2"
@@ -261,9 +284,59 @@ export default function ProgramDetails() {
               <Edit className="w-4 h-4" />
               Edit Roadmap
             </Link>
-            <button className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors">
-              <Share2 className="w-4 h-4" />
-            </button>
+
+            {/* Share Button */}
+            <div className="relative" ref={shareRef}>
+              <button
+                onClick={() => setShareOpen(prev => !prev)}
+                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors flex items-center gap-2"
+              >
+                <Share2 className="w-4 h-4" />
+                Share
+              </button>
+
+              {shareOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <p className="text-sm font-medium text-slate-700">Share Program</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Copy a link to share this program</p>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={() => copyToClipboard(
+                        `${window.location.origin}/mentor/programs/${id}`,
+                        'Mentor program link'
+                      )}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 text-left transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <LinkIcon className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Mentor Program Link</p>
+                        <p className="text-xs text-slate-500">Share with assigned mentors</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => copyToClipboard(
+                        `${window.location.origin}/mentee/programs/${id}/enroll`,
+                        'Enrollment link'
+                      )}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 text-left transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Copy className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Enrollment Link</p>
+                        <p className="text-xs text-slate-500">Send to mentees to enroll</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

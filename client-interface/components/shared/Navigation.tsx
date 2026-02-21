@@ -37,6 +37,7 @@ export default function Navigation({ role }: NavigationProps) {
 
   const mentorLinks = [
     { path: '/mentor/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/mentor/programs', icon: BookOpen, label: 'My Programs' },
     { path: '/mentor/mentees', icon: Users, label: 'My Mentees' },
     { path: '/mentor/tasks', icon: ClipboardList, label: 'Tasks' },
   ];
