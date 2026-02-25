@@ -76,6 +76,13 @@ export default function TaskSubmission({ params }: PageProps) {
     fetchTask();
   }, [resolvedParams.id]);
 
+  // If task is completed or cancelled, redirect to the details page
+  useEffect(() => {
+    if (task && ['completed', 'cancelled', 'submitted'].includes(task.status)) {
+      router.replace(`/mentee/tasks/${resolvedParams.id}`);
+    }
+  }, [task, resolvedParams.id, router]);
+
   const addLink = () => {
     setLinks([...links, '']);
   };

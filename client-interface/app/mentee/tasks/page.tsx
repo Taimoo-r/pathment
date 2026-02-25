@@ -322,7 +322,7 @@ export default function MenteeTasks() {
 
                       {task.status === 'completed' && task.submissions?.[0]?.feedback?.[0] && (
                         <button
-                          onClick={() => toast.info('View feedback feature coming soon!')}
+                          onClick={() => router.push(`/mentee/tasks/${task.id}`)}
                           className="text-indigo-600 hover:underline text-sm"
                         >
                           View Feedback
@@ -331,7 +331,7 @@ export default function MenteeTasks() {
                       
                       {/* Always show a way to view task details */}
                       <button
-                        onClick={() => router.push(`/mentee/tasks/${task.id}/submit`)}
+                        onClick={() => router.push(`/mentee/tasks/${task.id}`)}
                         className="text-slate-600 hover:text-indigo-600 text-sm transition-colors"
                       >
                         View Details
