@@ -20,6 +20,7 @@ import {
   Award
 } from 'lucide-react';
 import { matchingApi } from '@/lib/services/enrollment-api';
+import { taskApi } from '@/lib/services/task-api';
 import { useAuth } from '@/lib/context/AuthContext';
 import { toast } from 'sonner';
 
@@ -30,6 +31,7 @@ export default function MenteeDetail() {
   const menteeId = params.id as string;
 
   const [match, setMatch] = useState<any>(null);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,6 +52,10 @@ export default function MenteeDetail() {
       if (matches.length > 0) {
         setMatch(matches[0]);
       }
+
+      // Fetch tasks assigned by this mentor to this mentee
+      const tasksRes = await taskApi.getMentorTasks(user!.id, { menteeId });
+      setTasks(tasksRes?.data?.tasks || []);
     } catch (error: any) {
       console.error('Failed to fetch mentee details:', error);
       toast.error('Failed to load mentee details');
@@ -163,7 +169,7 @@ export default function MenteeDetail() {
             </div>
           </div>
           <div className="text-slate-600 text-sm mb-1">Tasks Done</div>
-          <div className="text-slate-900 text-2xl">0</div>
+          <div className="text-slate-900 text-2xl">{enrollment?.tasksCompleted ?? 0}</div>
         </div>
 
         <div className="bg-white rounded-2xl p-6 border border-slate-200">
@@ -173,7 +179,11 @@ export default function MenteeDetail() {
             </div>
           </div>
           <div className="text-slate-600 text-sm mb-1">Avg Rating</div>
-          <div className="text-slate-900 text-2xl">-</div>
+          <div className="text-slate-900 text-2xl">
+            {enrollment?.avgTaskRating && parseFloat(enrollment.avgTaskRating) > 0
+              ? parseFloat(enrollment.avgTaskRating).toFixed(1)
+              : '-'}
+          </div>
         </div>
       </div>
 
@@ -216,7 +226,14 @@ export default function MenteeDetail() {
           {/* Tasks */}
           <div className="bg-white rounded-2xl border border-slate-200">
             <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-slate-900">Tasks</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-slate-900">Tasks</h2>
+                {tasks.length > 0 && (
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
+                    {tasks.length}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => router.push(`/mentor/tasks?tab=create&menteeId=${menteeId}&programId=${enrollment?.programId || ''}`)}
                 className="text-indigo-600 hover:text-indigo-700 text-sm flex items-center gap-1"
@@ -226,11 +243,42 @@ export default function MenteeDetail() {
               </button>
             </div>
             <div className="p-6">
-              <div className="text-center py-8">
-                <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-600 text-sm">No tasks yet</p>
-                <p className="text-slate-500 text-xs mt-1">Tasks will appear here when assigned</p>
-              </div>
+              {tasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600 text-sm">No tasks yet</p>
+                  <p className="text-slate-500 text-xs mt-1">Tasks will appear here when assigned</p>
+                </div>
+              ) : (
+                <div className="max-h-[480px] overflow-y-auto pr-1 space-y-3">
+                  {tasks.map((task: any) => (
+                    <div
+                      key={task.id}
+                      className="flex items-start justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-200 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/mentor/tasks/${task.id}`)}
+                    >
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-slate-900 text-sm font-medium truncate">
+                          {task.roadmapTask?.title || task.title}
+                        </p>
+                        <p className="text-slate-500 text-xs mt-1">
+                          {task.enrollment?.program?.name || 'Custom Task'}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs shrink-0 ${
+                        task.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        task.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
+                        task.status === 'pending_review' ? 'bg-yellow-100 text-yellow-700' :
+                        task.status === 'revision_needed' ? 'bg-orange-100 text-orange-700' :
+                        task.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>
+                        {task.status?.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
