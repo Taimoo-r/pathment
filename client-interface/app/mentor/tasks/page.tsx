@@ -842,17 +842,20 @@ export default function MentorTasks() {
                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Choose mentee...</option>
-                    {mentees
-                      .filter(m => 
-                        m.enrollment?.programId === selectedProgram && 
-                        m.enrollment?.currentLevelId === selectedLevel
-                      )
-                      .map((match) => (
-                        <option key={match.menteeId} value={match.menteeId}>
-                          {match.mentee?.firstName} {match.mentee?.lastName}
-                        </option>
-                      ))
-                    }
+                    {Array.from(
+                      new Map(
+                        mentees
+                          .filter(m =>
+                            m.enrollment?.programId === selectedProgram &&
+                            m.enrollment?.currentLevelId === selectedLevel
+                          )
+                          .map(m => [m.menteeId, m])
+                      ).values()
+                    ).map((match) => (
+                      <option key={match.menteeId} value={match.menteeId}>
+                        {match.mentee?.firstName} {match.mentee?.lastName}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -988,7 +991,7 @@ export default function MentorTasks() {
                   >
                     <option value="">Choose a mentee...</option>
                     {mentees.map((match) => (
-                      <option key={match.menteeId} value={match.menteeId}>
+                      <option key={`${match.menteeId}-${match.enrollment?.programId ?? match.enrollment?.program?.name}`} value={match.menteeId}>
                         {match.mentee?.firstName} {match.mentee?.lastName} - {match.enrollment?.program?.name}
                       </option>
                     ))}
