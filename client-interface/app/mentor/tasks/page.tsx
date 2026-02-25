@@ -611,6 +611,21 @@ export default function MentorTasks() {
                         </div>
                         <div className="flex items-center gap-2">
                           {getStatusBadge(task.status)}
+                          {(task.status === 'submitted' || task.status === 'revision_needed') ? (
+                            <button
+                              onClick={() => router.push(`/mentor/tasks/${task.id}/feedback`)}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                              Review
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => router.push(`/mentor/tasks/${task.id}`)}
+                              className="px-3 py-1.5 text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors cursor-pointer"
+                            >
+                              View Details
+                            </button>
+                          )}
                           {task.status !== 'completed' && task.status !== 'cancelled' && (
                             <button
                               onClick={() => setCancellingTask(task.id)}
