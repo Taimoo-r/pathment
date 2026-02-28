@@ -179,6 +179,7 @@ class ProgramService {
     return {
       programs: programsWithCompletion,
       pagination: {
+        totalItems: count,
         total: count,
         page: parseInt(page),
         limit: parseInt(limit),
