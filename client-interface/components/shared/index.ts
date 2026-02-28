@@ -1,0 +1,19 @@
+// Shared components barrel export
+export { DataTable } from './DataTable';
+export type { DataTableColumn, DataTableProps } from './DataTable';
+
+export { TablePagination } from './TablePagination';
+
+export { TableSkeleton } from './TableSkeleton';
+
+export { EmptyState } from './EmptyState';
+export type { EmptyStateProps, EmptyStateAction } from './EmptyState';
+
+export { ErrorState } from './ErrorState';
+
+// Pre-existing shared components
+export { default as FileUploader } from './FileUploader';
+export { default as Navigation } from './Navigation';
+export { default as OnboardingGuard } from './OnboardingGuard';
+export { RoleGuard } from './RoleGuard';
+export { default as RichTextEditor } from './RichTextEditor';
