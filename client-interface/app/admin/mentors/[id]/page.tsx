@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Mail, Building2, Briefcase, Star,
@@ -9,58 +7,8 @@ import {
   Linkedin, Github, Globe, AlertCircle, Loader2,
   UserCheck, BookOpen, ChevronRight,
 } from 'lucide-react';
-import { mentorApi } from '@/lib/services/enrollment-api';
-import { toast } from 'sonner';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface MentorProfile {
-  title?: string;
-  organization?: string;
-  yearsOfExperience?: number;
-  specialization?: string[];
-  linkedinUrl?: string;
-  githubUrl?: string;
-  portfolioUrl?: string;
-  maxMentees?: number;
-  currentMenteeCount?: number;
-  avgResponseTimeHours?: number;
-  totalMenteesGuided?: number;
-  successRate?: number;
-  avgFeedbackRating?: number;
-  totalTasksReviewed?: number;
-  isAcceptingMentees?: boolean;
-  preferredMenteeLevel?: string[];
-}
-
-interface Skill {
-  id: string;
-  name: string;
-  category?: string;
-  UserSkill?: { proficiencyLevel?: string };
-}
-
-interface ActiveMatch {
-  id: string;
-  mentee?: { id: string; firstName: string; lastName: string; email: string };
-  enrollment?: {
-    id: string;
-    status: string;
-    overallProgressPercentage?: number;
-    program?: { id: string; name: string };
-  };
-}
-
-interface Mentor {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  profilePictureUrl?: string;
-  createdAt: string;
-  mentorProfile?: MentorProfile;
-  skills?: Skill[];
-}
+import { useMentorProfile } from '@/lib/hooks/admin';
+import type { MentorSkill, MentorActiveMatch } from '@/lib/hooks/admin';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,29 +45,7 @@ function StatCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminMentorProfilePage() {
-  const { id } = useParams<{ id: string }>();
-  const [mentor, setMentor] = useState<Mentor | null>(null);
-  const [activeMatches, setActiveMatches] = useState<ActiveMatch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const response: any = await mentorApi.getById(id);
-        setMentor(response?.data?.mentor ?? response?.mentor ?? null);
-        setActiveMatches(response?.data?.activeMatches ?? []);
-      } catch (err: any) {
-        const msg = err?.response?.data?.message || 'Failed to load mentor profile';
-        setError(msg);
-        toast.error(msg);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [id]);
+  const { mentor, activeMatches, isLoading, error } = useMentorProfile();
 
   if (isLoading) {
     return (

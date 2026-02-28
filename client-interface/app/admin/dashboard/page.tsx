@@ -1,35 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, Loader2 } from 'lucide-react';
 import { DashboardStats } from '@/components/admin/dashboard/DashboardStats';
 import { QuickActions } from '@/components/admin/dashboard/QuickActions';
 import { RecentActivity } from '@/components/admin/dashboard/RecentActivity';
 import { ProgramListCard } from '@/components/admin/programs/ProgramListCard';
-import { adminApi } from '@/lib/services/admin-api';
-import { toast } from 'sonner';
+import { useDashboard } from '@/lib/hooks/admin';
 
 export default function AdminDashboardPage() {
-  const [dashboardData, setDashboardData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const response = await adminApi.dashboard.getStats();
-      setDashboardData(response);
-    } catch (error: any) {
-      console.error('Failed to fetch dashboard data:', error);
-      toast.error(error.response?.data?.message || 'Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { dashboardData, loading } = useDashboard();
 
   if (loading) {
     return (
@@ -55,10 +35,10 @@ export default function AdminDashboardPage() {
       </div>
 
       <DashboardStats stats={dashboardData?.stats} />
-      
+
       <div className="grid lg:grid-cols-3 gap-8">
         <ProgramListCard programs={dashboardData?.recentPrograms} />
-        
+
         <div className="space-y-6">
           <RecentActivity pendingMatches={dashboardData?.pendingMatches} />
           <QuickActions />

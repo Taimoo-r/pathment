@@ -1,141 +1,79 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/context/AuthContext';
-import { apiClient } from '@/lib/services/api-client';
-import { apiConfig } from '@/lib/config/api';
-import { toast } from 'sonner';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Settings2, 
-  Bell, 
+import { useState } from 'react';
+import {
+  User,
+  Settings2,
+  Bell,
   Shield,
-  Database,
   Users,
   Loader2,
-  Save
+  Save,
 } from 'lucide-react';
+import { useAdminSettings } from '@/lib/hooks/admin';
+
+const TABS = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'system', label: 'System', icon: Settings2 },
+  { id: 'users', label: 'User Management', icon: Users },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'security', label: 'Security', icon: Shield },
+];
+
+const NOTIFICATION_KEYS = [
+  { key: 'emailNotifications', label: 'Email Notifications', description: 'Receive notifications via email' },
+  { key: 'enrollmentAlerts', label: 'Enrollment Alerts', description: 'Get notified of new enrollment requests' },
+  { key: 'systemAlerts', label: 'System Alerts', description: 'Alerts about system issues or errors' },
+  { key: 'weeklyReports', label: 'Weekly Reports', description: 'Receive weekly platform statistics' },
+  { key: 'urgentIssues', label: 'Urgent Issues', description: 'Immediate alerts for critical issues' },
+] as const;
+
+function Toggle({
+  checked,
+  onChange,
+  danger = false,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  danger?: boolean;
+}) {
+  const ring = danger ? 'peer-focus:ring-red-300' : 'peer-focus:ring-indigo-300';
+  const bg = danger
+    ? 'bg-red-200 peer-checked:bg-red-600'
+    : 'bg-slate-200 peer-checked:bg-indigo-600';
+  return (
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only peer"
+      />
+      <div
+        className={`w-14 h-7 ${bg} peer-focus:outline-none peer-focus:ring-4 ${ring} rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all`}
+      />
+    </label>
+  );
+}
 
 export default function AdminSettings() {
-  const { user, refreshUser } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
-
-  // Profile State
-  const [profileData, setProfileData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    bio: ''
-  });
-
-  // System Settings
-  const [systemSettings, setSystemSettings] = useState({
-    autoApproveEnrollments: false,
-    allowSelfRegistration: true,
-    maintenanceMode: false,
-    requireEmailVerification: true,
-    maxProgramsPerMentee: 3
-  });
-
-  // User Management Settings
-  const [userManagementSettings, setUserManagementSettings] = useState({
-    allowMentorSelfAssignment: false,
-    requireMentorApproval: true,
-    autoMatchAlgorithm: true,
-    minMentorExperience: 2
-  });
-
-  // Notification State
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    enrollmentAlerts: true,
-    systemAlerts: true,
-    weeklyReports: true,
-    urgentIssues: true
-  });
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get(apiConfig.endpoints.profile);
-      const data = response.data;
-      
-      setProfileData({
-        firstName: data.firstName || '',
-        lastName: data.lastName || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        bio: data.bio || ''
-      });
-    } catch (error: any) {
-      console.error('Failed to fetch settings:', error);
-      toast.error('Failed to load settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleProfileUpdate = async () => {
-    try {
-      setSaving(true);
-      await apiClient.put(apiConfig.endpoints.profile, profileData);
-      await refreshUser();
-      toast.success('Profile updated successfully');
-    } catch (error: any) {
-      console.error('Failed to update profile:', error);
-      toast.error(error.response?.data?.message || 'Failed to update profile');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSystemSettingsUpdate = async () => {
-    try {
-      setSaving(true);
-      // TODO: Implement system settings API
-      toast.success('System settings updated successfully');
-    } catch (error: any) {
-      console.error('Failed to update system settings:', error);
-      toast.error('Failed to update system settings');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUserManagementUpdate = async () => {
-    try {
-      setSaving(true);
-      // TODO: Implement user management settings API
-      toast.success('User management settings updated successfully');
-    } catch (error: any) {
-      console.error('Failed to update user management:', error);
-      toast.error('Failed to update user management settings');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleNotificationUpdate = async () => {
-    try {
-      setSaving(true);
-      // TODO: Implement notification settings API
-      toast.success('Notification settings updated successfully');
-    } catch (error: any) {
-      console.error('Failed to update notifications:', error);
-      toast.error('Failed to update notification settings');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const {
+    loading,
+    saving,
+    profileData,
+    systemSettings,
+    userManagementSettings,
+    notificationSettings,
+    setProfileData,
+    setSystemSettings,
+    setUserManagementSettings,
+    setNotificationSettings,
+    handleProfileUpdate,
+    handleSystemSettingsUpdate,
+    handleUserManagementUpdate,
+    handleNotificationUpdate,
+  } = useAdminSettings();
 
   if (loading) {
     return (
@@ -145,13 +83,16 @@ export default function AdminSettings() {
     );
   }
 
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'system', label: 'System', icon: Settings2 },
-    { id: 'users', label: 'User Management', icon: Users },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'security', label: 'Security', icon: Shield }
-  ];
+  const SaveButton = ({ onClick, label = 'Save Changes' }: { onClick: () => void; label?: string }) => (
+    <button
+      onClick={onClick}
+      disabled={saving}
+      className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl transition-colors"
+    >
+      {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+      {label}
+    </button>
+  );
 
   return (
     <div className="space-y-6">
@@ -165,7 +106,7 @@ export default function AdminSettings() {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <div className="border-b border-slate-200 overflow-x-auto">
           <div className="flex">
-            {tabs.map((tab) => {
+            {TABS.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -244,14 +185,7 @@ export default function AdminSettings() {
                 />
               </div>
 
-              <button
-                onClick={handleProfileUpdate}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl transition-colors"
-              >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Save Changes
-              </button>
+              <SaveButton onClick={handleProfileUpdate} />
             </div>
           )}
 
@@ -367,14 +301,7 @@ export default function AdminSettings() {
                 </div>
               </div>
 
-              <button
-                onClick={handleSystemSettingsUpdate}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl transition-colors"
-              >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Save System Settings
-              </button>
+              <SaveButton onClick={handleSystemSettingsUpdate} label="Save System Settings" />
             </div>
           )}
 
@@ -469,14 +396,7 @@ export default function AdminSettings() {
                 </div>
               </div>
 
-              <button
-                onClick={handleUserManagementUpdate}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl transition-colors"
-              >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Save User Management Settings
-              </button>
+              <SaveButton onClick={handleUserManagementUpdate} label="Save User Management Settings" />
             </div>
           )}
 
@@ -517,14 +437,7 @@ export default function AdminSettings() {
                 ))}
               </div>
 
-              <button
-                onClick={handleNotificationUpdate}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl transition-colors"
-              >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Save Notification Settings
-              </button>
+              <SaveButton onClick={handleNotificationUpdate} label="Save Notification Settings" />
             </div>
           )}
 

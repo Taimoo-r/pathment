@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,488 +20,24 @@ import {
   Trash2
 } from 'lucide-react';
 import Link from 'next/link';
-import { useToast } from '@/components/ui/use-toast';
-import programManagementApi from '@/lib/services/program-api';
-import { getValidationErrors } from '@/lib/utils/validation';
-
-interface ProgramData {
-  name: string;
-  description: string;
-  type: string;
-  status: string;
-  totalDurationWeeks: number;
-  estimatedHoursPerWeek: number;
-  startDate: string;
-  endDate: string;
-  maxEnrollments: number | '';
-  tags: string[];
-  learningOutcomes: string[];
-  prerequisites: string[];
-  targetAudience: string;
-}
-
-interface LevelData {
-  name: string;
-  description: string;
-  orderIndex: number;
-  durationWeeks: number;
-  learningOutcomes: string[];
-  prerequisites: string[];
-  isOptional: boolean;
-}
+import { useProgramCreate } from '@/lib/hooks/admin';
 
 export default function CreateProgramFlow() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
-  
-  // Get program ID from URL if exists
-  const programIdFromUrl = searchParams.get('programId');
-  const stepFromUrl = searchParams.get('step');
-  
-  const [currentStep, setCurrentStep] = useState(stepFromUrl ? parseInt(stepFromUrl) : 1);
-  const [loading, setLoading] = useState(false);
-  const [createdProgramId, setCreatedProgramId] = useState<string | null>(programIdFromUrl);
-  const [createdLevels, setCreatedLevels] = useState<any[]>([]);
-
-  // Restore state on mount if URL has program ID
-  useEffect(() => {
-    if (programIdFromUrl && !createdProgramId) {
-      setCreatedProgramId(programIdFromUrl);
-      if (stepFromUrl) {
-        setCurrentStep(parseInt(stepFromUrl));
-      }
-    }
-  }, [programIdFromUrl, stepFromUrl]);
-
-  // Fetch levels when on step 2 or 3 and we have a program ID
-  useEffect(() => {
-    const fetchLevels = async () => {
-      if (createdProgramId && (currentStep === 2 || currentStep === 3) && createdLevels.length === 0) {
-        try {
-          setLoading(true);
-          const response = await programManagementApi.levels.getByProgram(createdProgramId);
-          // Response structure: { success, data: { levels: [...] } }
-          const levels = response?.levels || response;
-          setCreatedLevels(Array.isArray(levels) ? levels : []);
-        } catch (error: any) {
-          console.error('Failed to fetch levels:', error);
-          toast({
-            title: 'Warning',
-            description: 'Could not load existing levels',
-            variant: 'destructive',
-          });
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchLevels();
-  }, [createdProgramId, currentStep]);
-
-  // Step 1: Program Basic Info
-  const [programData, setProgramData] = useState<ProgramData>({
-    name: '',
-    description: '',
-    type: '',
-    status: 'draft',
-    totalDurationWeeks: 12,
-    estimatedHoursPerWeek: 10,
-    startDate: '',
-    endDate: '',
-    maxEnrollments: '',
-    tags: [],
-    learningOutcomes: [],
-    prerequisites: [],
-    targetAudience: '',
-  });
-
-  // Step 2: Program Levels
-  const [levels, setLevels] = useState<LevelData[]>([]);
-  const [editingLevelIndex, setEditingLevelIndex] = useState<number | null>(null);
-  const [editingLevelId, setEditingLevelId] = useState<string | null>(null);
-  const [currentLevel, setCurrentLevel] = useState<LevelData>({
-    name: '',
-    description: '',
-    orderIndex: 0,
-    durationWeeks: 4,
-    learningOutcomes: [],
-    prerequisites: [],
-    isOptional: false,
-  });
-
-  // Step 3: Roadmap Generation
-  const [selectedLevelForRoadmap, setSelectedLevelForRoadmap] = useState<number | null>(null);
-  const [roadmapInstructions, setRoadmapInstructions] = useState('');
-  const [generatingRoadmap, setGeneratingRoadmap] = useState(false);
-
-  // Input states for arrays
-  const [tagInput, setTagInput] = useState('');
-  const [outcomeInput, setOutcomeInput] = useState('');
-  const [prerequisiteInput, setPrerequisiteInput] = useState('');
-  const [levelOutcomeInput, setLevelOutcomeInput] = useState('');
-  const [levelPrerequisiteInput, setLevelPrerequisiteInput] = useState('');
-
-  // Step 1: Create Program
-  const handleCreateProgram = async () => {
-    try {
-      setLoading(true);
-
-      // Validation
-      if (!programData.name || !programData.description || !programData.type) {
-        toast({
-          title: 'Validation Error',
-          description: 'Please fill in all required fields',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const payload = {
-        ...programData,
-        maxEnrollments: programData.maxEnrollments === '' ? null : programData.maxEnrollments,
-        startDate: programData.startDate || undefined,
-        endDate: programData.endDate || undefined,
-      };
-
-      const response = await programManagementApi.programs.create(payload);
-      
-      // API returns: { success: true, message: '...', data: { program: {...} } }
-      const programId = response?.program?.id;
-      
-      if (!programId) {
-        throw new Error('Program ID not returned from API');
-      }
-      
-      setCreatedProgramId(programId);
-      
-      // Update URL with program ID and step
-      router.push(`/admin/programs/create?programId=${programId}&step=2`);
-      
-      toast({
-        title: 'Success!',
-        description: 'Program created successfully',
-      });
-
-      setCurrentStep(2);
-    } catch (error: any) {
-      console.log("🚀 ~ handleCreateProgram ~ error:", error)
-      toast({
-        title: error?.response?.data?.message || 'Failed to create program',
-        description: getValidationErrors(error),
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 2: Add or Update Level
-  const handleAddLevel = async () => {
-    if (!currentLevel.name || !currentLevel.durationWeeks) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill in level name and duration',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      if (editingLevelId) {
-        // Update existing level in backend
-        const response = await programManagementApi.levels.update(editingLevelId, currentLevel);
-        const updatedLevel = response.data?.level || response.level || response;
-        
-        // Update in createdLevels state
-        setCreatedLevels(createdLevels.map(level => 
-          level.id === editingLevelId ? updatedLevel : level
-        ));
-        
-        toast({
-          title: 'Success!',
-          description: 'Level updated successfully',
-        });
-      } else if (createdProgramId) {
-        // Save new level immediately to backend
-        const levelData = { ...currentLevel, orderIndex: createdLevels.length + levels.length };
-        const response = await programManagementApi.levels.create(createdProgramId, levelData);
-        const savedLevel = response.data?.level || response.level || response;
-        
-        setCreatedLevels([...createdLevels, savedLevel]);
-        
-        toast({
-          title: 'Success!',
-          description: 'Level added successfully',
-        });
-      } else {
-        // No program yet - add to local state (for initial flow)
-        if (editingLevelIndex !== null) {
-          const updatedLevels = [...levels];
-          updatedLevels[editingLevelIndex] = { ...currentLevel, orderIndex: editingLevelIndex };
-          setLevels(updatedLevels);
-        } else {
-          setLevels([...levels, { ...currentLevel, orderIndex: levels.length }]);
-        }
-      }
-
-      // Reset form
-      setCurrentLevel({
-        name: '',
-        description: '',
-        orderIndex: 0,
-        durationWeeks: 4,
-        learningOutcomes: [],
-        prerequisites: [],
-        isOptional: false,
-      });
-      setEditingLevelIndex(null);
-      setEditingLevelId(null);
-      setLevelOutcomeInput('');
-      setLevelPrerequisiteInput('');
-    } catch (error: any) {
-      console.error('Level save error:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to save level',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveLevel = async (index: number, levelId?: string) => {
-    if (levelId) {
-      // Delete from backend
-      try {
-        setLoading(true);
-        await programManagementApi.levels.delete(levelId);
-        setCreatedLevels(createdLevels.filter(level => level.id !== levelId));
-        toast({
-          title: 'Success!',
-          description: 'Level deleted successfully',
-        });
-      } catch (error: any) {
-        toast({
-          title: 'Error',
-          description: error.response?.data?.message || 'Failed to delete level',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // Remove from local state
-      setLevels(levels.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleEditLevel = (index: number, level: any, levelId?: string) => {
-    setCurrentLevel({
-      name: level.name,
-      description: level.description || '',
-      orderIndex: level.orderIndex || level.levelOrder || index,
-      durationWeeks: level.durationWeeks,
-      learningOutcomes: level.learningOutcomes || [],
-      prerequisites: level.prerequisites || [],
-      isOptional: level.isOptional || false,
-    });
-    setEditingLevelIndex(levelId ? null : index);
-    setEditingLevelId(levelId || null);
-    
-    // Scroll to form
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-  };
-
-  const handleCancelEdit = () => {
-    setCurrentLevel({
-      name: '',
-      description: '',
-      orderIndex: 0,
-      durationWeeks: 4,
-      learningOutcomes: [],
-      prerequisites: [],
-      isOptional: false,
-    });
-    setEditingLevelIndex(null);
-    setEditingLevelId(null);
-    setLevelOutcomeInput('');
-    setLevelPrerequisiteInput('');
-  };
-
-  const handleSaveLevels = async () => {
-    const totalLevels = createdLevels.length + levels.length;
-    
-    if (totalLevels === 0) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please add at least one level',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // If there are unsaved local levels, save them first
-    if (levels.length > 0 && createdProgramId) {
-      try {
-        setLoading(true);
-        const savedLevels = [];
-
-        for (const level of levels) {
-          const response = await programManagementApi.levels.create(createdProgramId, level);
-          const savedLevel = response.data?.level || response.level || response;
-          savedLevels.push(savedLevel);
-        }
-
-        setCreatedLevels([...createdLevels, ...savedLevels]);
-        setLevels([]);
-      } catch (error: any) {
-        console.error('Level save error:', error);
-        toast({
-          title: 'Error',
-          description: error.response?.data?.message || 'Failed to save levels',
-          variant: 'destructive',
-        });
-        setLoading(false);
-        return;
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // Navigate to next step
-    router.push(`/admin/programs/create?programId=${createdProgramId}&step=3`);
-    setCurrentStep(3);
-  };
-
-  // Step 3: Generate Roadmap
-  const handleGenerateRoadmap = async (levelIndex: number) => {
-    try {
-      setGeneratingRoadmap(true);
-      setSelectedLevelForRoadmap(levelIndex);
-
-      const level = createdLevels[levelIndex];
-      
-      if (!level || !level.id) {
-        throw new Error('Level ID is missing. Please refresh and try again.');
-      }
-      
-      const roadmap = await programManagementApi.roadmaps.generate(
-        createdProgramId!,
-        level.id,
-        roadmapInstructions
-      );
-
-      toast({
-        title: 'Success!',
-        description: `AI Roadmap generated for "${level.name}"`,
-      });
-
-      setRoadmapInstructions('');
-      setSelectedLevelForRoadmap(null);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || error.message || 'Failed to generate roadmap',
-        variant: 'destructive',
-      });
-    } finally {
-      setGeneratingRoadmap(false);
-    }
-  };
-
-  const handleFinish = () => {
-    toast({
-      title: 'Program Created Successfully! 🎉',
-      description: 'Your program is now ready',
-    });
-    router.push(`/admin/programs/${createdProgramId}`);
-  };
-
-  // Array helpers
-  const addTag = () => {
-    if (tagInput.trim() && !programData.tags.includes(tagInput.trim())) {
-      setProgramData({ ...programData, tags: [...programData.tags, tagInput.trim()] });
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (tag: string) => {
-    console.log('Removing tag:', tag);
-    setProgramData({ ...programData, tags: programData.tags.filter(t => t !== tag) });
-  };
-
-  const addOutcome = () => {
-    if (outcomeInput.trim() && !programData.learningOutcomes.includes(outcomeInput.trim())) {
-      setProgramData({ 
-        ...programData, 
-        learningOutcomes: [...programData.learningOutcomes, outcomeInput.trim()] 
-      });
-      setOutcomeInput('');
-    }
-  };
-
-  const removeOutcome = (outcome: string) => {
-    setProgramData({ 
-      ...programData, 
-      learningOutcomes: programData.learningOutcomes.filter(o => o !== outcome) 
-    });
-  };
-
-  const addPrerequisite = () => {
-    if (prerequisiteInput.trim() && !programData.prerequisites.includes(prerequisiteInput.trim())) {
-      setProgramData({ 
-        ...programData, 
-        prerequisites: [...programData.prerequisites, prerequisiteInput.trim()] 
-      });
-      setPrerequisiteInput('');
-    }
-  };
-
-  const removePrerequisite = (prereq: string) => {
-    setProgramData({ 
-      ...programData, 
-      prerequisites: programData.prerequisites.filter(p => p !== prereq) 
-    });
-  };
-
-  const addLevelOutcome = () => {
-    if (levelOutcomeInput.trim() && !currentLevel.learningOutcomes.includes(levelOutcomeInput.trim())) {
-      setCurrentLevel({ 
-        ...currentLevel, 
-        learningOutcomes: [...currentLevel.learningOutcomes, levelOutcomeInput.trim()] 
-      });
-      setLevelOutcomeInput('');
-    }
-  };
-
-  const removeLevelOutcome = (outcome: string) => {
-    setCurrentLevel({ 
-      ...currentLevel, 
-      learningOutcomes: currentLevel.learningOutcomes.filter(o => o !== outcome) 
-    });
-  };
-
-  const addLevelPrerequisite = () => {
-    if (levelPrerequisiteInput.trim() && !currentLevel.prerequisites.includes(levelPrerequisiteInput.trim())) {
-      setCurrentLevel({ 
-        ...currentLevel, 
-        prerequisites: [...currentLevel.prerequisites, levelPrerequisiteInput.trim()] 
-      });
-      setLevelPrerequisiteInput('');
-    }
-  };
-
-  const removeLevelPrerequisite = (prereq: string) => {
-    setCurrentLevel({ 
-      ...currentLevel, 
-      prerequisites: currentLevel.prerequisites.filter(p => p !== prereq) 
-    });
-  };
+  const {
+    currentStep, loading, createdProgramId, createdLevels,
+    programData, setProgramData,
+    tagInput, setTagInput, addTag, removeTag,
+    outcomeInput, setOutcomeInput, addOutcome, removeOutcome,
+    prerequisiteInput, setPrerequisiteInput, addPrerequisite, removePrerequisite,
+    handleCreateProgram,
+    levels, currentLevel, setCurrentLevel,
+    editingLevelIndex, editingLevelId,
+    levelOutcomeInput, setLevelOutcomeInput, addLevelOutcome, removeLevelOutcome,
+    levelPrerequisiteInput, setLevelPrerequisiteInput, addLevelPrerequisite, removeLevelPrerequisite,
+    handleAddLevel, handleRemoveLevel, handleEditLevel, handleCancelEdit, handleSaveLevels,
+    selectedLevelForRoadmap, roadmapInstructions, setRoadmapInstructions,
+    generatingRoadmap, handleGenerateRoadmap, handleFinish, goBack,
+  } = useProgramCreate();
 
   const steps = [
     { number: 1, title: 'Program Info', description: 'Basic details' },
@@ -554,7 +88,7 @@ export default function CreateProgramFlow() {
             </div>
             {index < steps.length - 1 && (
               <div
-                className={`h-1 w-20 mx-4 mt-[-32px] transition-all ${
+                className={`h-1 w-20 mx-4 -mt-8 transition-all ${
                   currentStep > step.number ? 'bg-primary' : 'bg-border'
                 }`}
               />
@@ -603,7 +137,7 @@ export default function CreateProgramFlow() {
           onRemoveLevel={handleRemoveLevel}
           onEditLevel={handleEditLevel}
           onCancelEdit={handleCancelEdit}
-          onBack={() => setCurrentStep(1)}
+          onBack={goBack}
           onNext={handleSaveLevels}
           loading={loading}
           editingLevelIndex={editingLevelIndex}
@@ -695,7 +229,7 @@ function ProgramBasicInfo({ programData, setProgramData, tagInput, setTagInput, 
               min="1"
               max="104"
               value={programData.totalDurationWeeks}
-              onChange={(e) => setProgramData({ ...programData, totalDurationWeeks: parseInt(e.target.value) })}
+              onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setProgramData({ ...programData, totalDurationWeeks: v }); }}
             />
           </div>
 
@@ -707,7 +241,7 @@ function ProgramBasicInfo({ programData, setProgramData, tagInput, setTagInput, 
               min="1"
               max="40"
               value={programData.estimatedHoursPerWeek}
-              onChange={(e) => setProgramData({ ...programData, estimatedHoursPerWeek: parseInt(e.target.value) })}
+              onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setProgramData({ ...programData, estimatedHoursPerWeek: v }); }}
             />
           </div>
 
@@ -739,7 +273,7 @@ function ProgramBasicInfo({ programData, setProgramData, tagInput, setTagInput, 
               min="1"
               placeholder="Leave empty for unlimited"
               value={programData.maxEnrollments}
-              onChange={(e) => setProgramData({ ...programData, maxEnrollments: e.target.value ? parseInt(e.target.value) : '' })}
+              onChange={(e) => { const v = parseInt(e.target.value, 10); setProgramData({ ...programData, maxEnrollments: e.target.value === '' ? '' : isNaN(v) || v < 1 ? programData.maxEnrollments : v }); }}
             />
           </div>
 
@@ -988,7 +522,7 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
                 min="1"
                 max="52"
                 value={currentLevel.durationWeeks}
-                onChange={(e) => setCurrentLevel({ ...currentLevel, durationWeeks: parseInt(e.target.value) })}
+                onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v > 0) setCurrentLevel({ ...currentLevel, durationWeeks: v }); }}
               />
             </div>
 

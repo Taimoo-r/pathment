@@ -8,6 +8,26 @@ import { useDebounce } from '@/lib/hooks/shared/useDebounce';
 
 const MENTOR_LIMIT = 10;
 
+interface MentorAssignmentProgram {
+  id: string;
+  name: string;
+}
+
+interface MentorAssignmentEnrollment {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface MentorAssignmentMentor {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface MentorAssignmentSuggestion {
+  id: string;
+  [key: string]: unknown;
+}
+
 export interface UseMentorAssignmentReturn {
   // programs
   programs: any[];

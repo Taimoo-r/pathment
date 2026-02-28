@@ -78,6 +78,7 @@ const programValidation = {
       .integer()
       .min(1)
       .optional()
+      .allow(null)
       .messages({
         'number.min': 'Max enrollments must be at least 1'
       }),
@@ -192,6 +193,7 @@ const programValidation = {
       .integer()
       .min(1)
       .optional()
+      .allow(null)
       .messages({
         'number.min': 'Max enrollments must be at least 1'
       }),

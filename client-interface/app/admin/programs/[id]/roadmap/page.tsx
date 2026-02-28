@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Sparkles,
@@ -17,319 +15,20 @@ import {
   GripVertical,
   Loader2
 } from 'lucide-react';
-import { programManagementApi } from '@/lib/services/program-api';
-import { toast } from 'sonner';
+import { useProgramRoadmap } from '@/lib/hooks/admin';
 
 export default function RoadmapGenerator() {
-  const params = useParams();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const id = params?.id as string;
-  const levelParam = searchParams.get('level');
-  
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [roadmap, setRoadmap] = useState<any[]>([]);
-  const [roadmapId, setRoadmapId] = useState<string>('');
-  const [levels, setLevels] = useState<any[]>([]);
-  const [selectedLevelId, setSelectedLevelId] = useState<string>(levelParam || '');
-  const [editingWeek, setEditingWeek] = useState<number | null>(null);
-  const [taskModal, setTaskModal] = useState<{
-    mode: 'add' | 'edit';
-    weekId: string;
-    weekNumber: number;
-    task?: any;
-  } | null>(null);
-  const [taskForm, setTaskForm] = useState({
-    title: '',
-    description: '',
-    deliverable: '',
-    taskOrder: 1,
-    type: 'exercise',
-    difficulty: 'medium',
-    weekId: '',
-  });
-  const [savingTask, setSavingTask] = useState(false);
-  const [weekModal, setWeekModal] = useState<{
-    mode: 'add' | 'edit';
-    week?: any;
-  } | null>(null);
-  const [weekForm, setWeekForm] = useState({
-    title: '',
-    objectives: [] as string[],
-    objectiveInput: '',
-  });
-  const [savingWeek, setSavingWeek] = useState(false);
-
-  useEffect(() => {
-    if (id) {
-      fetchLevels();
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (selectedLevelId) {
-      fetchRoadmap();
-    }
-  }, [selectedLevelId]);
-
-  const fetchLevels = async () => {
-    try {
-      const response = await programManagementApi.levels.getByProgram(id);
-      const levelsList = response?.data?.levels || response?.levels || response || [];
-      const levelsArray = Array.isArray(levelsList) ? levelsList : [];
-      setLevels(levelsArray);
-      
-      // Use URL param if available, otherwise use first level
-      if (!selectedLevelId && levelsArray.length > 0) {
-        setSelectedLevelId(levelParam || levelsArray[0].id);
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch levels:', error);
-      toast.error('Failed to load levels');
-    }
-  };
-
-  const fetchRoadmap = async () => {
-    if (!selectedLevelId) return;
-    
-    try {
-      setLoading(true);
-      const response = await programManagementApi.roadmaps.getByLevel(id, selectedLevelId);
-      const roadmapData = response?.data?.roadmap || response?.roadmap || response;
-      
-      if (roadmapData?.weeks) {
-        setRoadmapId(roadmapData.id);
-        const formattedWeeks = roadmapData.weeks.map((week: any) => ({
-          id: week.id,
-          week: week.weekNumber,
-          title: week.title,
-          objectives: week.objectives || [],
-          tasks: (week.tasks || []).map((task: any) => ({
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            deliverable: task.deliverable || '',
-            taskOrder: task.taskOrder || 1,
-            type: task.type || 'exercise',
-            difficulty: task.difficulty || 'medium',
-            resources: task.resources || []
-          }))
-        }));
-        setRoadmap(formattedWeeks);
-      } else {
-        setRoadmapId('');
-        setRoadmap([]);
-      }
-    } catch (error: any) {
-      // 404 is expected when no roadmap exists for this level
-      if (error.response?.status === 404) {
-        setRoadmapId('');
-        setRoadmap([]);
-      } else {
-        console.error('Failed to fetch roadmap:', error);
-        toast.error('Failed to load roadmap');
-        setRoadmapId('');
-        setRoadmap([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateRoadmap = async () => {
-    if (!selectedLevelId) {
-      toast.error('Please select a level first');
-      return;
-    }
-
-    const confirmGenerate = confirm(
-      roadmap.length > 0
-        ? 'This will replace the existing roadmap. Continue?' 
-        : 'Generate AI roadmap for this level?'
-    );
-    
-    if (!confirmGenerate) return;
-
-    try {
-      setIsGenerating(true);
-      const response = await programManagementApi.roadmaps.generate(
-        id,
-        selectedLevelId,
-        'Generate a comprehensive roadmap with practical tasks and learning objectives'
-      );
-      
-      const newRoadmap = response?.data?.roadmap || response?.roadmap || response;
-      
-      if (newRoadmap?.weeks) {
-        const formattedWeeks = newRoadmap.weeks.map((week: any) => ({
-          week: week.weekNumber,
-          title: week.title,
-          objectives: week.objectives || [],
-          tasks: (week.tasks || []).map((task: any) => ({
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            deliverable: task.deliverable || '',
-            taskOrder: task.taskOrder || 1,
-            type: task.type || 'exercise',
-            difficulty: task.difficulty || 'medium',
-            resources: task.resources || []
-          }))
-        }));
-        setRoadmap(formattedWeeks);
-        toast.success('Roadmap generated successfully!');
-      }
-    } catch (error: any) {
-      console.error('Failed to generate roadmap:', error);
-      toast.error(error.response?.data?.message || 'Failed to generate roadmap');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const openAddWeekModal = () => {
-    if (!roadmapId) {
-      toast.error('Roadmap not found. Please generate a roadmap first.');
-      return;
-    }
-    setWeekForm({ title: `Week ${roadmap.length + 1}`, objectives: [], objectiveInput: '' });
-    setWeekModal({ mode: 'add' });
-  };
-
-  const openEditWeek = (week: any) => {
-    setWeekForm({ title: week.title, objectives: [...(week.objectives || [])], objectiveInput: '' });
-    setWeekModal({ mode: 'edit', week });
-  };
-
-  const handleSaveWeek = async () => {
-    if (!weekForm.title.trim()) {
-      toast.error('Week title is required');
-      return;
-    }
-    setSavingWeek(true);
-    try {
-      const payload = {
-        title: weekForm.title.trim(),
-        objectives: weekForm.objectives,
-      };
-      if (weekModal?.mode === 'add') {
-        const newWeekData = { weekNumber: roadmap.length + 1, ...payload };
-        await programManagementApi.roadmaps.addWeek(roadmapId, newWeekData);
-        toast.success('Week added successfully');
-      } else if (weekModal?.mode === 'edit' && weekModal.week?.id) {
-        await programManagementApi.roadmaps.updateWeek(weekModal.week.id, payload);
-        toast.success('Week updated successfully');
-      }
-      setWeekModal(null);
-      await fetchRoadmap();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save week');
-    } finally {
-      setSavingWeek(false);
-    }
-  };
-
-  const openAddTask = (weekId: string, weekNumber: number, taskCount: number) => {
-    setTaskForm({ title: '', description: '', deliverable: '', taskOrder: taskCount + 1, type: 'exercise', difficulty: 'medium', weekId });
-    setTaskModal({ mode: 'add', weekId, weekNumber });
-  };
-
-  const openEditTask = (task: any, weekId: string, weekNumber: number) => {
-    setTaskForm({
-      title: task.title,
-      description: task.description,
-      deliverable: task.deliverable || '',
-      taskOrder: task.taskOrder || 1,
-      type: task.type || 'exercise',
-      difficulty: task.difficulty || 'medium',
-      weekId,
-    });
-    setTaskModal({ mode: 'edit', weekId, weekNumber, task });
-  };
-
-  const handleSaveTask = async () => {
-    if (!taskForm.title.trim() || !taskForm.description.trim() || !taskForm.deliverable.trim()) {
-      toast.error('Title, description and deliverable are required');
-      return;
-    }
-    setSavingTask(true);
-    try {
-      const payload = {
-        title: taskForm.title.trim(),
-        description: taskForm.description.trim(),
-        deliverable: taskForm.deliverable.trim(),
-        taskOrder: taskForm.taskOrder,
-        type: taskForm.type,
-        difficulty: taskForm.difficulty,
-      };
-      if (taskModal?.mode === 'add') {
-        await programManagementApi.roadmaps.addTask(taskForm.weekId, payload);
-        toast.success('Task added successfully');
-      } else if (taskModal?.mode === 'edit' && taskModal.task) {
-        const updatePayload: any = { ...payload };
-        if (taskForm.weekId !== taskModal.weekId) {
-          updatePayload.roadmapWeekId = taskForm.weekId;
-        }
-        await programManagementApi.roadmaps.updateTask(taskModal.task.id, updatePayload);
-        toast.success('Task updated successfully');
-      }
-      setTaskModal(null);
-      await fetchRoadmap();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save task');
-    } finally {
-      setSavingTask(false);
-    }
-  };
-
-  const deleteTask = async (taskId: string) => {
-    const confirmDelete = confirm('Are you sure you want to delete this task?');
-    if (!confirmDelete) return;
-
-    try {
-      await programManagementApi.roadmaps.deleteTask(taskId);
-      toast.success('Task deleted successfully');
-      await fetchRoadmap(); // Refresh to get updated data
-    } catch (error: any) {
-      console.error('Failed to delete task:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete task');
-    }
-  };
-
-
-  const deleteWeek = async (weekId: string) => {
-    const confirmDelete = confirm('Are you sure you want to delete this week and all its tasks?');
-    if (!confirmDelete) return;
-
-    try {
-      await programManagementApi.roadmaps.deleteWeek(weekId);
-      toast.success('Week deleted successfully');
-      await fetchRoadmap(); // Refresh to get updated data
-    } catch (error: any) {
-      console.error('Failed to delete week:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete week');
-    }
-  };
-
-  const updateWeek = async (weekId: string, updates: any) => {
-    try {
-      await programManagementApi.roadmaps.updateWeek(weekId, updates);
-      toast.success('Week updated successfully');
-      await fetchRoadmap(); // Refresh to get updated data
-    } catch (error: any) {
-      console.error('Failed to update week:', error);
-      toast.error(error.response?.data?.message || 'Failed to update week');
-    }
-  };
-
-  const handleLevelChange = (levelId: string) => {
-    setSelectedLevelId(levelId);
-    // Update URL with new level param
-    router.push(`/admin/programs/${id}/roadmap?level=${levelId}`);
-  };
-
-  const selectedLevel = levels.find(l => l.id === selectedLevelId);
+  const {
+    id, isGenerating, loading, roadmap, roadmapId, levels,
+    selectedLevelId, selectedLevel, editingWeek, taskModal, taskForm, savingTask,
+    weekModal, weekForm, savingWeek,
+    setSelectedLevelId, setEditingWeek, setTaskModal, setTaskForm,
+    setWeekModal, setWeekForm,
+    handleLevelChange, handleGenerateRoadmap,
+    openAddWeekModal, openEditWeek, handleSaveWeek,
+    openAddTask, openEditTask, handleSaveTask,
+    deleteTask, deleteWeek,
+  } = useProgramRoadmap();
 
   if (loading && selectedLevelId) {
     return (
@@ -377,13 +76,13 @@ export default function RoadmapGenerator() {
                 </>
               )}
             </button>
-            <button
-              onClick={() => router.push(`/admin/programs/${id}`)}
+            <Link
+              href={`/admin/programs/${id}`}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors flex items-center gap-2"
             >
               <Save className="w-5 h-5" />
               Save Changes
-            </button>
+            </Link>
           </div>
         </div>
       </div>

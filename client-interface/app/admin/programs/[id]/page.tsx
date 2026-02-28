@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
   Edit,
@@ -21,56 +20,113 @@ import {
   BookOpen,
   Trash2,
   Edit2,
-  GripVertical
+  GripVertical,
+  ChevronDown,
 } from 'lucide-react';
-import { programManagementApi } from '@/lib/services/program-api';
-import { levelMentorApi } from '@/lib/services/level-mentor-api';
-import { enrollmentApi } from '@/lib/services/enrollment-api';
-import { toast } from 'sonner';
+import { useProgramDetail } from '@/lib/hooks/admin';
 
-export default function ProgramDetails() {
-  const params = useParams();
-  const id = params?.id as string;
-  const [activeTab, setActiveTab] = useState<'overview' | 'levels' | 'mentors' | 'enrollments'>('overview');
-  const [program, setProgram] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [levels, setLevels] = useState<any[]>([]);
-  const [selectedLevelId, setSelectedLevelId] = useState<string>('');
-  const [roadmap, setRoadmap] = useState<any>(null);
-  const [loadingRoadmap, setLoadingRoadmap] = useState(false);
-  const [generatingRoadmap, setGeneratingRoadmap] = useState(false);
-  const [assignedMentors, setAssignedMentors] = useState<any[]>([]);
-  const [enrollments, setEnrollments] = useState<any[]>([]);
-  const [loadingEnrollments, setLoadingEnrollments] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  const shareRef = useRef<HTMLDivElement>(null);
+type ProgramStatus = 'draft' | 'published' | 'archived' | 'completed';
+
+const STATUS_CONFIG: Record<ProgramStatus, { label: string; badge: string; dot: string }> = {
+  draft:     { label: 'Draft',     badge: 'bg-slate-100 text-slate-700 border border-slate-200',    dot: 'bg-slate-400' },
+  published: { label: 'Published', badge: 'bg-green-100 text-green-700 border border-green-200',     dot: 'bg-green-500' },
+  archived:  { label: 'Archived',  badge: 'bg-amber-100 text-amber-700 border border-amber-200',     dot: 'bg-amber-500' },
+  completed: { label: 'Completed', badge: 'bg-blue-100 text-blue-700 border border-blue-200',        dot: 'bg-blue-500' },
+};
+
+const STATUS_TRANSITIONS: Record<ProgramStatus, { value: ProgramStatus; label: string; description: string; confirm?: string }[]> = {
+  draft: [
+    { value: 'published', label: 'Publish',         description: 'Make visible to mentees & enable enrollment' },
+    { value: 'archived',  label: 'Archive',          description: 'Hide without publishing', confirm: 'Archive this draft program?' },
+  ],
+  published: [
+    { value: 'completed', label: 'Mark Completed',   description: 'Close program — no new enrollments', confirm: 'Mark as completed? Active enrollees may be affected.' },
+    { value: 'archived',  label: 'Archive',           description: 'Disable enrollment & hide from mentees', confirm: 'Archive this program? Active enrollees may be affected.' },
+  ],
+  archived: [
+    { value: 'published', label: 'Re-publish',        description: 'Make program active again' },
+    { value: 'draft',     label: 'Restore to Draft',  description: 'Move back to editable draft' },
+  ],
+  completed: [
+    { value: 'archived',  label: 'Archive',           description: 'Move to archived programs', confirm: 'Archive this completed program?' },
+  ],
+};
+
+function StatusSelector({
+  status, onUpdate, updating,
+}: { status: string; onUpdate: (s: string) => void; updating: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const s = (STATUS_CONFIG[status as ProgramStatus] ?? STATUS_CONFIG.draft);
+  const transitions = STATUS_TRANSITIONS[status as ProgramStatus] ?? [];
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
-        setShareOpen(false);
-      }
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success(`${label} copied to clipboard!`);
-      setShareOpen(false);
-    }).catch(() => {
-      toast.error('Failed to copy to clipboard');
-    });
+  const handleSelect = (t: typeof transitions[0]) => {
+    setOpen(false);
+    if (t.confirm && !confirm(t.confirm)) return;
+    onUpdate(t.value);
   };
 
-  useEffect(() => {
-    if (id) {
-      fetchProgram();
-      fetchLevels();
-      fetchMentorAssignments();
-    }
-  }, [id]);
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={updating || transitions.length === 0}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          s.badge
+        } ${updating ? 'opacity-60 cursor-not-allowed' : transitions.length > 0 ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+        {updating ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+        {s.label}
+        {transitions.length > 0 && !updating && <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />}
+      </button>
+
+      {open && transitions.length > 0 && (
+        <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-100">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Change Status</p>
+          </div>
+          {transitions.map((t) => {
+            const cfg = STATUS_CONFIG[t.value];
+            return (
+              <button
+                key={t.value}
+                onClick={() => handleSelect(t)}
+                className="w-full flex items-start gap-3 px-3 py-3 hover:bg-slate-50 transition-colors text-left"
+              >
+                <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{t.label}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ProgramDetails() {
+  const {
+    id, program, loading, levels, selectedLevelId, roadmap, loadingRoadmap,
+    generatingRoadmap, assignedMentors, enrollments, loadingEnrollments,
+    shareOpen, shareRef, setSelectedLevelId, setShareOpen, copyToClipboard,
+    handleGenerateRoadmap, handleApproveEnrollment, handleRejectEnrollment,
+    handleStatusUpdate, updatingStatus,
+    fetchEnrollments, fetchRoadmap,
+  } = useProgramDetail();
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'levels' | 'mentors' | 'enrollments'>('overview');
 
   useEffect(() => {
     if (activeTab === 'levels' && selectedLevelId) {
@@ -78,155 +134,7 @@ export default function ProgramDetails() {
     } else if (activeTab === 'enrollments') {
       fetchEnrollments();
     }
-  }, [activeTab, selectedLevelId]);
-
-  const fetchProgram = async () => {
-    try {
-      setLoading(true);
-      const response = await programManagementApi.programs.getById(id);
-      const programData = response?.data?.program || response?.program || response;
-      setProgram(programData);
-    } catch (error: any) {
-      console.error('Failed to fetch program:', error);
-      toast.error(error.response?.data?.message || 'Failed to load program');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchLevels = async () => {
-    try {
-      const response = await programManagementApi.levels.getByProgram(id);
-      const levelsList = response?.data?.levels || response?.levels || response || [];
-      const levelsArray = Array.isArray(levelsList) ? levelsList : [];
-      setLevels(levelsArray);
-      
-      if (levelsArray.length > 0 && !selectedLevelId) {
-        setSelectedLevelId(levelsArray[0].id);
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch levels:', error);
-    }
-  };
-
-  const fetchMentorAssignments = async () => {
-    try {
-      const response = await levelMentorApi.getProgramMentorAssignments(id);
-      const assignments = response?.data?.assignments || response?.assignments || [];
-      
-      // Flatten mentors from all levels, deduplicate by id (same mentor can be
-      // assigned to multiple levels and would otherwise appear with duplicate keys)
-      const mentorsMap = new Map<string, any>();
-      assignments.forEach((assignment: any) =>
-        assignment.mentors.forEach((mentor: any) => {
-          if (!mentorsMap.has(mentor.id)) {
-            mentorsMap.set(mentor.id, {
-              id: mentor.id,
-              name: `${mentor.firstName} ${mentor.lastName}`,
-              mentees: mentor.mentorProfile?.currentMenteeCount || 0,
-              expertise: mentor.mentorProfile?.specialization?.[0] || 'General',
-              title: mentor.mentorProfile?.title || 'Mentor'
-            });
-          }
-        })
-      );
-      const mentorsFlat = Array.from(mentorsMap.values());
-      
-      setAssignedMentors(mentorsFlat);
-    } catch (error: any) {
-      console.error('Failed to fetch mentor assignments:', error);
-      // Don't show error toast as this is not critical
-    }
-  };
-
-  const fetchEnrollments = async () => {
-    try {
-      setLoadingEnrollments(true);
-      const response = await enrollmentApi.getAll({ programId: id });
-      const enrollmentList = response?.data?.enrollments || response?.enrollments || [];
-      setEnrollments(enrollmentList);
-    } catch (error: any) {
-      console.error('Failed to fetch enrollments:', error);
-      toast.error('Failed to load enrollments');
-    } finally {
-      setLoadingEnrollments(false);
-    }
-  };
-
-  const handleApproveEnrollment = async (enrollmentId: string) => {
-    try {
-      await enrollmentApi.approve(enrollmentId);
-      toast.success('Enrollment approved successfully');
-      fetchEnrollments(); // Refresh list
-    } catch (error: any) {
-      console.error('Failed to approve enrollment:', error);
-      toast.error(error.response?.data?.message || 'Failed to approve enrollment');
-    }
-  };
-
-  const handleRejectEnrollment = async (enrollmentId: string) => {
-    const reason = prompt('Reason for rejection (optional):');
-    try {
-      await enrollmentApi.reject(enrollmentId, reason || undefined);
-      toast.success('Enrollment rejected');
-      fetchEnrollments(); // Refresh list
-    } catch (error: any) {
-      console.error('Failed to reject enrollment:', error);
-      toast.error(error.response?.data?.message || 'Failed to reject enrollment');
-    }
-  };
-
-  const fetchRoadmap = async () => {
-    if (!selectedLevelId) return;
-    
-    try {
-      setLoadingRoadmap(true);
-      const response = await programManagementApi.roadmaps.getByLevel(id, selectedLevelId);
-      const roadmapData = response?.data?.roadmap || response?.roadmap || response;
-      setRoadmap(roadmapData);
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        setRoadmap(null);
-      } else {
-        console.error('Failed to fetch roadmap:', error);
-      }
-    } finally {
-      setLoadingRoadmap(false);
-    }
-  };
-
-  const handleGenerateRoadmap = async () => {
-    if (!selectedLevelId) {
-      toast.error('Please select a level first');
-      return;
-    }
-
-    const confirmGenerate = confirm(
-      roadmap 
-        ? 'This will replace the existing roadmap. Continue?' 
-        : 'Generate AI roadmap for this level?'
-    );
-    
-    if (!confirmGenerate) return;
-
-    try {
-      setGeneratingRoadmap(true);
-      const response = await programManagementApi.roadmaps.generate(
-        id,
-        selectedLevelId,
-        'Generate a comprehensive roadmap with practical tasks and learning objectives'
-      );
-      
-      const newRoadmap = response?.data?.roadmap || response?.roadmap || response;
-      setRoadmap(newRoadmap);
-      toast.success('Roadmap generated successfully!');
-    } catch (error: any) {
-      console.error('Failed to generate roadmap:', error);
-      toast.error(error.response?.data?.message || 'Failed to generate roadmap');
-    } finally {
-      setGeneratingRoadmap(false);
-    }
-  };
+  }, [activeTab, selectedLevelId, fetchRoadmap, fetchEnrollments]);
 
   if (loading) {
     return (
@@ -267,9 +175,11 @@ export default function ProgramDetails() {
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-slate-900">{program.name}</h1>
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm">
-                {program.status}
-              </span>
+              <StatusSelector
+                status={program.status}
+                onUpdate={handleStatusUpdate}
+                updating={updatingStatus}
+              />
             </div>
             <p className="text-slate-600 mb-4">{program.description || 'No description available'}</p>
             {program.tags && program.tags.length > 0 && (
@@ -295,7 +205,7 @@ export default function ProgramDetails() {
             {/* Share Button */}
             <div className="relative" ref={shareRef}>
               <button
-                onClick={() => setShareOpen(prev => !prev)}
+                onClick={() => setShareOpen(!shareOpen)}
                 className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors flex items-center gap-2"
               >
                 <Share2 className="w-4 h-4" />
@@ -316,7 +226,7 @@ export default function ProgramDetails() {
                       )}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 text-left transition-colors"
                     >
-                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0">
                         <LinkIcon className="w-4 h-4 text-indigo-600" />
                       </div>
                       <div>
@@ -332,7 +242,7 @@ export default function ProgramDetails() {
                       )}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 text-left transition-colors"
                     >
-                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center shrink-0">
                         <Copy className="w-4 h-4 text-green-600" />
                       </div>
                       <div>
@@ -357,7 +267,7 @@ export default function ProgramDetails() {
             </div>
             <span className="text-slate-600 text-sm">Enrollments</span>
           </div>
-          <div className="text-slate-900 text-2xl">{program._count?.enrollments || program.enrollments || 0}</div>
+          <div className="text-slate-900 text-2xl">{program._count?.enrollments ?? 0}</div>
         </div>
 
         <div className="bg-white rounded-2xl p-6 border border-slate-200">
@@ -367,7 +277,7 @@ export default function ProgramDetails() {
             </div>
             <span className="text-slate-600 text-sm">Mentors</span>
           </div>
-          <div className="text-slate-900 text-2xl">{program._count?.mentors || program.mentors || 0}</div>
+          <div className="text-slate-900 text-2xl">{program._count?.mentors ?? 0}</div>
         </div>
 
         <div className="bg-white rounded-2xl p-6 border border-slate-200">

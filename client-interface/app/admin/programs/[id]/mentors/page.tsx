@@ -1,128 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Users, Loader2, UserPlus, Search, X } from 'lucide-react';
-import { levelMentorApi } from '@/lib/services/level-mentor-api';
-import { programManagementApi } from '@/lib/services/program-api';
-import { mentorApi } from '@/lib/services/mentor-api';
-import { toast } from 'sonner';
+import { ArrowLeft, Trash2, Users, Loader2, UserPlus, Search, X } from 'lucide-react';
+import { useProgramMentors } from '@/lib/hooks/admin';
 
 export default function LevelMentorsManagement() {
-  const params = useParams();
-  const programId = params?.id as string;
+  const {
+    loading, assignments, program, filteredMentors, selectedMentor, adding,
+    removing, loadingMentors, searchQuery,
+    setSearchQuery, setSelectedMentor, fetchMentors,
+    handleAddMentor, handleRemoveMentor, id: programId,
+  } = useProgramMentors();
 
-  const [loading, setLoading] = useState(true);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [program, setProgram] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedLevel, setSelectedLevel] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [availableMentors, setAvailableMentors] = useState<any[]>([]);
-  const [filteredMentors, setFilteredMentors] = useState<any[]>([]);
-  const [selectedMentor, setSelectedMentor] = useState<any>(null);
-  const [adding, setAdding] = useState(false);
-  const [removing, setRemoving] = useState<string | null>(null);
-  const [loadingMentors, setLoadingMentors] = useState(false);
+  const [selectedLevel, setSelectedLevel] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
-    if (programId) {
-      fetchData();
-    }
-  }, [programId]);
+    if (showAddModal) fetchMentors();
+  }, [showAddModal, fetchMentors]);
 
-  useEffect(() => {
-    if (showAddModal) {
-      fetchMentors();
-    }
-  }, [showAddModal]);
-
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const filtered = availableMentors.filter((mentor) => {
-        const fullName = `${mentor.firstName} ${mentor.lastName}`.toLowerCase();
-        const email = mentor.email.toLowerCase();
-        const query = searchQuery.toLowerCase();
-        return fullName.includes(query) || email.includes(query);
-      });
-      setFilteredMentors(filtered);
-    } else {
-      setFilteredMentors(availableMentors);
-    }
-  }, [searchQuery, availableMentors]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [assignmentsRes, programRes] = await Promise.all([
-        levelMentorApi.getProgramMentorAssignments(programId),
-        programManagementApi.programs.getById(programId)
-      ]);
-      
-      setAssignments(assignmentsRes?.data?.assignments || assignmentsRes?.assignments || []);
-      setProgram(programRes?.data?.program || programRes?.program || null);
-    } catch (error: any) {
-      console.error('Failed to fetch data:', error);
-      toast.error('Failed to load mentor assignments');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMentors = async () => {
-    try {
-      setLoadingMentors(true);
-      const response = await mentorApi.getAll();
-      const mentorsList = response?.data?.mentors || response?.mentors || [];
-      setAvailableMentors(mentorsList);
-      setFilteredMentors(mentorsList);
-    } catch (error: any) {
-      console.error('Failed to fetch mentors:', error);
-      toast.error('Failed to load mentors');
-    } finally {
-      setLoadingMentors(false);
-    }
-  };
-
-  const handleAddMentor = async () => {
-    if (!selectedLevel || !selectedMentor) {
-      toast.error('Please select a mentor');
-      return;
-    }
-
-    try {
-      setAdding(true);
-      await levelMentorApi.assignMentorToLevel(programId, selectedLevel.id, selectedMentor.id);
-      toast.success('Mentor assigned successfully');
-      setShowAddModal(false);
-      setSelectedMentor(null);
-      setSearchQuery('');
-      fetchData();
-    } catch (error: any) {
-      console.error('Failed to add mentor:', error);
-      toast.error(error.response?.data?.message || 'Failed to assign mentor');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const handleRemoveMentor = async (levelId: string, mentorId: string) => {
-    if (!confirm('Are you sure you want to remove this mentor from the level?')) {
-      return;
-    }
-
-    try {
-      setRemoving(mentorId);
-      await levelMentorApi.removeMentorFromLevel(programId, levelId, mentorId);
-      toast.success('Mentor removed successfully');
-      fetchData();
-    } catch (error: any) {
-      console.error('Failed to remove mentor:', error);
-      toast.error(error.response?.data?.message || 'Failed to remove mentor');
-    } finally {
-      setRemoving(null);
-    }
+  const closeModal = () => {
+    setShowAddModal(false);
+    setSelectedMentor(null);
+    setSearchQuery('');
   };
 
   if (loading) {
@@ -234,11 +135,7 @@ export default function LevelMentorsManagement() {
                 Add Mentor to {selectedLevel?.name}
               </h3>
               <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSelectedMentor(null);
-                  setSearchQuery('');
-                }}
+                onClick={closeModal}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <X className="w-6 h-6" />
@@ -326,17 +223,13 @@ export default function LevelMentorsManagement() {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSelectedMentor(null);
-                  setSearchQuery('');
-                }}
+                onClick={closeModal}
                 className="flex-1 px-4 py-3 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={handleAddMentor}
+                onClick={() => selectedLevel && handleAddMentor(selectedLevel.id).then(() => closeModal())}
                 disabled={adding || !selectedMentor}
                 className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
