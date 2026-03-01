@@ -172,13 +172,230 @@ class EnrollmentService {
       throw new ForbiddenError('Not authorized to update this enrollment');
     }
 
-    const validStatuses = ['pending_match', 'matched', 'active', 'approved', 'rejected', 'level_completed', 'program_completed', 'dropped'];
+    const validStatuses = ['pending_match', 'matched', 'active', 'approved', 'rejected', 'pending_completion', 'level_completed', 'program_completed', 'dropped'];
     if (!validStatuses.includes(status)) {
       throw new ValidationError('Invalid status');
     }
 
     await enrollment.update({ status });
     return this.getEnrollmentById(enrollmentId);
+  }
+
+  /**
+   * Mentee or Mentor requests completion of the current level/program.
+   * Sets status to pending_completion and records who requested it.
+   */
+  async requestCompletion(enrollmentId, requestedById, requestedByRole) {
+    const enrollment = await models.Enrollment.findByPk(enrollmentId);
+    if (!enrollment) throw new NotFoundError('Enrollment not found');
+
+    // Only mentee can self-request; mentor can also request on behalf of mentee
+    if (requestedByRole === 'mentee' && enrollment.menteeId !== requestedById) {
+      throw new ForbiddenError('Not authorized to request completion for this enrollment');
+    }
+
+    if (requestedByRole === 'mentor') {
+      // Verify this mentor is actively paired with this enrollment
+      const match = await models.MentorMenteeMatch.findOne({
+        where: { enrollmentId, mentorId: requestedById, status: 'active' }
+      });
+      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+    }
+
+    if (!['active', 'matched'].includes(enrollment.status)) {
+      throw new ValidationError(`Cannot request completion from status: ${enrollment.status}`);
+    }
+
+    await enrollment.update({
+      status: 'pending_completion',
+      completionRequestedAt: new Date(),
+      completionRequestedBy: requestedById,
+      completionRequestedByRole: requestedByRole,
+      completionRejectionReason: null
+    });
+
+    return this.getEnrollmentById(enrollmentId);
+  }
+
+  /**
+   * Mentor or Admin approves the completion request.
+   * Moves enrollment to level_completed or program_completed based on whether a next level exists.
+   */
+  async approveCompletion(enrollmentId, approverId, approverRole) {
+    const enrollment = await models.Enrollment.findByPk(enrollmentId, {
+      include: [
+        {
+          model: models.Program,
+          as: 'program',
+          include: [{
+            model: models.ProgramLevel,
+            as: 'levels',
+            order: [['level_order', 'ASC']]
+          }]
+        }
+      ]
+    });
+    if (!enrollment) throw new NotFoundError('Enrollment not found');
+
+    if (!['pending_completion', 'matched', 'active'].includes(enrollment.status)) {
+      throw new ValidationError('Enrollment is not in a state that can be approved for completion');
+    }
+
+    if (approverRole === 'mentor') {
+      const match = await models.MentorMenteeMatch.findOne({
+        where: { enrollmentId, mentorId: approverId, status: 'active' }
+      });
+      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+    }
+
+    // Determine if there is a next level
+    const levels = enrollment.program?.levels || [];
+    const currentIdx = levels.findIndex(l => l.id === enrollment.currentLevelId);
+    const hasNextLevel = currentIdx !== -1 && currentIdx < levels.length - 1;
+
+    const newStatus = hasNextLevel ? 'level_completed' : 'program_completed';
+
+    await enrollment.update({
+      status: newStatus,
+      completionApprovedAt: new Date(),
+      completionApprovedBy: approverId,
+      completionApprovedByRole: approverRole,
+      completedAt: newStatus === 'program_completed' ? new Date() : enrollment.completedAt
+    });
+
+    // Auto-promote: if there is a next level, immediately advance without admin manual step
+    if (hasNextLevel) {
+      const nextLevel = levels[currentIdx + 1];
+
+      // End the current active mentor-mentee match
+      await models.MentorMenteeMatch.update(
+        { status: 'completed', endedAt: new Date() },
+        { where: { enrollmentId, status: 'active' } }
+      );
+
+      // Advance the enrollment to the next level, awaiting a new mentor match
+      await enrollment.update({
+        currentLevelId: nextLevel.id,
+        status: 'pending_match',
+        currentWeek: 1,
+        nextLevelEnrolledAt: new Date(),
+        completionRequestedAt: null,
+        completionRequestedBy: null,
+        completionRequestedByRole: null,
+        completionApprovedAt: null,
+        completionApprovedBy: null,
+        completionApprovedByRole: null,
+        completionRejectionReason: null
+      });
+
+      return {
+        enrollment: await this.getEnrollmentById(enrollmentId),
+        hasNextLevel: true,
+        nextLevelId: nextLevel.id,
+        nextLevelName: nextLevel.name,
+        autoPromoted: true
+      };
+    }
+
+    return {
+      enrollment: await this.getEnrollmentById(enrollmentId),
+      hasNextLevel: false,
+      nextLevelId: null,
+      nextLevelName: null,
+      autoPromoted: false
+    };
+  }
+
+  /**
+   * Mentor or Admin rejects the completion request.
+   * Returns the enrollment back to active with a reason.
+   */
+  async rejectCompletion(enrollmentId, rejecterId, rejecterRole, reason) {
+    const enrollment = await models.Enrollment.findByPk(enrollmentId);
+    if (!enrollment) throw new NotFoundError('Enrollment not found');
+
+    if (!['pending_completion', 'matched', 'active'].includes(enrollment.status)) {
+      throw new ValidationError('Enrollment is not in a state where completion can be rejected');
+    }
+
+    if (rejecterRole === 'mentor') {
+      const match = await models.MentorMenteeMatch.findOne({
+        where: { enrollmentId, mentorId: rejecterId, status: 'active' }
+      });
+      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+    }
+
+    await enrollment.update({
+      status: 'matched',
+      completionRejectionReason: reason || 'Completion request rejected',
+      completionRequestedAt: null,
+      completionRequestedBy: null,
+      completionRequestedByRole: null
+    });
+
+    return this.getEnrollmentById(enrollmentId);
+  }
+
+  /**
+   * Admin promotes a level_completed mentee to the next level.
+   * Deactivates the current mentor match and creates a new pending_match state
+   * on the next level so admin can assign a new mentor.
+   */
+  async promoteToNextLevel(enrollmentId, adminId) {
+    const enrollment = await models.Enrollment.findByPk(enrollmentId, {
+      include: [
+        {
+          model: models.Program,
+          as: 'program',
+          include: [{
+            model: models.ProgramLevel,
+            as: 'levels',
+            order: [['level_order', 'ASC']]
+          }]
+        }
+      ]
+    });
+    if (!enrollment) throw new NotFoundError('Enrollment not found');
+
+    const levels = enrollment.program?.levels || [];
+    const currentIdx = levels.findIndex(l => l.id === enrollment.currentLevelId);
+
+    if (!['level_completed', 'matched', 'active'].includes(enrollment.status)) {
+      throw new ValidationError('Enrollment status must be level_completed to promote to the next level');
+    }
+
+    if (currentIdx === -1 || currentIdx >= levels.length - 1) {
+      throw new ValidationError('No next level available — this is the final level');
+    }
+
+    const nextLevel = levels[currentIdx + 1];
+
+    // End the current active mentor-mentee match
+    await models.MentorMenteeMatch.update(
+      { status: 'completed', endedAt: new Date() },
+      { where: { enrollmentId, status: 'active' } }
+    );
+
+    // Advance the enrollment
+    await enrollment.update({
+      currentLevelId: nextLevel.id,
+      status: 'pending_match',
+      currentWeek: 1,
+      nextLevelEnrolledAt: new Date(),
+      // Reset completion tracking
+      completionRequestedAt: null,
+      completionRequestedBy: null,
+      completionRequestedByRole: null,
+      completionApprovedAt: null,
+      completionApprovedBy: null,
+      completionApprovedByRole: null,
+      completionRejectionReason: null
+    });
+
+    return {
+      enrollment: await this.getEnrollmentById(enrollmentId),
+      promotedToLevel: nextLevel
+    };
   }
 }
 

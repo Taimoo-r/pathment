@@ -6,13 +6,12 @@ import {
   BookOpen,
   CheckCircle2,
   Clock,
-  AlertCircle,
-  Calendar,
-  Star,
   Target,
   Award,
   Loader2,
-  Plus
+  Plus,
+  TrendingUp,
+  Send
 } from 'lucide-react';
 import { enrollmentApi } from '@/lib/services/enrollment-api';
 import { toast } from 'sonner';
@@ -22,6 +21,7 @@ export default function MenteeDashboard() {
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completionLoading, setCompletionLoading] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -43,15 +43,36 @@ export default function MenteeDashboard() {
     }
   };
 
-  const activeEnrollment = enrollments.find(e => e.status === 'active');
+  // treat both 'active' and 'matched' as the working state — enrollment stays
+  // at 'matched' after a mentor is assigned in this codebase
+  const WORKING_STATUSES = ['active', 'matched'];
+  const activeEnrollment = enrollments.find(e => WORKING_STATUSES.includes(e.status));
+  const pendingCompletionEnrollment = enrollments.find(e => e.status === 'pending_completion');
+  const levelCompletedEnrollment = enrollments.find(e => e.status === 'level_completed');
+  // The card to show for "Current Program" — any in-progress enrollment
+  const IN_PROGRESS_STATUSES = ['active', 'matched', 'pending_completion', 'level_completed'];
+  const currentProgramEnrollment = enrollments.find(e => IN_PROGRESS_STATUSES.includes(e.status));
   const pendingEnrollments = enrollments.filter(e => e.status === 'pending_approval');
   const approvedEnrollments = enrollments.filter(e => e.status === 'approved' || e.status === 'pending_match');
+
+  const handleRequestCompletion = async (enrollmentId: string) => {
+    try {
+      setCompletionLoading(true);
+      await enrollmentApi.requestCompletion(enrollmentId);
+      toast.success('Completion request sent to your mentor for approval!');
+      fetchEnrollments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to request completion');
+    } finally {
+      setCompletionLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-slate-900 mb-2">Welcome back{user?.firstName ? `, ${user.firstName}` : ''}!</h1>
+        <h1 className="text-slate-900 mb-2">Welcome back{user?.profile?.firstName ? `, ${user.profile.firstName}` : ''}!</h1>
         <p className="text-slate-600">Keep up the great work on your learning journey</p>
       </div>
 
@@ -78,6 +99,45 @@ export default function MenteeDashboard() {
                 <Plus className="w-5 h-5" />
                 Browse Programs
               </Link>
+            </div>
+          )}
+
+          {/* Pending Completion — Awaiting Mentor Approval */}
+          {pendingCompletionEnrollment && (
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-orange-900 mb-1">Completion Request Pending</h3>
+                  <p className="text-orange-700 text-sm">
+                    Your completion request for <strong>{pendingCompletionEnrollment.program?.name}</strong> is awaiting your mentor&apos;s approval.
+                  </p>
+                  {pendingCompletionEnrollment.completionRejectionReason && (
+                    <div className="mt-3 p-3 bg-orange-100 rounded-lg text-orange-800 text-xs">
+                      <strong>Last rejection reason:</strong> {pendingCompletionEnrollment.completionRejectionReason}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Level Completed — Awaiting Promotion */}
+          {levelCompletedEnrollment && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-green-900 mb-1">Level Completed! 🎉</h3>
+                  <p className="text-green-700 text-sm">
+                    You&apos;ve completed a level in <strong>{levelCompletedEnrollment.program?.name}</strong>. The admin will promote you to the next level soon!
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -130,7 +190,7 @@ export default function MenteeDashboard() {
           )}
 
           {/* Active Program */}
-          {activeEnrollment ? (
+          {currentProgramEnrollment ? (
             <div className="grid lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -138,29 +198,45 @@ export default function MenteeDashboard() {
                   <div className="mb-6">
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h3 className="text-slate-900 mb-1">{activeEnrollment.program?.name || 'Unknown Program'}</h3>
+                        <h3 className="text-slate-900 mb-1">{currentProgramEnrollment.program?.name || 'Unknown Program'}</h3>
                         <p className="text-slate-600 text-sm">
-                          Week {activeEnrollment.currentWeek || 1} 
+                          {currentProgramEnrollment.currentLevel?.name
+                            ? `Level: ${currentProgramEnrollment.currentLevel.name} · Week ${currentProgramEnrollment.currentWeek || 1}`
+                            : `Week ${currentProgramEnrollment.currentWeek || 1}`}
                         </p>
                       </div>
-                      <Link
-                        href="/mentee/tasks"
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm transition-colors"
-                      >
-                        View Tasks
-                      </Link>
+                      <div className="flex items-center gap-2">
+                          <Link
+                            href="/mentee/tasks"
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm transition-colors"
+                          >
+                            View Tasks
+                          </Link>
+                          {/* Only show request button when NOT already pending */}
+                          {WORKING_STATUSES.includes(currentProgramEnrollment.status) && (
+                            <button
+                              onClick={() => handleRequestCompletion(currentProgramEnrollment.id)}
+                              disabled={completionLoading}
+                              className="px-4 py-2 bg-green-50 hover:bg-green-100 border border-green-300 text-green-700 rounded-xl text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+                              title="Ask your mentor to review and close this level"
+                            >
+                              {completionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                              Request Completion
+                            </button>
+                          )}
+                        </div>
                     </div>
                     
                     {/* Progress Bar */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between text-sm mb-2">
                         <span className="text-slate-600">Overall Progress</span>
-                        <span className="text-slate-900">{parseFloat(activeEnrollment.overallProgressPercentage) || 0}%</span>
+                        <span className="text-slate-900">{parseFloat(currentProgramEnrollment.overallProgressPercentage) || 0}%</span>
                       </div>
                       <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-linear-to-r from-indigo-600 to-purple-600 rounded-full"
-                          style={{ width: `${parseFloat(activeEnrollment.overallProgressPercentage) || 0}%` }}
+                          style={{ width: `${parseFloat(currentProgramEnrollment.overallProgressPercentage) || 0}%` }}
                         />
                       </div>
                     </div>
@@ -168,11 +244,11 @@ export default function MenteeDashboard() {
                     <div className="flex items-center gap-6 text-sm text-slate-600">
                       <span className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-green-600" />
-                        {activeEnrollment.tasksCompleted || 0} tasks completed
+                        {currentProgramEnrollment.tasksCompleted || 0} tasks completed
                       </span>
                       <span className="flex items-center gap-2">
                         <Target className="w-4 h-4 text-indigo-600" />
-                        {(activeEnrollment.tasksTotal || 0) - (activeEnrollment.tasksCompleted || 0)} remaining
+                        {(currentProgramEnrollment.tasksTotal || 0) - (currentProgramEnrollment.tasksCompleted || 0)} remaining
                       </span>
                     </div>
                   </div>
@@ -214,12 +290,15 @@ export default function MenteeDashboard() {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-slate-900">{enrollment.program?.name || 'Unknown Program'}</h3>
                           <span className={`px-2 py-1 rounded text-xs ${
-                            enrollment.status === 'pending_approval' ? 'bg-amber-100 text-amber-700' :
-                            enrollment.status === 'approved' ? 'bg-blue-100 text-blue-700' :
-                            enrollment.status === 'pending_match' ? 'bg-purple-100 text-purple-700' :
-                            enrollment.status === 'matched' ? 'bg-green-100 text-green-700' :
-                            enrollment.status === 'active' ? 'bg-indigo-100 text-indigo-700' :
-                            enrollment.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            enrollment.status === 'pending_approval'   ? 'bg-amber-100 text-amber-700' :
+                            enrollment.status === 'approved'           ? 'bg-blue-100 text-blue-700' :
+                            enrollment.status === 'pending_match'      ? 'bg-purple-100 text-purple-700' :
+                            enrollment.status === 'matched'            ? 'bg-green-100 text-green-700' :
+                            enrollment.status === 'active'             ? 'bg-indigo-100 text-indigo-700' :
+                            enrollment.status === 'pending_completion' ? 'bg-orange-100 text-orange-700' :
+                            enrollment.status === 'level_completed'    ? 'bg-teal-100 text-teal-700' :
+                            enrollment.status === 'program_completed'  ? 'bg-green-100 text-green-700' :
+                            enrollment.status === 'rejected'           ? 'bg-red-100 text-red-700' :
                             'bg-slate-100 text-slate-700'
                           }`}>
                             {enrollment.status.replace(/_/g, ' ')}

@@ -90,4 +90,51 @@ exports.rejectEnrollment = catchAsync(async (req, res) => {
   res.status(200).json(successResponse('Enrollment rejected', { enrollment }));
 });
 
+/**
+ * Request completion of current level/program (mentee or mentor)
+ * POST /api/enrollments/:id/request-completion
+ */
+exports.requestCompletion = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const enrollment = await enrollmentService.requestCompletion(id, req.user.id, req.user.role);
+  res.status(200).json(successResponse('Completion requested — awaiting mentor/admin approval', { enrollment }));
+});
+
+/**
+ * Approve completion (mentor or admin)
+ * POST /api/enrollments/:id/approve-completion
+ */
+exports.approveCompletion = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await enrollmentService.approveCompletion(id, req.user.id, req.user.role);
+  const message = result.hasNextLevel
+    ? `Level completed — mentee is ready to be promoted to "${result.nextLevelName}"`
+    : 'Program completed — mentee has finished all levels';
+  res.status(200).json(successResponse(message, result));
+});
+
+/**
+ * Reject completion request (mentor or admin)
+ * POST /api/enrollments/:id/reject-completion
+ */
+exports.rejectCompletion = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const enrollment = await enrollmentService.rejectCompletion(id, req.user.id, req.user.role, reason);
+  res.status(200).json(successResponse('Completion request rejected — enrollment remains active', { enrollment }));
+});
+
+/**
+ * Promote mentee to next level (admin only)
+ * POST /api/enrollments/:id/promote-next-level
+ */
+exports.promoteToNextLevel = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await enrollmentService.promoteToNextLevel(id, req.user.id);
+  res.status(200).json(successResponse(
+    `Mentee promoted to "${result.promotedToLevel.name}" — assign a mentor to continue`,
+    result
+  ));
+});
+
 module.exports = exports;

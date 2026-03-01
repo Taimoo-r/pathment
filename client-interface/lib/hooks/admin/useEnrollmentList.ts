@@ -10,6 +10,7 @@ export type EnrollmentStatus =
   | 'pending_match'
   | 'matched'
   | 'active'
+  | 'pending_completion'
   | 'level_completed'
   | 'program_completed'
   | 'rejected'
@@ -26,6 +27,9 @@ export interface Enrollment {
   tasksTotal: number;
   overallProgressPercentage: string;
   enrolledAt: string;
+  completionRequestedAt?: string;
+  completionRequestedByRole?: string;
+  completionRejectionReason?: string;
   mentee: {
     id: string;
     firstName: string;

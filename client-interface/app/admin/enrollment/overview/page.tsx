@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -12,10 +13,14 @@ import {
   Users,
   Hourglass,
   UserCheck,
+  TrendingUp,
+  Loader2,
 } from 'lucide-react';
 import { DataTable, DataTableColumn } from '@/components/shared/DataTable';
 import { TablePagination } from '@/components/shared/TablePagination';
 import { useEnrollmentList, Enrollment, EnrollmentStatus } from '@/lib/hooks/admin/useEnrollmentList';
+import { enrollmentApi } from '@/lib/services/enrollment-api';
+import { toast } from 'sonner';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -23,15 +28,16 @@ const STATUS_CONFIG: Record<
   EnrollmentStatus,
   { label: string; className: string; icon: React.ReactNode }
 > = {
-  active:            { label: 'Active',            className: 'bg-green-100 text-green-700',   icon: <CheckCircle2 className="w-3 h-3" /> },
-  matched:           { label: 'Matched',           className: 'bg-green-100 text-green-700',   icon: <CheckCircle2 className="w-3 h-3" /> },
-  pending_approval:  { label: 'Pending Approval',  className: 'bg-amber-100 text-amber-700',   icon: <Clock className="w-3 h-3" /> },
-  approved:          { label: 'Approved',          className: 'bg-blue-100 text-blue-700',     icon: <Clock className="w-3 h-3" /> },
-  pending_match:     { label: 'Pending Match',     className: 'bg-blue-100 text-blue-700',     icon: <Clock className="w-3 h-3" /> },
-  level_completed:   { label: 'Level Completed',   className: 'bg-indigo-100 text-indigo-700', icon: <CheckCircle2 className="w-3 h-3" /> },
-  program_completed: { label: 'Program Completed', className: 'bg-indigo-100 text-indigo-700', icon: <CheckCircle2 className="w-3 h-3" /> },
-  rejected:          { label: 'Rejected',          className: 'bg-red-100 text-red-700',       icon: <XCircle className="w-3 h-3" /> },
-  dropped:           { label: 'Dropped',           className: 'bg-red-100 text-red-700',       icon: <XCircle className="w-3 h-3" /> },
+  active:              { label: 'Active',              className: 'bg-green-100 text-green-700',   icon: <CheckCircle2 className="w-3 h-3" /> },
+  matched:             { label: 'Matched',             className: 'bg-green-100 text-green-700',   icon: <CheckCircle2 className="w-3 h-3" /> },
+  pending_approval:    { label: 'Pending Approval',    className: 'bg-amber-100 text-amber-700',   icon: <Clock className="w-3 h-3" /> },
+  approved:            { label: 'Approved',            className: 'bg-blue-100 text-blue-700',     icon: <Clock className="w-3 h-3" /> },
+  pending_match:       { label: 'Pending Match',       className: 'bg-blue-100 text-blue-700',     icon: <Clock className="w-3 h-3" /> },
+  pending_completion:  { label: 'Pending Completion',  className: 'bg-orange-100 text-orange-700', icon: <Clock className="w-3 h-3" /> },
+  level_completed:     { label: 'Level Completed',     className: 'bg-indigo-100 text-indigo-700', icon: <CheckCircle2 className="w-3 h-3" /> },
+  program_completed:   { label: 'Program Completed',   className: 'bg-indigo-100 text-indigo-700', icon: <CheckCircle2 className="w-3 h-3" /> },
+  rejected:            { label: 'Rejected',            className: 'bg-red-100 text-red-700',       icon: <XCircle className="w-3 h-3" /> },
+  dropped:             { label: 'Dropped',             className: 'bg-red-100 text-red-700',       icon: <XCircle className="w-3 h-3" /> },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -138,7 +144,7 @@ const columns: DataTableColumn<Enrollment>[] = [
       ) : <span className="text-slate-400">—</span>,
   },
 ];
-
+// ─── Actions column is added inside the component to access state ─────────────
 const STATUS_OPTIONS = [
   { value: 'all',               label: 'All Status' },
   { value: 'pending_approval',  label: 'Pending Approval' },
@@ -148,6 +154,7 @@ const STATUS_OPTIONS = [
   { value: 'active',            label: 'Active' },
   { value: 'level_completed',   label: 'Level Completed' },
   { value: 'program_completed', label: 'Program Completed' },
+  { value: 'pending_completion', label: 'Pending Completion' },
   { value: 'rejected',          label: 'Rejected' },
   { value: 'dropped',           label: 'Dropped' },
 ];
@@ -162,6 +169,76 @@ export default function EnrollmentOverviewPage() {
     setSearch, setStatus, resetFilters,
     stats, refetch,
   } = useEnrollmentList();
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleApproveCompletion = async (enrollmentId: string) => {
+    try {
+      setActionLoading(enrollmentId);
+      const res = await enrollmentApi.approveCompletion(enrollmentId);
+      const result = (res as any)?.data?.result;
+      if (result?.autoPromoted) {
+        toast.success(`Level complete! Mentee advanced to "${result.nextLevelName}" — awaiting new mentor match.`);
+      } else if (result?.hasNextLevel === false) {
+        toast.success('Program completed!');
+      } else {
+        toast.success('Completion approved!');
+      }
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to approve completion');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePromoteToNextLevel = async (enrollmentId: string) => {
+    try {
+      setActionLoading(enrollmentId);
+      const res = await enrollmentApi.promoteToNextLevel(enrollmentId);
+      toast.success((res as any)?.data?.message || (res as any)?.message || 'Mentee promoted to next level!');
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to promote to next level');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const actionColumn: DataTableColumn<Enrollment> = {
+    key: 'id',
+    label: 'Action',
+    render: (id: string, row: Enrollment) => {
+      const busy = actionLoading === id;
+      if (row.status === 'pending_completion') {
+        return (
+          <button
+            onClick={() => handleApproveCompletion(id)}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+            Approve
+          </button>
+        );
+      }
+      if (row.status === 'level_completed') {
+        return (
+          <button
+            onClick={() => handlePromoteToNextLevel(id)}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
+            Promote
+          </button>
+        );
+      }
+      return <span className="text-slate-300 text-xs">—</span>;
+    },
+  };
+
+  const tableColumns = [...columns, actionColumn];
 
   const statCards = [
     { label: 'Total Enrollments', value: pagination.total,      icon: Users,     color: 'text-indigo-600 bg-indigo-50' },
@@ -259,7 +336,7 @@ export default function EnrollmentOverviewPage() {
       {/* ── Table ── */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <DataTable<Enrollment>
-          columns={columns}
+          columns={tableColumns}
           data={enrollments}
           rowKey="id"
           isLoading={isLoading}

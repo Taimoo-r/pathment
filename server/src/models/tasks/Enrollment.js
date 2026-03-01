@@ -20,10 +20,10 @@ module.exports = (sequelize, DataTypes) => {
       field: 'current_level_id'
     },
     status: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.STRING(25),
       defaultValue: 'pending_approval',
       validate: {
-        isIn: [['pending_approval', 'approved', 'rejected', 'pending_match', 'matched', 'active', 'level_completed', 'program_completed', 'dropped']]
+        isIn: [['pending_approval', 'approved', 'rejected', 'pending_match', 'matched', 'active', 'pending_completion', 'level_completed', 'program_completed', 'dropped']]
       }
     },
     currentWeek: {
@@ -45,6 +45,38 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DECIMAL(5, 2),
       defaultValue: 0.00,
       field: 'overall_progress_percentage'
+    },
+    completionRequestedAt: {
+      type: DataTypes.DATE,
+      field: 'completion_requested_at'
+    },
+    completionRequestedBy: {
+      type: DataTypes.UUID,
+      field: 'completion_requested_by'
+    },
+    completionRequestedByRole: {
+      type: DataTypes.STRING(20),
+      field: 'completion_requested_by_role'
+    },
+    completionApprovedAt: {
+      type: DataTypes.DATE,
+      field: 'completion_approved_at'
+    },
+    completionApprovedBy: {
+      type: DataTypes.UUID,
+      field: 'completion_approved_by'
+    },
+    completionApprovedByRole: {
+      type: DataTypes.STRING(20),
+      field: 'completion_approved_by_role'
+    },
+    completionRejectionReason: {
+      type: DataTypes.TEXT,
+      field: 'completion_rejection_reason'
+    },
+    nextLevelEnrolledAt: {
+      type: DataTypes.DATE,
+      field: 'next_level_enrolled_at'
     },
     enrolledAt: {
       type: DataTypes.DATE,

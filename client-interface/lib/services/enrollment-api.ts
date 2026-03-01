@@ -40,6 +40,28 @@ export const enrollmentApi = {
   reject: (id: string, reason?: string) => {
     return apiClient.post(`${apiConfig.endpoints.enrollments}/${id}/reject`, { reason });
   },
+
+  // ─── Level completion & progression ────────────────────────────────────────
+
+  // Mentee or Mentor: request completion of current level
+  requestCompletion: (id: string) => {
+    return apiClient.post(`${apiConfig.endpoints.enrollments}/${id}/request-completion`);
+  },
+
+  // Mentor or Admin: approve the completion request
+  approveCompletion: (id: string) => {
+    return apiClient.post(`${apiConfig.endpoints.enrollments}/${id}/approve-completion`);
+  },
+
+  // Mentor or Admin: reject the completion request
+  rejectCompletion: (id: string, reason?: string) => {
+    return apiClient.post(`${apiConfig.endpoints.enrollments}/${id}/reject-completion`, { reason });
+  },
+
+  // Admin: promote level_completed mentee to next level
+  promoteToNextLevel: (id: string) => {
+    return apiClient.post(`${apiConfig.endpoints.enrollments}/${id}/promote-next-level`);
+  },
 };
 
 export const matchingApi = {

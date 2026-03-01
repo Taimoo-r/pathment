@@ -10,4 +10,14 @@ router.patch('/:id/status', authenticate, enrollmentController.updateEnrollmentS
 router.post('/:id/approve', authenticate, authorize(['admin']), enrollmentController.approveEnrollment);
 router.post('/:id/reject', authenticate, authorize(['admin']), enrollmentController.rejectEnrollment);
 
+// ─── Level completion & progression ──────────────────────────────────────────
+// Mentee or Mentor: request completion of current level
+router.post('/:id/request-completion', authenticate, authorize(['mentee', 'mentor']), enrollmentController.requestCompletion);
+// Mentor or Admin: approve the completion request
+router.post('/:id/approve-completion', authenticate, authorize(['mentor', 'admin']), enrollmentController.approveCompletion);
+// Mentor or Admin: reject the completion request (send back to active)
+router.post('/:id/reject-completion',  authenticate, authorize(['mentor', 'admin']), enrollmentController.rejectCompletion);
+// Admin: promote level_completed mentee to the next program level
+router.post('/:id/promote-next-level', authenticate, authorize(['admin']), enrollmentController.promoteToNextLevel);
+
 module.exports = router;

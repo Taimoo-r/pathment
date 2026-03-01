@@ -17,9 +17,12 @@ import {
   User,
   Loader2,
   Star,
-  Award
+  Award,
+  ThumbsUp,
+  ThumbsDown,
+  AlertCircle
 } from 'lucide-react';
-import { matchingApi } from '@/lib/services/enrollment-api';
+import { matchingApi, enrollmentApi } from '@/lib/services/enrollment-api';
 import { taskApi } from '@/lib/services/task-api';
 import { useAuth } from '@/lib/context/AuthContext';
 import { toast } from 'sonner';
@@ -33,6 +36,10 @@ export default function MenteeDetail() {
   const [match, setMatch] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completionLoading, setCompletionLoading] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
   useEffect(() => {
     if (user?.id && menteeId) {
@@ -89,6 +96,44 @@ export default function MenteeDetail() {
   const profile = mentee?.menteeProfile;
   const progress = parseFloat(enrollment?.overallProgressPercentage) || 0;
 
+  const handleApproveCompletion = async () => {
+    if (!enrollment?.id) return;
+    try {
+      setCompletionLoading(true);
+      const res = await enrollmentApi.approveCompletion(enrollment.id);
+      const result = (res as any)?.data?.result;
+      if (result?.autoPromoted) {
+        toast.success(`Level complete! Mentee advanced to "${result.nextLevelName}" — awaiting new mentor match.`);
+      } else if (result?.hasNextLevel === false) {
+        toast.success('Program completed! Well done.');
+      } else {
+        toast.success('Completion approved!');
+      }
+      setShowCompleteConfirm(false);
+      fetchMenteeDetails();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to approve completion');
+    } finally {
+      setCompletionLoading(false);
+    }
+  };
+
+  const handleRejectCompletion = async () => {
+    if (!enrollment?.id) return;
+    try {
+      setCompletionLoading(true);
+      await enrollmentApi.rejectCompletion(enrollment.id, rejectReason);
+      toast.success('Completion request rejected — mentee returned to active');
+      setShowRejectModal(false);
+      setRejectReason('');
+      fetchMenteeDetails();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to reject completion');
+    } finally {
+      setCompletionLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -121,7 +166,7 @@ export default function MenteeDetail() {
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => toast.info('Messaging feature coming soon!')}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors flex items-center gap-2"
@@ -136,9 +181,136 @@ export default function MenteeDetail() {
               <Plus className="w-5 h-5" />
               Assign Task
             </button>
+            {/* Mentor directly approves completion — no self-request loop */}
+            {(enrollment?.status === 'active' || enrollment?.status === 'matched') && (
+              <button
+                onClick={() => setShowCompleteConfirm(true)}
+                disabled={completionLoading}
+                className="px-4 py-2 bg-green-50 hover:bg-green-100 border border-green-300 text-green-700 rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Complete Level
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* ─── Completion Request Banner ────────────────────────────────── */}
+      {enrollment?.status === 'pending_completion' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <AlertCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-900 font-medium text-sm">
+                {mentee?.firstName} {mentee?.lastName} has requested level completion
+              </p>
+              <p className="text-amber-700 text-xs mt-1">
+                Requested on {enrollment.completionRequestedAt
+                  ? new Date(enrollment.completionRequestedAt).toLocaleDateString()
+                  : 'recently'}
+                {enrollment.completionRequestedByRole === 'mentor' ? ' (by mentor)' : ' (by mentee)'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3 shrink-0">
+            <button
+              onClick={() => setShowRejectModal(true)}
+              disabled={completionLoading}
+              className="px-4 py-2 bg-white border border-red-300 text-red-700 hover:bg-red-50 rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
+            >
+              <ThumbsDown className="w-4 h-4" />
+              Reject
+            </button>
+            <button
+              onClick={handleApproveCompletion}
+              disabled={completionLoading}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
+            >
+              {completionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
+              Approve Completion
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Complete Level Confirmation Modal ────────────────────────── */}
+      {showCompleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <h3 className="text-slate-900 text-lg font-semibold mb-2">Complete This Level?</h3>
+            {progress < 100 && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-amber-800 text-sm">
+                  This mentee has only completed <strong>{progress}%</strong> of tasks ({enrollment?.tasksCompleted}/{enrollment?.tasksTotal}).
+                  Are you sure they&apos;re ready to advance?
+                </p>
+              </div>
+            )}
+            <p className="text-slate-600 text-sm mb-5">
+              This will mark <strong>{mentee?.firstName}&apos;s</strong> current level as complete.
+              {enrollment?.program?.levels?.length > 1
+                ? ' They will move to the next level once promoted by admin.'
+                : ' This completes their entire program.'}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowCompleteConfirm(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowCompleteConfirm(false);
+                  await handleApproveCompletion();
+                }}
+                disabled={completionLoading}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm flex items-center gap-2 disabled:opacity-50"
+              >
+                {completionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Yes, Complete Level
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Reject Completion Modal ─────────────────────────────────── */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <h3 className="text-slate-900 text-lg font-semibold mb-2">Reject Completion Request</h3>
+            <p className="text-slate-600 text-sm mb-4">
+              Provide a reason so the mentee knows what still needs to be done.
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="e.g. Final project submission is still outstanding..."
+              rows={4}
+              className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-4"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setShowRejectModal(false); setRejectReason(''); }}
+                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectCompletion}
+                disabled={completionLoading}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm flex items-center gap-2 disabled:opacity-50"
+              >
+                {completionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
