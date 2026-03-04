@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Sparkles,
@@ -18,6 +19,7 @@ import {
 import { useProgramRoadmap } from '@/lib/hooks/admin';
 
 export default function RoadmapGenerator() {
+  const router = useRouter();
   const {
     id, isGenerating, loading, roadmap, roadmapId, levels,
     selectedLevelId, selectedLevel, editingWeek, taskModal, taskForm, savingTask,
