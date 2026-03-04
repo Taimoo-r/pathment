@@ -14,42 +14,18 @@ import {
 import RichTextEditor from '@/components/shared/RichTextEditor';
 import FileUploader from '@/components/shared/FileUploader';
 import { submissionService } from '@/lib/services/submissionService';
-import { taskApi } from '@/lib/services/task-api';
+import { useTaskDetail } from '@/lib/hooks/mentee';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  type: string;
-  difficulty: string;
-  deliverable?: string;
-  acceptanceCriteria?: string[];
-  roadmapTask?: {
-    title: string;
-    description: string;
-    deliverable?: string;
-    acceptanceCriteria?: string[];
-    resources?: Array<{
-      id: string;
-      title: string;
-      url: string;
-      type: string;
-    }>;
-  };
-  status: string;
-  isCustomTask: boolean;
-}
-
 export default function TaskSubmission({ params }: PageProps) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const [task, setTask] = useState<Task | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const { task, loading, error: taskError } = useTaskDetail(resolvedParams.id);
+
   const [submissionText, setSubmissionText] = useState('');
   const [links, setLinks] = useState<string[]>(['']);
   const [files, setFiles] = useState<File[]>([]);
@@ -59,22 +35,6 @@ export default function TaskSubmission({ params }: PageProps) {
   const [extensionReason, setExtensionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    const fetchTask = async () => {
-      try {
-        const response = await taskApi.getTaskById(resolvedParams.id);
-        setTask(response.data.task);
-      } catch (err: unknown) {
-        const error = err as { response?: { data?: { message?: string } } };
-        setError(error.response?.data?.message || 'Failed to load task');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTask();
-  }, [resolvedParams.id]);
 
   // If task is completed or cancelled, redirect to the details page
   useEffect(() => {
@@ -169,10 +129,10 @@ export default function TaskSubmission({ params }: PageProps) {
     );
   }
 
-  if (!task) {
+  if (taskError || !task) {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-        <p className="text-red-900">Task not found</p>
+        <p className="text-red-900">{taskError || 'Task not found'}</p>
       </div>
     );
   }

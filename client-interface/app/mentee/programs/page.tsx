@@ -1,41 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Clock, Users, BookOpen, Star, Loader2, Filter } from 'lucide-react';
-import { programManagementApi } from '@/lib/services/program-api';
-import { toast } from 'sonner';
+import { Search, Clock, Users, BookOpen, Loader2, Filter } from 'lucide-react';
+import { useMenteePrograms } from '@/lib/hooks/mentee';
 
 export default function MenteeProgramsPage() {
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  useEffect(() => {
-    fetchPrograms();
-  }, []);
-
-  const fetchPrograms = async () => {
-    try {
-      setLoading(true);
-      const response = await programManagementApi.programs.getAll({ status: 'published' });
-      const programsList = Array.isArray(response?.data) ? response.data : [];
-      setPrograms(programsList);
-    } catch (error: any) {
-      console.error('Failed to fetch programs:', error);
-      toast.error('Failed to load programs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredPrograms = programs.filter((program) => {
-    const matchesSearch = program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      program.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || program.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const {
+    programs,
+    filteredPrograms,
+    loading,
+    searchQuery,
+    statusFilter,
+    setSearchQuery,
+    setStatusFilter,
+  } = useMenteePrograms();
 
   return (
     <div className="space-y-6">

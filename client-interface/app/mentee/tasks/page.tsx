@@ -1,93 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Clock, CheckCircle2, AlertCircle, FileText, Loader2, Star, Calendar, XCircle, BookOpen, Sparkles, GraduationCap } from 'lucide-react';
-import { taskApi } from '@/lib/services/task-api';
-import { enrollmentApi } from '@/lib/services/enrollment-api';
-import { useAuth } from '@/lib/context/AuthContext';
-import { toast } from 'sonner';
+import { useMenteeTasks } from '@/lib/hooks/mentee';
 
 export default function MenteeTasks() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [enrollments, setEnrollments] = useState<any[]>([]);
-  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
-
-  // Fetch mentee's enrolled programs once on mount
-  useEffect(() => {
-    if (user?.id) {
-      fetchEnrollments();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchTasks();
-    }
-  }, [user, filterStatus, selectedEnrollmentId]);
-
-  const fetchEnrollments = async () => {
-    try {
-      const res = await enrollmentApi.getAll({ menteeId: user!.id });
-      const list: any[] = res?.data?.enrollments || [];
-      setEnrollments(list);
-      // Auto-select the first active/in_progress enrollment by default
-      const active = list.find((e: any) =>
-        ['active', 'in_progress'].includes(e.status)
-      ) || list[0];
-      if (active) {
-        setSelectedEnrollmentId(active.id);
-      }
-    } catch (error) {
-      console.error('Failed to fetch enrollments:', error);
-    }
-  };
-
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch stats (scoped to selected program if any)
-      const statsRes = await taskApi.getMenteeTaskStats(user!.id, selectedEnrollmentId ?? undefined);
-      setStats(statsRes?.data?.stats);
-      
-      // Fetch tasks
-      const params: any = {};
-      if (filterStatus !== 'all') {
-        params.status = filterStatus;
-      }
-      if (selectedEnrollmentId) {
-        params.enrollmentId = selectedEnrollmentId;
-      }
-      
-      const tasksRes = await taskApi.getMenteeTasks(user!.id, params);
-      setTasks(tasksRes.data.tasks || []);
-      
-    } catch (error: any) {
-      console.error('Failed to fetch tasks:', error);
-      toast.error('Failed to load tasks');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStartTask = async (taskId: string) => {
-    try {
-      await taskApi.updateTaskStatus(taskId, 'in_progress');
-      toast.success('Task started!');
-      fetchTasks();
-    } catch (error: any) {
-      toast.error('Failed to start task');
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
+  const {
+    filteredTasks,
+    stats,
+    loading,
+    enrollments,
+    selectedEnrollmentId,
+    filterStatus,
+    searchTerm,
+    setSelectedEnrollmentId,
+    setFilterStatus,
+    setSearchTerm,
+    handleStartTask,
+  } = useMenteeTasks();const getStatusBadge = (status: string) => {
     const badges: any = {
       assigned: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'New', icon: AlertCircle },
       in_progress: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'In Progress', icon: Clock },
@@ -140,15 +71,6 @@ export default function MenteeTasks() {
     if (!dueDate) return false;
     return new Date(dueDate) < new Date();
   };
-
-  const filteredTasks = tasks.filter(task => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      task.roadmapTask?.title?.toLowerCase().includes(searchLower) ||
-      task.roadmapTask?.description?.toLowerCase().includes(searchLower)
-    );
-  });
 
   return (
     <div className="space-y-6">
@@ -300,7 +222,7 @@ export default function MenteeTasks() {
                       {task.status === 'cancelled' && task.cancellationReason && (
                         <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                           <div className="flex items-start gap-2">
-                            <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                            <XCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
                             <div>
                               <p className="text-red-900 font-medium text-sm">Task Cancelled</p>
                               <p className="text-red-700 text-sm mt-1">{task.cancellationReason}</p>

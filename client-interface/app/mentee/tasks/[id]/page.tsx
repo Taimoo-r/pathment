@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, useEffect } from 'react';
+import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -20,7 +20,7 @@ import {
   ExternalLink,
   Loader2,
 } from 'lucide-react';
-import { taskApi } from '@/lib/services/task-api';
+import { useTaskDetail } from '@/lib/hooks/mentee';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -29,24 +29,7 @@ interface PageProps {
 export default function TaskDetailsPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const [task, setTask] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const fetchTask = async () => {
-      try {
-        const response = await taskApi.getTaskById(resolvedParams.id);
-        setTask(response.data.task);
-      } catch (err: unknown) {
-        const e = err as { response?: { data?: { message?: string } } };
-        setError(e.response?.data?.message || 'Failed to load task');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTask();
-  }, [resolvedParams.id]);
+  const { task, loading, error } = useTaskDetail(resolvedParams.id);
 
   if (loading) {
     return (

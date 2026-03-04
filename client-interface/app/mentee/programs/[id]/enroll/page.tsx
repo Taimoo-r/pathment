@@ -1,88 +1,24 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, Clock, BookOpen, Target, Users, Star, Loader2 } from 'lucide-react';
-import { programManagementApi } from '@/lib/services/program-api';
-import { enrollmentApi } from '@/lib/services/enrollment-api';
-import { toast } from 'sonner';
-import { useAuth } from '@/lib/context/AuthContext';
+import { useProgramEnroll } from '@/lib/hooks/mentee';
 
 export default function ProgramEnrollment() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
   const id = params?.id as string;
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [program, setProgram] = useState<any>(null);
-  const [levels, setLevels] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [enrolling, setEnrolling] = useState(false);
-  const [existingEnrollment, setExistingEnrollment] = useState<any>(null);
 
-  const fetchProgram = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await programManagementApi.programs.getById(id);
-      const programData = response?.data?.program || response?.program || response;
-      setProgram(programData);
-    } catch (error: any) {
-      console.error('Failed to fetch program:', error);
-      toast.error('Failed to load program details');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  const fetchLevels = useCallback(async () => {
-    try {
-      const response = await programManagementApi.levels.getByProgram(id);
-      const levelsList = response?.data?.levels || response?.levels || response || [];
-      setLevels(Array.isArray(levelsList) ? levelsList : []);
-    } catch (error: any) {
-      console.error('Failed to fetch levels:', error);
-    }
-  }, [id]);
-
-  const checkEnrollmentStatus = useCallback(async () => {
-    try {
-      if (!user?.id) return;
-      const response = await enrollmentApi.getAll({ 
-        programId: id, 
-        menteeId: user.id 
-      });
-      const enrollments = response?.data?.enrollments || response?.enrollments || [];
-      if (enrollments.length > 0) {
-        setExistingEnrollment(enrollments[0]);
-      }
-    } catch (error: any) {
-      console.error('Failed to check enrollment status:', error);
-    }
-  }, [id, user]);
-
-  useEffect(() => {
-    if (id && user) {
-      fetchProgram();
-      fetchLevels();
-      checkEnrollmentStatus();
-    }
-  }, [id, user, fetchProgram, fetchLevels, checkEnrollmentStatus]);
-
-  const handleEnroll = async () => {
-    try {
-      setEnrolling(true);
-      await enrollmentApi.create({ programId: id });
-      toast.success('Enrollment request submitted! Awaiting admin approval.');
-      setShowConfirmDialog(false);
-      setTimeout(() => router.push('/mentee/dashboard'), 1500);
-    } catch (error: any) {
-      console.error('Failed to enroll:', error);
-      toast.error(error.response?.data?.message || 'Failed to submit enrollment request');
-      setShowConfirmDialog(false);
-    } finally {
-      setEnrolling(false);
-    }
-  };
+  const {
+    program,
+    levels,
+    loading,
+    enrolling,
+    existingEnrollment,
+    showConfirmDialog,
+    setShowConfirmDialog,
+    handleEnroll,
+  } = useProgramEnroll(id);
 
   if (loading) {
     return (

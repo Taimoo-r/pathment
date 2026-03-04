@@ -1,14 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/context/AuthContext';
-import { apiClient } from '@/lib/services/api-client';
-import { apiConfig } from '@/lib/config/api';
-import { toast } from 'sonner';
 import { 
   User, 
-  Mail, 
-  Phone, 
   GraduationCap, 
   Target, 
   Bell, 
@@ -16,141 +9,27 @@ import {
   Loader2,
   Save
 } from 'lucide-react';
+import { useMenteeSettings } from '@/lib/hooks/mentee';
 
 export default function MenteeSettings() {
-  const { user, refreshUser } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile');
-
-  // Profile State
-  const [profileData, setProfileData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    bio: ''
-  });
-
-  // Mentee Profile State
-  const [menteeProfile, setMenteeProfile] = useState({
-    learningGoals: '',
-    interests: [] as string[],
-    priorExperience: '',
-    currentEducation: '',
-    currentOccupation: '',
-    linkedinUrl: '',
-    githubUrl: '',
-    portfolioUrl: ''
-  });
-
-  // Learning Preferences
-  const [learningPreferences, setLearningPreferences] = useState({
-    preferredLearningStyle: 'visual',
-    timeCommitment: 10,
-    preferredSchedule: 'flexible'
-  });
-
-  // Notification State
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    taskReminders: true,
-    mentorMessages: true,
-    programUpdates: true,
-    weeklyProgress: true
-  });
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get(apiConfig.endpoints.profile);
-      const data = response.data;
-      
-      setProfileData({
-        firstName: data.firstName || '',
-        lastName: data.lastName || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        bio: data.bio || ''
-      });
-
-      if (data.menteeProfile) {
-        setMenteeProfile({
-          learningGoals: data.menteeProfile.learningGoals || '',
-          interests: data.menteeProfile.interests || [],
-          priorExperience: data.menteeProfile.priorExperience || '',
-          currentEducation: data.menteeProfile.currentEducation || '',
-          currentOccupation: data.menteeProfile.currentOccupation || '',
-          linkedinUrl: data.menteeProfile.linkedinUrl || '',
-          githubUrl: data.menteeProfile.githubUrl || '',
-          portfolioUrl: data.menteeProfile.portfolioUrl || ''
-        });
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch settings:', error);
-      toast.error('Failed to load settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleProfileUpdate = async () => {
-    try {
-      setSaving(true);
-      await apiClient.put(apiConfig.endpoints.profile, profileData);
-      await refreshUser();
-      toast.success('Profile updated successfully');
-    } catch (error: any) {
-      console.error('Failed to update profile:', error);
-      toast.error(error.response?.data?.message || 'Failed to update profile');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleMenteeProfileUpdate = async () => {
-    try {
-      setSaving(true);
-      await apiClient.post(`${apiConfig.endpoints.profile}/complete-mentee`, menteeProfile);
-      toast.success('Mentee profile updated successfully');
-      await fetchSettings();
-    } catch (error: any) {
-      console.error('Failed to update mentee profile:', error);
-      toast.error(error.response?.data?.message || 'Failed to update mentee profile');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleLearningPreferencesUpdate = async () => {
-    try {
-      setSaving(true);
-      // TODO: Implement learning preferences API
-      toast.success('Learning preferences updated successfully');
-    } catch (error: any) {
-      console.error('Failed to update preferences:', error);
-      toast.error('Failed to update learning preferences');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleNotificationUpdate = async () => {
-    try {
-      setSaving(true);
-      // TODO: Implement notification settings API
-      toast.success('Notification settings updated successfully');
-    } catch (error: any) {
-      console.error('Failed to update notifications:', error);
-      toast.error('Failed to update notification settings');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const {
+    loading,
+    saving,
+    activeTab,
+    profileData,
+    menteeProfile,
+    learningPreferences,
+    notificationSettings,
+    setActiveTab,
+    setProfileData,
+    setMenteeProfile,
+    setLearningPreferences,
+    setNotificationSettings,
+    handleProfileUpdate,
+    handleMenteeProfileUpdate,
+    handleLearningPreferencesUpdate,
+    handleNotificationUpdate,
+  } = useMenteeSettings();
 
   if (loading) {
     return (
@@ -454,7 +333,7 @@ export default function MenteeSettings() {
                         })}
                         className="sr-only peer"
                       />
-                      <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+                      <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-1 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
                     </label>
                   </div>
                 ))}
