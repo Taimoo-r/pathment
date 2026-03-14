@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Users, TrendingUp, CheckCircle2, Loader2, MessageSquare, Clock } from 'lucide-react';
-import { toast } from 'sonner';
 import { useMentorMentees } from '@/lib/hooks/mentor';
 import { StatsCard, SearchAndFilterBar, ProgressBar, StatusBadge } from '@/components/admin/ui';
 
 export default function MyMentees() {
+  const router = useRouter();
   const {
     matches,
     filteredMatches,
@@ -161,8 +162,9 @@ export default function MyMentees() {
                     <button
                       onClick={(e) => {
                         e.preventDefault();
-                        // TODO: Open message modal
-                        toast.info('Messaging feature coming soon!');
+                        if (mentee?.id) {
+                          router.push(`/mentor/messages?participantId=${mentee.id}`);
+                        }
                       }}
                       className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
                     >

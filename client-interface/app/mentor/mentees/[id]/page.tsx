@@ -20,7 +20,6 @@ import {
   ThumbsDown,
   AlertCircle
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useMenteeDetailPage } from '@/lib/hooks/mentor';
 import { PageHeader, StatsCard, ProgressBar, StatusBadge } from '@/components/admin/ui';
 
@@ -98,7 +97,7 @@ export default function MenteeDetail() {
 
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => toast.info('Messaging feature coming soon!')}
+              onClick={() => router.push(`/mentor/messages?participantId=${menteeId}`)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors flex items-center gap-2"
             >
               <MessageSquare className="w-5 h-5" />
@@ -453,7 +452,7 @@ export default function MenteeDetail() {
             <h3 className="text-slate-900 mb-4">Quick Actions</h3>
             <div className="space-y-3">
               <button
-                onClick={() => toast.info('Messaging feature coming soon!')}
+                onClick={() => router.push(`/mentor/messages?participantId=${menteeId}`)}
                 className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-left"
               >
                 <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
