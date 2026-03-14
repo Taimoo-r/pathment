@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -15,40 +15,102 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  LucideIcon
 } from 'lucide-react';
+import { NotificationDrawer } from './NotificationDrawer';
+import { messagingApi } from '@/lib/services/messaging-api';
+import { io } from 'socket.io-client';
 
 interface NavigationProps {
   role: UserRole;
 }
 
+interface NavLink {
+  path: string;
+  icon: LucideIcon;
+  label: string;
+  hasBadge?: boolean;
+}
+
 export default function Navigation({ role }: NavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-  const adminLinks = [
+  const adminLinks: NavLink[] = [
     { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/programs/list', icon: BookOpen, label: 'Programs' },
     { path: '/admin/matching/mentor-assignment', icon: UserCheck, label: 'Mentors' },
     { path: '/admin/enrollment/overview', icon: Users, label: 'Enrollments' },
+    { path: '/admin/messages', icon: MessageSquare, label: 'Messages', hasBadge: true },
   ];
 
-  const mentorLinks = [
+  const mentorLinks: NavLink[] = [
     { path: '/mentor/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/mentor/programs', icon: BookOpen, label: 'My Programs' },
     { path: '/mentor/mentees', icon: Users, label: 'My Mentees' },
     { path: '/mentor/tasks', icon: ClipboardList, label: 'Tasks' },
+    { path: '/mentor/messages', icon: MessageSquare, label: 'Messages', hasBadge: true },
   ];
 
-  const menteeLinks = [
+  const menteeLinks: NavLink[] = [
     { path: '/mentee/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/mentee/programs', icon: BookOpen, label: 'Browse Programs' },
     { path: '/mentee/tasks', icon: ClipboardList, label: 'My Tasks' },
+    { path: '/mentee/messages', icon: MessageSquare, label: 'Messages', hasBadge: true },
   ];
 
   const links = role === 'admin' ? adminLinks : role === 'mentor' ? mentorLinks : menteeLinks;
+
+  // Load initial unread count
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      try {
+        const data = await messagingApi.listNotifications(1);
+        setUnreadCount(data.unreadCount);
+      } catch (error) {
+        console.error('Failed to load unread count:', error);
+      }
+    };
+
+    if (user?.id) {
+      loadUnreadCount();
+    }
+  }, [user?.id]);
+
+  // Setup socket listeners for real-time updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const socketUrl = apiBaseUrl.endsWith('/api') ? apiBaseUrl.slice(0, -4) : apiBaseUrl;
+
+    const socket = io(socketUrl, {
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
+
+    const handleNotificationNew = () => {
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    const handleUnreadCountUpdate = (data: { unreadCount: number }) => {
+      setUnreadCount(data.unreadCount);
+    };
+
+    socket.on('notification:new', handleNotificationNew);
+    socket.on('notification:unread-count', handleUnreadCountUpdate);
+
+    return () => {
+      socket.off('notification:new', handleNotificationNew);
+      socket.off('notification:unread-count', handleUnreadCountUpdate);
+      socket.disconnect();
+    };
+  }, [user?.id, apiBaseUrl]);
 
   const handleLogout = async () => {
     await logout();
@@ -73,7 +135,7 @@ export default function Navigation({ role }: NavigationProps) {
 
           {/* Navigation Links */}
           <nav className="flex-1 px-4 py-6 space-y-1">
-            {links.map((link) => {
+            {links.map((link: NavLink) => {
               const Icon = link.icon;
               const isActive = pathname === link.path;
               
@@ -81,7 +143,7 @@ export default function Navigation({ role }: NavigationProps) {
                 <Link
                   key={link.path}
                   href={link.path}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                  className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700 font-medium'
                       : 'text-slate-700 hover:bg-slate-50'
@@ -89,13 +151,23 @@ export default function Navigation({ role }: NavigationProps) {
                 >
                   <Icon className="w-5 h-5" />
                   <span>{link.label}</span>
+                  {link.hasBadge && unreadCount > 0 && (
+                    <span className="absolute right-3 flex items-center justify-center min-w-6 h-6 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
           </nav>
 
           {/* Bottom Section */}
-          <div className="px-4 py-4 border-t border-slate-200 space-y-1">
+          <div className="px-4 py-4 border-t border-slate-200 space-y-1 flex flex-col">
+            <div className="relative flex items-center gap-2 mb-4">
+              {user?.id && (
+                <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} showLabel />
+              )}
+            </div>
             <Link 
               href={`/${role}/settings`}
               className={`flex items-center gap-3 px-4 py-3 w-full rounded-xl transition-colors ${
@@ -109,7 +181,7 @@ export default function Navigation({ role }: NavigationProps) {
             </Link>
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 rounded-xl transition-colors text-left"
             >
               <LogOut className="w-5 h-5" />
               <span>Logout</span>
@@ -119,7 +191,7 @@ export default function Navigation({ role }: NavigationProps) {
       </div>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-[60]">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-60">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 bg-indigo-600 rounded-xl">
@@ -131,19 +203,24 @@ export default function Navigation({ role }: NavigationProps) {
             </div>
           </div>
 
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <div className="relative flex items-center gap-2">
+            {user?.id && (
+              <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} />
+            )}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="border-t border-slate-200 bg-white">
             <nav className="px-4 py-4 space-y-1">
-              {links.map((link) => {
+              {links.map((link: NavLink) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.path;
                 
@@ -152,7 +229,7 @@ export default function Navigation({ role }: NavigationProps) {
                     key={link.path}
                     href={link.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                    className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                       isActive
                         ? 'bg-indigo-50 text-indigo-700 font-medium'
                         : 'text-slate-700 hover:bg-slate-50'
@@ -160,6 +237,11 @@ export default function Navigation({ role }: NavigationProps) {
                   >
                     <Icon className="w-5 h-5" />
                     <span>{link.label}</span>
+                    {link.hasBadge && unreadCount > 0 && (
+                      <span className="absolute right-3 flex items-center justify-center min-w-6 h-6 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -177,7 +259,7 @@ export default function Navigation({ role }: NavigationProps) {
               </Link>
               <button 
                 onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 rounded-xl transition-colors text-left"
               >
                 <LogOut className="w-5 h-5" />
                 <span>Logout</span>
