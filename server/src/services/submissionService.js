@@ -195,49 +195,7 @@ class SubmissionService {
       });
     }
 
-    const reviewedSubmission = await this.getSubmissionById(submissionId);
-
-    await notificationOrchestrator.dispatch({
-      eventKey: NOTIFICATION_EVENTS.SUBMISSION_REVIEWED,
-      recipients: [{ userId: task.menteeId }],
-      payload: {
-        title: isApproved ? 'Submission approved' : 'Submission needs revision',
-        message: isApproved
-          ? `Great work! Your submission for "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}" was approved.`
-          : `Your submission for "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}" needs revision.`,
-        actionUrl: `/mentee/tasks/${task.id}`,
-        actionLabel: 'View Feedback',
-        relatedEntityType: 'task_submission',
-        relatedEntityId: submission.id,
-        emailSubject: 'Pathment: Submission review update'
-      },
-      dedupe: {
-        relatedEntityType: 'submission_reviewed',
-        relatedEntityId: submission.id
-      }
-    });
-
-    if (feedbackText && String(feedbackText).trim()) {
-      await notificationOrchestrator.dispatch({
-        eventKey: NOTIFICATION_EVENTS.FEEDBACK_SENT,
-        recipients: [{ userId: task.menteeId }],
-        payload: {
-          title: 'New mentor feedback',
-          message: `Your mentor left new feedback on "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}".`,
-          actionUrl: `/mentee/tasks/${task.id}`,
-          actionLabel: 'Read Feedback',
-          relatedEntityType: 'task_feedback',
-          relatedEntityId: submission.id,
-          emailSubject: 'Pathment: New mentor feedback'
-        },
-        dedupe: {
-          relatedEntityType: 'feedback_sent',
-          relatedEntityId: submission.id
-        }
-      });
-    }
-
-    return reviewedSubmission;
+    return this.getSubmissionById(submissionId);
   }
 
   /**
@@ -324,7 +282,49 @@ class SubmissionService {
     // Update mentor stats
     await this.updateMentorReviewStats(mentorId);
 
-    return this.getSubmissionById(submissionId);
+    const reviewedSubmission = await this.getSubmissionById(submissionId);
+
+    await notificationOrchestrator.dispatch({
+      eventKey: NOTIFICATION_EVENTS.SUBMISSION_REVIEWED,
+      recipients: [{ userId: task.menteeId }],
+      payload: {
+        title: isApproved ? 'Submission approved' : 'Submission needs revision',
+        message: isApproved
+          ? `Great work! Your submission for "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}" was approved.`
+          : `Your submission for "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}" needs revision.`,
+        actionUrl: `/mentee/tasks/${task.id}`,
+        actionLabel: 'View Feedback',
+        relatedEntityType: 'task_submission',
+        relatedEntityId: submission.id,
+        emailSubject: 'Pathment: Submission review update'
+      },
+      dedupe: {
+        relatedEntityType: 'submission_reviewed',
+        relatedEntityId: submission.id
+      }
+    });
+
+    if (feedbackText && String(feedbackText).trim()) {
+      await notificationOrchestrator.dispatch({
+        eventKey: NOTIFICATION_EVENTS.FEEDBACK_SENT,
+        recipients: [{ userId: task.menteeId }],
+        payload: {
+          title: 'New mentor feedback',
+          message: `Your mentor left new feedback on "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}".`,
+          actionUrl: `/mentee/tasks/${task.id}`,
+          actionLabel: 'Read Feedback',
+          relatedEntityType: 'task_feedback',
+          relatedEntityId: submission.id,
+          emailSubject: 'Pathment: New mentor feedback'
+        },
+        dedupe: {
+          relatedEntityType: 'feedback_sent',
+          relatedEntityId: submission.id
+        }
+      });
+    }
+
+    return reviewedSubmission;
   }
 
   /**
