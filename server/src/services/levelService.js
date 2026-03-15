@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { models } = require('../db');
 const { NotFoundError, ForbiddenError, ValidationError } = require('../utils/errors/errorTypes');
 
@@ -95,7 +96,7 @@ class LevelService {
         where: { 
           programId: level.programId, 
           levelOrder: newLevelOrder,
-          id: { [models.Sequelize.Op.ne]: levelId }
+          id: { [Op.ne]: levelId }
         }
       });
 
@@ -110,7 +111,7 @@ class LevelService {
         where: { 
           programId: level.programId, 
           name: data.name,
-          id: { [models.Sequelize.Op.ne]: levelId }
+          id: { [Op.ne]: levelId }
         }
       });
 

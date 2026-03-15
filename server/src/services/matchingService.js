@@ -1,6 +1,6 @@
 const { models } = require('../db');
 const { NotFoundError, ValidationError, ConflictError, ForbiddenError } = require('../utils/errors/errorTypes');
-const { Op } = require('sequelize');
+const { Op, col } = require('sequelize');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 
@@ -446,7 +446,7 @@ class MatchingService {
           where: {
             isAcceptingMentees: true,
             currentMenteeCount: {
-              [Op.lt]: models.Sequelize.col('mentorProfile.max_mentees')
+              [Op.lt]: col('mentorProfile.max_mentees')
             }
           },
           required: true,

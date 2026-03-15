@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { models } = require('../db');
 const emailService = require('./emailService');
 const { shouldCreateNotification } = require('../utils/notificationPreferences');
@@ -105,7 +106,7 @@ class NotificationOrchestrator {
       where: {
         userId,
         type,
-        [models.Sequelize.Op.or]: candidates
+        [Op.or]: candidates
       },
       attributes: ['id']
     });
