@@ -338,8 +338,6 @@ Reusable Joi patterns for common fields:
 ## Known Limitations & TODOs
 
 ### Current Limitations
-- ⚠️ Email verification emails not sent (placeholder)
-- ⚠️ Password reset emails not sent (placeholder)
 - ⚠️ No rate limiting implemented yet
 - ⚠️ No request logging/monitoring
 - ⚠️ Database migrations not created yet
@@ -355,9 +353,9 @@ Reusable Joi patterns for common fields:
    - Sample programs and tasks
 
 3. **Email Service**
-   - Integrate nodemailer or SendGrid
-   - Email templates (verification, password reset)
-   - Queue system for async email sending
+   - Tune Resend sender/reply-to configuration
+   - Improve email templates (verification, password reset)
+   - Queue system for async email retry handling
 
 4. **Rate Limiting**
    - Install `express-rate-limit`

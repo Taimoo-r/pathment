@@ -4,6 +4,12 @@ const Joi = require('joi');
  * Admin validation schemas
  */
 const adminSchemas = {
+  createInvite: Joi.object({
+    email: Joi.string().email().required(),
+    role: Joi.string().valid('mentor', 'mentee').required(),
+    expiresInHours: Joi.number().integer().min(1).max(24 * 30).optional()
+  }),
+
   createAdmin: Joi.object({
     firstName: Joi.string().min(2).max(50).trim().required(),
     lastName: Joi.string().min(2).max(50).trim().required(),
@@ -38,6 +44,12 @@ const adminSchemas = {
         'manage_settings'
       )
     ).required()
+  }),
+
+  inviteListQuery: Joi.object({
+    status: Joi.string().valid('all', 'active', 'used', 'expired', 'revoked').optional(),
+    limit: Joi.number().integer().min(1).max(100).optional(),
+    offset: Joi.number().integer().min(0).optional()
   })
 };
 

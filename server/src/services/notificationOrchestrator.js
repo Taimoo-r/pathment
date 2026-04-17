@@ -5,6 +5,21 @@ const { shouldCreateNotification } = require('../utils/notificationPreferences')
 const { NOTIFICATION_EVENTS, NOTIFICATION_MATRIX } = require('../config/notificationMatrix');
 
 class NotificationOrchestrator {
+  isNotificationEmailEnabled() {
+    const raw = String(process.env.EMAIL_NOTIFICATION_EMAILS_ENABLED || 'false').trim().toLowerCase();
+    return raw === '1' || raw === 'true' || raw === 'yes';
+  }
+
+  getDisabledEmailEvents() {
+    const raw = process.env.EMAIL_DISABLED_EVENTS || '';
+    return new Set(
+      raw
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    );
+  }
+
   async dispatch({ eventKey, recipients, payload, dedupe = null, channelOverrides = null }) {
     const matrix = NOTIFICATION_MATRIX[eventKey];
     if (!matrix || !Array.isArray(recipients) || recipients.length === 0) {
@@ -42,13 +57,14 @@ class NotificationOrchestrator {
         continue;
       }
 
+      const shouldSkipByDedupe = await this.shouldSkipByDedupe(recipient.userId, matrix.type, dedupe, payload);
+
       const settings = user.settings || null;
       const preferenceKey = matrix.preferenceKey;
 
       // In-app channel
       if (channels.inApp) {
-        const shouldSkipInApp = await this.shouldSkipByDedupe(recipient.userId, matrix.type, dedupe, payload);
-        if (!shouldSkipInApp) {
+        if (!shouldSkipByDedupe) {
           await models.Notification.create({
             userId: recipient.userId,
             type: matrix.type,
@@ -66,18 +82,26 @@ class NotificationOrchestrator {
 
       // Email channel
       if (channels.email) {
+        const notificationEmailEnabled = this.isNotificationEmailEnabled();
+        const isEventEmailDisabled = this.getDisabledEmailEvents().has(eventKey);
         const allowedByPrefs = shouldCreateNotification(settings, preferenceKey, {
           checkEmail: true,
           checkPush: false,
           respectQuietHours: false
         }).should_create;
 
-        if (allowedByPrefs && user.email) {
+        if (notificationEmailEnabled && !isEventEmailDisabled && !shouldSkipByDedupe && allowedByPrefs && user.email) {
           await emailService.sendEmail({
             to: user.email,
             subject: payload.emailSubject || payload.title,
             text: payload.emailText || payload.message,
-            html: payload.emailHtml || null
+            html: payload.emailHtml || null,
+            emailType: eventKey,
+            recipientId: recipient.userId,
+            metadata: {
+              relatedEntityType: payload.relatedEntityType || null,
+              relatedEntityId: payload.relatedEntityId || null
+            }
           });
         }
       }
@@ -131,15 +155,48 @@ class NotificationOrchestrator {
     const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
-    return this.dispatch({
-      eventKey: NOTIFICATION_EVENTS.PASSWORD_RESET,
-      recipients: [{ userId: user.id }],
-      payload: {
-        title: 'Password reset request',
-        message: 'A password reset was requested for your account.',
-        emailSubject: 'Reset your Pathment password',
-        emailText: `Use this link to reset your password: ${resetUrl}`
-      }
+    // Transactional security email: always send regardless of notification preferences.
+    return emailService.sendEmail({
+      to: user.email,
+      subject: 'Reset your Pathment password',
+      text: `Hi ${user.firstName || ''}, use this secure link to reset your password: ${resetUrl}`,
+      html: `
+        <p>Hi ${user.firstName || 'there'},</p>
+        <p>We received a request to reset your password.</p>
+        <p><a href="${resetUrl}">Reset Password</a></p>
+        <p>If you did not request this, you can ignore this email.</p>
+      `
+    });
+  }
+
+  async sendEmailVerificationEmail(user, verificationToken) {
+    const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(verificationToken)}`;
+
+    // Transactional auth email: always send regardless of notification preferences.
+    return emailService.sendEmail({
+      to: user.email,
+      subject: 'Verify your Pathment email',
+      text: `Hi ${user.firstName || ''}, verify your email by opening this link: ${verifyUrl}`,
+      html: `
+        <p>Hi ${user.firstName || 'there'},</p>
+        <p>Welcome to Pathment. Please verify your email address to continue.</p>
+        <p><a href="${verifyUrl}">Verify Email</a></p>
+      `
+    });
+  }
+
+  async sendRegistrationInviteEmail({ email, role, inviteUrl }) {
+    return emailService.sendEmail({
+      to: email,
+      subject: `You're invited to join Pathment as a ${role}`,
+      text: `You were invited to join Pathment as a ${role}. Use this one-time invite link: ${inviteUrl}`,
+      html: `
+        <p>Hello,</p>
+        <p>You were invited to join Pathment as a <strong>${role}</strong>.</p>
+        <p><a href="${inviteUrl}">Accept Invite</a></p>
+        <p>This invite link is one-time use and may expire.</p>
+      `
     });
   }
 }

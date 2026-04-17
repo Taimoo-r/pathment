@@ -43,9 +43,8 @@ const authSchemas = {
       'any.only': 'Passwords do not match',
       'string.empty': 'Confirm password is required'
     }),
-    role: Joi.string().valid('mentor', 'mentee').required().messages({
-      'any.only': 'Role must be either mentor or mentee',
-      'string.empty': 'Role is required'
+    inviteToken: Joi.string().trim().required().messages({
+      'string.empty': 'Invite token is required'
     }),
     phoneNumber: patterns.phoneNumber,
     dateOfBirth: Joi.date().max('now').optional(),
@@ -69,6 +68,13 @@ const authSchemas = {
   }),
 
   forgotPassword: Joi.object({
+    email: patterns.email.messages({
+      'string.email': 'Please provide a valid email address',
+      'string.empty': 'Email is required'
+    })
+  }),
+
+  resendVerification: Joi.object({
     email: patterns.email.messages({
       'string.email': 'Please provide a valid email address',
       'string.empty': 'Email is required'

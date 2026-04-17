@@ -1,19 +1,178 @@
 const bcrypt = require('bcrypt');
 const { Op } = require('sequelize');
 const { sequelize, models } = require('../db');
-const { ConflictError, NotFoundError } = require('../utils/errors/errorTypes');
+const { ConflictError, NotFoundError, ValidationError } = require('../utils/errors/errorTypes');
 const { AUTH_MESSAGES, USER_MESSAGES } = require('../utils/responses/messages');
+const { generateRandomToken, hashToken } = require('../utils/jwt');
 const notificationOrchestrator = require('./notificationOrchestrator');
 
 class AdminService {
+  /**
+   * Create one-time registration invite
+   */
+  async createRegistrationInvite(inviteData, createdBy) {
+    const { email, role, expiresInHours = 72 } = inviteData;
+    const normalizedEmail = email.trim().toLowerCase();
+    const defaultInviteTtl = Number(process.env.REGISTRATION_INVITE_EXPIRY_HOURS) || 72;
+    const ttlHours = Math.max(1, Math.min(24 * 30, Number(expiresInHours) || defaultInviteTtl));
+    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
+
+    const existingUser = await models.User.findOne({ where: { email: normalizedEmail } });
+    if (existingUser) {
+      throw new ConflictError('User already exists for this email');
+    }
+
+    const existingActiveInvite = await models.RegistrationInvite.findOne({
+      where: {
+        email: normalizedEmail,
+        role,
+        usedAt: null,
+        revokedAt: null,
+        expiresAt: { [Op.gt]: new Date() }
+      }
+    });
+
+    if (existingActiveInvite) {
+      throw new ConflictError('An active invite already exists for this email and role');
+    }
+
+    const rawToken = generateRandomToken();
+    const tokenHash = hashToken(rawToken);
+
+    const invite = await models.RegistrationInvite.create({
+      tokenHash,
+      email: normalizedEmail,
+      role,
+      invitedBy: createdBy,
+      expiresAt
+    });
+
+    await models.AuditLog.create({
+      userId: createdBy,
+      action: 'REGISTRATION_INVITE_CREATED',
+      entityType: 'RegistrationInvite',
+      entityId: invite.id,
+      newValues: {
+        email: invite.email,
+        role: invite.role,
+        expiresAt: invite.expiresAt
+      }
+    });
+
+    const clientBaseUrl = process.env.CLIENT_URL || 'http://localhost:3003';
+    const inviteUrl = `${clientBaseUrl.replace(/\/$/, '')}/register?invite=${encodeURIComponent(rawToken)}`;
+
+    const emailDelivery = await notificationOrchestrator.sendRegistrationInviteEmail({
+      email: invite.email,
+      role: invite.role,
+      inviteUrl
+    });
+
+    if (!emailDelivery?.sent) {
+      console.warn('registration invite email not sent:', emailDelivery?.reason || 'unknown_reason');
+    }
+
+    return {
+      id: invite.id,
+      email: invite.email,
+      role: invite.role,
+      expiresAt: invite.expiresAt,
+      createdAt: invite.createdAt,
+      inviteUrl,
+      emailDelivery: {
+        sent: Boolean(emailDelivery?.sent),
+        reason: emailDelivery?.reason || null,
+        id: emailDelivery?.id || null
+      }
+    };
+  }
+
+  /**
+   * List registration invites with status filter
+   */
+  async listRegistrationInvites(filters = {}) {
+    const { status = 'active', limit = 50, offset = 0 } = filters;
+    const where = {};
+    const now = new Date();
+
+    if (status === 'active') {
+      where.usedAt = null;
+      where.revokedAt = null;
+      where.expiresAt = { [Op.gt]: now };
+    } else if (status === 'used') {
+      where.usedAt = { [Op.not]: null };
+    } else if (status === 'expired') {
+      where.usedAt = null;
+      where.revokedAt = null;
+      where.expiresAt = { [Op.lte]: now };
+    } else if (status === 'revoked') {
+      where.revokedAt = { [Op.not]: null };
+    }
+
+    const parsedLimit = Math.min(100, Number(limit) || 50);
+    const parsedOffset = Math.max(0, Number(offset) || 0);
+
+    const { rows, count } = await models.RegistrationInvite.findAndCountAll({
+      where,
+      include: [
+        { model: models.User, as: 'inviter', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: models.User, as: 'usedByUser', attributes: ['id', 'firstName', 'lastName', 'email'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: parsedLimit,
+      offset: parsedOffset
+    });
+
+    return {
+      invites: rows,
+      total: count,
+      limit: parsedLimit,
+      offset: parsedOffset
+    };
+  }
+
+  /**
+   * Revoke a registration invite
+   */
+  async revokeRegistrationInvite(inviteId, revokedBy) {
+    const invite = await models.RegistrationInvite.findByPk(inviteId);
+    if (!invite) {
+      throw new NotFoundError('Registration invite not found');
+    }
+
+    if (invite.usedAt) {
+      throw new ValidationError('Used invites cannot be revoked');
+    }
+
+    if (invite.revokedAt) {
+      return invite;
+    }
+
+    invite.revokedAt = new Date();
+    await invite.save();
+
+    await models.AuditLog.create({
+      userId: revokedBy,
+      action: 'REGISTRATION_INVITE_REVOKED',
+      entityType: 'RegistrationInvite',
+      entityId: invite.id,
+      newValues: {
+        revokedAt: invite.revokedAt
+      }
+    });
+
+    return invite;
+  }
+
   /**
    * Create a new admin user (only callable by existing admin)
    */
   async createAdmin(adminData, createdBy) {
     const { firstName, lastName, email, password, permissions } = adminData;
+    const normalizedEmail = email.trim().toLowerCase();
 
     // Check if email already exists
-    const existingUser = await models.User.findOne({ where: { email } });
+    const existingUser = await models.User.findOne({ where: { email: normalizedEmail } });
     if (existingUser) {
       throw new ConflictError(AUTH_MESSAGES.EMAIL_ALREADY_EXISTS);
     }
@@ -25,7 +184,7 @@ class AdminService {
     const admin = await models.User.create({
       firstName,
       lastName,
-      email,
+      email: normalizedEmail,
       passwordHash: hashedPassword,
       role: 'admin',
       emailVerified: true,

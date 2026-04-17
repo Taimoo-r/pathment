@@ -13,102 +13,155 @@ const {
   generateRefreshToken,
   verifyRefreshToken,
   generateRandomToken,
-  generateVerificationCode,
   hashToken
 } = require('../utils/jwt');
 const notificationOrchestrator = require('./notificationOrchestrator');
 
 class AuthService {
+  async getActiveInviteByToken(inviteToken, transaction) {
+    const tokenHash = hashToken(inviteToken);
+    const invite = await models.RegistrationInvite.findOne({
+      where: { tokenHash },
+      transaction
+    });
+
+    if (!invite) {
+      throw new ValidationError('Invalid invite token');
+    }
+
+    if (invite.revokedAt) {
+      throw new ValidationError('This invite has been revoked');
+    }
+
+    if (invite.usedAt) {
+      throw new ValidationError('This invite has already been used');
+    }
+
+    if (new Date(invite.expiresAt) <= new Date()) {
+      throw new ValidationError('This invite has expired');
+    }
+
+    return invite;
+  }
+
+  async getRegistrationInviteDetails(inviteToken) {
+    if (!inviteToken) {
+      throw new ValidationError('Invite token is required');
+    }
+
+    const invite = await this.getActiveInviteByToken(inviteToken);
+
+    return {
+      id: invite.id,
+      email: invite.email,
+      role: invite.role,
+      expiresAt: invite.expiresAt
+    };
+  }
+
   /**
    * Register a new user
    */
   async register(userData) {
-    const { firstName, lastName, email, password, role, phoneNumber, dateOfBirth, bio } = userData;
-
-    // Check if email already exists
-    const existingUser = await models.User.findOne({ where: { email } });
-    if (existingUser) {
-      throw new ConflictError(AUTH_MESSAGES.EMAIL_ALREADY_EXISTS);
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Create user
-    const user = await models.User.create({
+    const {
       firstName,
       lastName,
       email,
-      passwordHash: hashedPassword,
-      role,
+      password,
+      inviteToken,
       phoneNumber,
       dateOfBirth,
-      emailVerified: false,
-      status: 'active'
-    });
+      bio
+    } = userData;
 
-    // Create role-specific profile
-    if (role === 'mentor') {
-      await models.MentorProfile.create({
-        userId: user.id,
-        bio: bio || null,
-        specialization: [],
-        yearsOfExperience: 0,
-        maxMentees: 5
-      });
-    } else if (role === 'mentee') {
-      await models.MenteeProfile.create({
-        userId: user.id,
-        bio: bio || null,
-        learningGoals: [],
-        currentLevel: 1,
-        totalPoints: 0
-      });
+    if (!inviteToken) {
+      throw new ValidationError('Invite token is required');
     }
 
-    // Ensure settings exist for notification preference checks.
-    await models.UserSettings.create({ userId: user.id });
+    const normalizedEmail = email.trim().toLowerCase();
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Generate email verification token
-    const verificationToken = generateRandomToken();
-    const hashedToken = hashToken(verificationToken);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const result = await sequelize.transaction(async (transaction) => {
+      const invite = await this.getActiveInviteByToken(inviteToken, transaction);
 
-    await models.EmailVerificationToken.create({
-      userId: user.id,
-      token: hashedToken,
-      expiresAt
+      if (invite.email.toLowerCase() !== normalizedEmail) {
+        throw new ValidationError('This invite is only valid for a specific email address');
+      }
+
+      const role = invite.role;
+
+      // Check if email already exists
+      const existingUser = await models.User.findOne({ where: { email: normalizedEmail }, transaction });
+      if (existingUser) {
+        throw new ConflictError(AUTH_MESSAGES.EMAIL_ALREADY_EXISTS);
+      }
+
+      const user = await models.User.create({
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        passwordHash: hashedPassword,
+        role,
+        phoneNumber,
+        dateOfBirth,
+        emailVerified: false,
+        status: 'active'
+      }, { transaction });
+
+      if (role === 'mentor') {
+        await models.MentorProfile.create({
+          userId: user.id,
+          bio: bio || null,
+          specialization: [],
+          yearsOfExperience: 0,
+          maxMentees: 5
+        }, { transaction });
+      } else {
+        await models.MenteeProfile.create({
+          userId: user.id,
+          bio: bio || null,
+          learningGoals: [],
+          currentLevel: 1,
+          totalPoints: 0
+        }, { transaction });
+      }
+
+      await models.UserSettings.create({ userId: user.id }, { transaction });
+
+      const verificationToken = generateRandomToken();
+      const hashedToken = hashToken(verificationToken);
+      const verificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await models.EmailVerificationToken.create({
+        userId: user.id,
+        token: hashedToken,
+        expiresAt: verificationExpiresAt
+      }, { transaction });
+
+      invite.usedAt = new Date();
+      invite.usedBy = user.id;
+      await invite.save({ transaction });
+
+      return {
+        user,
+        verificationToken
+      };
     });
 
-    // Send welcome email (non-blocking).
-    notificationOrchestrator.sendWelcomeEmail(user).catch((error) => {
+    notificationOrchestrator.sendWelcomeEmail(result.user).catch((error) => {
       console.warn('welcome email failed:', error.message);
     });
 
-    // Generate tokens
-    const accessToken = generateAccessToken({ 
-      id: user.id, 
-      email: user.email, 
-      role: user.role 
-    });
-    const refreshToken = generateRefreshToken({ id: user.id });
-
-    // Store refresh token
-    await models.RefreshToken.create({
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    notificationOrchestrator.sendEmailVerificationEmail(result.user, result.verificationToken).catch((error) => {
+      console.warn('verification email failed:', error.message);
     });
 
-    // Remove password from response
-    const userResponse = user.toJSON();
+    const userResponse = result.user.toJSON();
     delete userResponse.passwordHash;
 
     return {
       user: userResponse,
-      accessToken,
-      refreshToken,
-      verificationToken // Return for testing, remove in production
+      verificationToken: result.verificationToken
     };
   }
 
@@ -116,9 +169,11 @@ class AuthService {
    * Login user
    */
   async login(email, password) {
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Find user
     const user = await models.User.findOne({ 
-      where: { email },
+      where: { email: normalizedEmail },
       include: [
         { model: models.MentorProfile, as: 'mentorProfile' },
         { model: models.MenteeProfile, as: 'menteeProfile' },
@@ -141,10 +196,9 @@ class AuthService {
       throw new AuthenticationError(AUTH_MESSAGES.INVALID_CREDENTIALS);
     }
 
-    // Check email verification (optional enforcement)
-    // if (!user.isEmailVerified) {
-    //   throw new AuthenticationError(AUTH_MESSAGES.EMAIL_NOT_VERIFIED);
-    // }
+    if (!user.emailVerified) {
+      throw new AuthenticationError(AUTH_MESSAGES.EMAIL_NOT_VERIFIED);
+    }
 
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {
@@ -262,7 +316,7 @@ class AuthService {
     const verificationToken = await models.EmailVerificationToken.findOne({
       where: {
         token: hashedToken,
-        isUsed: false,
+        usedAt: null,
         expiresAt: { [Op.gt]: new Date() }
       }
     });
@@ -273,13 +327,43 @@ class AuthService {
 
     // Update user
     await models.User.update(
-      { isEmailVerified: true, emailVerifiedAt: new Date() },
+      { emailVerified: true, emailVerifiedAt: new Date() },
       { where: { id: verificationToken.userId } }
     );
 
     // Mark token as used
-    verificationToken.isUsed = true;
+    verificationToken.usedAt = new Date();
     await verificationToken.save();
+
+    return true;
+  }
+
+  async resendVerificationEmail(email) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await models.User.findOne({ where: { email: normalizedEmail } });
+
+    if (!user) {
+      // Prevent email enumeration.
+      return true;
+    }
+
+    if (user.emailVerified) {
+      return true;
+    }
+
+    const verificationToken = generateRandomToken();
+    const hashedToken = hashToken(verificationToken);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await models.EmailVerificationToken.create({
+      userId: user.id,
+      token: hashedToken,
+      expiresAt
+    });
+
+    notificationOrchestrator.sendEmailVerificationEmail(user, verificationToken).catch((error) => {
+      console.warn('verification resend email failed:', error.message);
+    });
 
     return true;
   }
@@ -324,7 +408,7 @@ class AuthService {
     const resetToken = await models.PasswordResetToken.findOne({
       where: {
         token: hashedToken,
-        isUsed: false,
+        usedAt: null,
         expiresAt: { [Op.gt]: new Date() }
       }
     });
@@ -338,17 +422,17 @@ class AuthService {
 
     // Update user password
     await models.User.update(
-      { password: hashedPassword },
+      { passwordHash: hashedPassword },
       { where: { id: resetToken.userId } }
     );
 
     // Mark token as used
-    resetToken.isUsed = true;
+    resetToken.usedAt = new Date();
     await resetToken.save();
 
     // Revoke all refresh tokens for this user
     await models.RefreshToken.update(
-      { isRevoked: true, revokedAt: new Date() },
+      { revokedAt: new Date() },
       { where: { userId: resetToken.userId } }
     );
 

@@ -32,6 +32,10 @@ const authenticate = catchAsync(async (req, res, next) => {
     throw new AuthenticationError('Your account has been disabled');
   }
 
+  if (!user.emailVerified) {
+    throw new AuthenticationError('Please verify your email before logging in');
+  }
+
   // Attach user to request
   req.user = user;
   next();

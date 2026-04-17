@@ -16,6 +16,12 @@ router.post(
   authController.register
 );
 
+// Validate invite token
+router.get(
+  '/invites/:token',
+  authController.validateInvite
+);
+
 // Login
 router.post(
   '/login',
@@ -42,6 +48,13 @@ router.post(
   '/forgot-password',
   validateBody(authSchemas.forgotPassword),
   authController.forgotPassword
+);
+
+// Resend verification email
+router.post(
+  '/resend-verification',
+  validateBody(authSchemas.resendVerification),
+  authController.resendVerification
 );
 
 // Reset password

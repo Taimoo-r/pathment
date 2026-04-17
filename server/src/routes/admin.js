@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const { validateBody } = require('../middlewares/validate');
+const { validateBody, validateQuery } = require('../middlewares/validate');
 const { adminSchemas } = require('../validations/adminValidation');
 const { authenticate, authorize } = require('../middlewares/auth');
 
@@ -24,6 +24,32 @@ router.post(
   authorize('admin'),
   validateBody(adminSchemas.createAdmin),
   adminController.createAdmin
+);
+
+// Create registration invite
+router.post(
+  '/invites',
+  authenticate,
+  authorize('admin'),
+  validateBody(adminSchemas.createInvite),
+  adminController.createRegistrationInvite
+);
+
+// List registration invites
+router.get(
+  '/invites',
+  authenticate,
+  authorize('admin'),
+  validateQuery(adminSchemas.inviteListQuery),
+  adminController.listRegistrationInvites
+);
+
+// Revoke registration invite
+router.post(
+  '/invites/:id/revoke',
+  authenticate,
+  authorize('admin'),
+  adminController.revokeRegistrationInvite
 );
 
 // Update admin permissions

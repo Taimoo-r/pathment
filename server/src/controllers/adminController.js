@@ -23,6 +23,44 @@ class AdminController {
   });
 
   /**
+   * Create registration invite
+   * POST /api/admin/invites
+   */
+  createRegistrationInvite = catchAsync(async (req, res) => {
+    const invite = await adminService.createRegistrationInvite(req.body, req.user.id);
+
+    res.status(201).json(
+      successResponse('Registration invite created successfully', { invite }, 201)
+    );
+  });
+
+  /**
+   * List registration invites
+   * GET /api/admin/invites
+   */
+  listRegistrationInvites = catchAsync(async (req, res) => {
+    const { status = 'active', limit = 50, offset = 0 } = req.query;
+    const result = await adminService.listRegistrationInvites({ status, limit, offset });
+
+    res.status(200).json(
+      successResponse('Registration invites retrieved successfully', result)
+    );
+  });
+
+  /**
+   * Revoke registration invite
+   * POST /api/admin/invites/:id/revoke
+   */
+  revokeRegistrationInvite = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const invite = await adminService.revokeRegistrationInvite(id, req.user.id);
+
+    res.status(200).json(
+      successResponse('Registration invite revoked successfully', { invite })
+    );
+  });
+
+  /**
    * Update admin permissions
    * PUT /api/admin/:id/permissions
    */

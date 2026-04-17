@@ -169,6 +169,17 @@ JWT_REFRESH_EXPIRY=7d
 
 # CORS
 CLIENT_URL=http://localhost:3000
+
+# Email (Resend)
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM=Pathment <noreply@yourdomain.com>
+RESEND_REPLY_TO=support@yourdomain.com
+EMAIL_NOTIFICATION_EMAILS_ENABLED=false
+
+# Optional safeguards for free-tier quota control
+EMAIL_DISABLED_EVENTS=submission_deadline_passed
+EMAIL_DAILY_LIMIT=100
+EMAIL_DAILY_LIMIT_PER_RECIPIENT=20
 ```
 
 ## 🔒 Security Features
@@ -197,9 +208,9 @@ CLIENT_URL=http://localhost:3000
    ```
 
 3. **Email Service**
-   - Integrate nodemailer/SendGrid
-   - Email templates
-   - Queue system
+   - Configure Resend credentials in `.env`
+   - Customize email templates
+   - Queue/retry policy for delivery failures
 
 4. **Rate Limiting**
    - Install express-rate-limit

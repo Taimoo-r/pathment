@@ -126,6 +126,8 @@ module.exports = (sequelize, DataTypes) => {
     User.hasMany(models.RefreshToken, { foreignKey: 'user_id', as: 'refreshTokens' });
     User.hasMany(models.PasswordResetToken, { foreignKey: 'user_id', as: 'passwordResetTokens' });
     User.hasMany(models.EmailVerificationToken, { foreignKey: 'user_id', as: 'emailVerificationTokens' });
+    User.hasMany(models.RegistrationInvite, { foreignKey: 'invited_by', as: 'createdRegistrationInvites' });
+    User.hasMany(models.RegistrationInvite, { foreignKey: 'used_by', as: 'usedRegistrationInvites' });
     
     // Sessions
     User.hasMany(models.UserSession, { foreignKey: 'user_id', as: 'sessions' });

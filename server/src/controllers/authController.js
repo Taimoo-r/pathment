@@ -17,14 +17,23 @@ class AuthController {
       successResponse(
         AUTH_MESSAGES.REGISTER_SUCCESS,
         {
-          user: result.user,
-          tokens: {
-            accessToken: result.accessToken,
-            refreshToken: result.refreshToken
-          }
+          user: result.user
         },
         201
       )
+    );
+  });
+
+  /**
+   * Validate registration invite token
+   * GET /api/auth/invites/:token
+   */
+  validateInvite = catchAsync(async (req, res) => {
+    const { token } = req.params;
+    const invite = await authService.getRegistrationInviteDetails(token);
+
+    res.status(200).json(
+      successResponse('Invite is valid', { invite })
     );
   });
 
@@ -119,6 +128,19 @@ class AuthController {
 
     res.status(200).json(
       successResponse(AUTH_MESSAGES.PASSWORD_RESET_SENT)
+    );
+  });
+
+  /**
+   * Resend email verification
+   * POST /api/auth/resend-verification
+   */
+  resendVerification = catchAsync(async (req, res) => {
+    const { email } = req.body;
+    await authService.resendVerificationEmail(email);
+
+    res.status(200).json(
+      successResponse(AUTH_MESSAGES.EMAIL_VERIFICATION_SENT)
     );
   });
 
