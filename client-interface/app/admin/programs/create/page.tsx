@@ -46,10 +46,10 @@ export default function CreateProgramFlow() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <Link href="/admin/programs/list">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -57,7 +57,7 @@ export default function CreateProgramFlow() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Create New Program</h1>
+            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Create New Program</h1>
             <p className="text-muted-foreground mt-1">
               Complete program setup with levels and AI-generated roadmaps
             </p>
@@ -66,35 +66,37 @@ export default function CreateProgramFlow() {
       </div>
 
       {/* Progress Indicator */}
-      <div className="flex items-center justify-center gap-2">
-        {steps.map((step, index) => (
-          <div key={step.number} className="flex items-center">
-            <div className="flex flex-col items-center">
-              <div
-                className={`h-12 w-12 rounded-full flex items-center justify-center text-sm font-medium border-2 transition-all ${
-                  currentStep > step.number
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : currentStep === step.number
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-muted-foreground border-border'
-                }`}
-              >
-                {currentStep > step.number ? <Check className="h-5 w-5" /> : step.number}
+      <div className="overflow-x-auto pb-2">
+        <div className="mx-auto flex min-w-[640px] items-center justify-center gap-2 sm:min-w-0">
+          {steps.map((step, index) => (
+            <div key={step.number} className="flex items-center">
+              <div className="flex w-36 flex-col items-center text-center sm:w-auto">
+                <div
+                  className={`h-12 w-12 rounded-full flex items-center justify-center text-sm font-medium border-2 transition-all ${
+                    currentStep > step.number
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : currentStep === step.number
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border'
+                  }`}
+                >
+                  {currentStep > step.number ? <Check className="h-5 w-5" /> : step.number}
+                </div>
+                <div className="mt-2 text-center">
+                  <p className="text-sm font-medium">{step.title}</p>
+                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                </div>
               </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">{step.title}</p>
-                <p className="text-xs text-muted-foreground">{step.description}</p>
-              </div>
+              {index < steps.length - 1 && (
+                <div
+                  className={`h-1 w-10 mx-2 -mt-8 transition-all sm:w-20 sm:mx-4 ${
+                    currentStep > step.number ? 'bg-primary' : 'bg-border'
+                  }`}
+                />
+              )}
             </div>
-            {index < steps.length - 1 && (
-              <div
-                className={`h-1 w-20 mx-4 -mt-8 transition-all ${
-                  currentStep > step.number ? 'bg-primary' : 'bg-border'
-                }`}
-              />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Step Content */}
@@ -291,14 +293,14 @@ function ProgramBasicInfo({ programData, setProgramData, tagInput, setTagInput, 
         {/* Tags */}
         <div className="space-y-2">
           <Label>Tags</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               placeholder="Add tag (e.g., JavaScript, React)"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
             />
-            <Button type="button" variant="outline" onClick={addTag}>
+            <Button type="button" variant="outline" onClick={addTag} className="sm:w-auto">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -321,14 +323,14 @@ function ProgramBasicInfo({ programData, setProgramData, tagInput, setTagInput, 
         {/* Learning Outcomes */}
         <div className="space-y-2">
           <Label>Learning Outcomes</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               placeholder="Add learning outcome"
               value={outcomeInput}
               onChange={(e) => setOutcomeInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addOutcome())}
             />
-            <Button type="button" variant="outline" onClick={addOutcome}>
+            <Button type="button" variant="outline" onClick={addOutcome} className="sm:w-auto">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -345,14 +347,14 @@ function ProgramBasicInfo({ programData, setProgramData, tagInput, setTagInput, 
         {/* Prerequisites */}
         <div className="space-y-2">
           <Label>Prerequisites</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               placeholder="Add prerequisite"
               value={prerequisiteInput}
               onChange={(e) => setPrerequisiteInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPrerequisite())}
             />
-            <Button type="button" variant="outline" onClick={addPrerequisite}>
+            <Button type="button" variant="outline" onClick={addPrerequisite} className="sm:w-auto">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -367,7 +369,7 @@ function ProgramBasicInfo({ programData, setProgramData, tagInput, setTagInput, 
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button onClick={onNext} disabled={loading} size="lg">
+          <Button onClick={onNext} disabled={loading} size="lg" className="w-full sm:w-auto">
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -405,7 +407,7 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
             {createdLevels.map((level: any, index: number) => {
               const isEditing = editingLevelId === level.id;
               return (
-                <div key={level.id} className={`flex items-start justify-between p-4 border rounded-lg ${isEditing ? 'border-primary bg-primary/5' : ''}`}>
+                <div key={level.id} className={`flex flex-col gap-3 p-4 border rounded-lg sm:flex-row sm:items-start sm:justify-between ${isEditing ? 'border-primary bg-primary/5' : ''}`}>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <Badge variant="default">Level {index + 1}</Badge>
@@ -421,7 +423,7 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex gap-2 sm:ml-4">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -448,7 +450,7 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
               const isEditing = editingLevelIndex === index;
               const actualIndex = createdLevels.length + index;
               return (
-                <div key={`local-${index}`} className={`flex items-start justify-between p-4 border rounded-lg border-dashed ${isEditing ? 'border-primary bg-primary/5' : ''}`}>
+                <div key={`local-${index}`} className={`flex flex-col gap-3 p-4 border rounded-lg border-dashed sm:flex-row sm:items-start sm:justify-between ${isEditing ? 'border-primary bg-primary/5' : ''}`}>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">Level {actualIndex + 1}</Badge>
@@ -464,7 +466,7 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex gap-2 sm:ml-4">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -490,7 +492,7 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
       {/* Add New Level Form */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>{editingLevelId || editingLevelIndex !== null ? 'Edit Level' : 'Add New Level'}</CardTitle>
               <CardDescription>Define the structure and progression of your program</CardDescription>
@@ -554,14 +556,14 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
           {/* Level Learning Outcomes */}
           <div className="space-y-2">
             <Label>Learning Outcomes for this Level</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 placeholder="Add learning outcome"
                 value={levelOutcomeInput}
                 onChange={(e) => setLevelOutcomeInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addLevelOutcome())}
               />
-              <Button type="button" variant="outline" onClick={addLevelOutcome}>
+              <Button type="button" variant="outline" onClick={addLevelOutcome} className="sm:w-auto">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -578,14 +580,14 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
           {/* Level Prerequisites */}
           <div className="space-y-2">
             <Label>Prerequisites for this Level</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 placeholder="Add prerequisite"
                 value={levelPrerequisiteInput}
                 onChange={(e) => setLevelPrerequisiteInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addLevelPrerequisite())}
               />
-              <Button type="button" variant="outline" onClick={addLevelPrerequisite}>
+              <Button type="button" variant="outline" onClick={addLevelPrerequisite} className="sm:w-auto">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -631,12 +633,12 @@ function ProgramLevels({ levels, createdLevels, currentLevel, setCurrentLevel, l
       </Card>
 
       {/* Navigation */}
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack}>
+      <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-between">
+        <Button variant="outline" onClick={onBack} className="w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <Button onClick={onNext} disabled={loading || totalLevels === 0} size="lg">
+        <Button onClick={onNext} disabled={loading || totalLevels === 0} size="lg" className="w-full sm:w-auto">
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -672,7 +674,7 @@ function RoadmapGeneration({ levels, selectedLevel, roadmapInstructions, setRoad
           <div className="grid gap-4">
             {levels.map((level: any, index: number) => (
               <div key={level.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <Badge>Level {index + 1}</Badge>
@@ -696,11 +698,12 @@ function RoadmapGeneration({ levels, selectedLevel, roadmapInstructions, setRoad
                       </div>
                     )}
                   </div>
-                  <div className="ml-4">
+                  <div className="sm:ml-4">
                     <Button
                       onClick={() => onGenerate(index)}
                       disabled={generatingRoadmap && selectedLevel === index}
                       variant="default"
+                      className="w-full sm:w-auto"
                     >
                       {generatingRoadmap && selectedLevel === index ? (
                         <>
@@ -756,7 +759,7 @@ function RoadmapGeneration({ levels, selectedLevel, roadmapInstructions, setRoad
 
       {/* Finish Button */}
       <div className="flex justify-end pt-4">
-        <Button onClick={onFinish} size="lg" variant="default">
+        <Button onClick={onFinish} size="lg" variant="default" className="w-full sm:w-auto">
           <Check className="mr-2 h-4 w-4" />
           Finish & View Program
         </Button>
