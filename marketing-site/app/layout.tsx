@@ -13,14 +13,22 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: 'Pathment | AI Mentorship Platform for Industry Teams',
+  title: 'Pathment | Structured Growth, At Scale',
   description:
-    'Pathment helps organizations build measurable mentorship programs with structured learning paths, smart matching, and real performance visibility.',
+    'Pathment is AI-powered mentorship infrastructure for enterprise teams focused on precise, measurable capability growth.',
   metadataBase: new URL('https://pathment.me'),
+  icons: {
+    icon: [
+      { url: '/assets/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/assets/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [{ url: '/assets/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   openGraph: {
-    title: 'Pathment',
+    title: 'Pathment | Enterprise Mentorship Infrastructure',
     description:
-      'Deploy mentorship programs that improve retention, reduce training waste, and scale expert knowledge transfer.',
+      'Build structured mentorship systems for measurable capability progression across enterprise teams.',
     url: 'https://pathment.me',
     siteName: 'Pathment',
     locale: 'en_US',
