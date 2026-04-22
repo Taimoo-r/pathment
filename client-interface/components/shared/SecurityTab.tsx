@@ -90,7 +90,7 @@ function PasswordChangeForm({ onClose, onSubmit }: PasswordChangeFormProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">Change Password</h3>
@@ -227,7 +227,7 @@ function Setup2FAForm({ onClose, onSetupComplete }: Setup2FAFormProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">Enable Two-Factor Authentication</h3>
