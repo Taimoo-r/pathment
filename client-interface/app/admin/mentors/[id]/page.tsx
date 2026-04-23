@@ -20,6 +20,29 @@ const PROFICIENCY_CLS: Record<string, string> = {
   expert:       'bg-purple-100 text-purple-700',
 };
 
+/** "program_completed" → "Program Completed" */
+const formatStatus = (s: string | null | undefined): string => {
+  if (!s) return '—';
+  return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+/** Show "—" for zero/null ratings & percentages */
+const formatRate = (val: number | string | null | undefined): string => {
+  const n = parseFloat(String(val ?? 0));
+  return n > 0 ? `${Math.round(n)}%` : '—';
+};
+
+const formatRating = (val: number | string | null | undefined): string => {
+  const n = parseFloat(String(val ?? 0));
+  return n > 0 ? n.toFixed(1) : '—';
+};
+
+/** "all" → "All Levels", null/undefined → "—", otherwise title-case */
+const formatLevel = (l: string | null | undefined): string => {
+  if (!l) return '—';
+  return l === 'all' ? 'All Levels' : l.replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminMentorProfilePage() {
@@ -53,12 +76,17 @@ export default function AdminMentorProfilePage() {
   const initials = `${mentor.firstName?.[0] ?? ''}${mentor.lastName?.[0] ?? ''}`;
   const capacityPct = mp?.maxMentees ? Math.round(((mp.currentMenteeCount ?? 0) / mp.maxMentees) * 100) : 0;
 
+  // Deduplicate specializations — filter out any value that is just the org name
+  const specializations = (mp?.specialization ?? []).filter(
+    (s) => s && s !== mp?.organization
+  );
+
   return (
     <>
       {/* ── Header ── */}
       <PageHeader
         title={`${mentor.firstName} ${mentor.lastName}`}
-        subtitle={mp?.title ?? undefined}
+        subtitle={mp?.organization ?? undefined}
         backHref="/admin/users/mentors"
         backLabel="Back to Mentors"
       />
@@ -157,7 +185,9 @@ export default function AdminMentorProfilePage() {
                 <p className="text-sm text-slate-500 mb-2">Preferred Level</p>
                 <div className="flex flex-wrap gap-1.5">
                   {mp.preferredMenteeLevel.map((l) => (
-                    <span key={l} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium capitalize">{l}</span>
+                    <span key={l} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">
+                      {formatLevel(l)}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -170,21 +200,21 @@ export default function AdminMentorProfilePage() {
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatsCard icon={Users}      label="Total Mentored"  value={mp?.totalMenteesGuided ?? 0}   colorClass="text-indigo-600 bg-indigo-50" />
-            <StatsCard icon={TrendingUp} label="Success Rate"    value={`${mp?.successRate ?? 0}%`}    colorClass="text-green-600 bg-green-50" />
-            <StatsCard icon={Star}       label="Avg Rating"      value={mp?.avgFeedbackRating != null ? Number(mp.avgFeedbackRating).toFixed(1) : '—'} colorClass="text-amber-600 bg-amber-50" />
-            <StatsCard icon={CheckCircle2} label="Tasks Reviewed" value={mp?.totalTasksReviewed ?? 0}  colorClass="text-purple-600 bg-purple-50" />
+            <StatsCard icon={Users}        label="Active Mentees"  value={activeMatches.length}              colorClass="text-indigo-600 bg-indigo-50" />
+            <StatsCard icon={TrendingUp}   label="Success Rate"    value={formatRate(mp?.successRate)}       colorClass="text-green-600 bg-green-50" />
+            <StatsCard icon={Star}         label="Avg Rating"      value={formatRating(mp?.avgFeedbackRating)} colorClass="text-amber-600 bg-amber-50" />
+            <StatsCard icon={CheckCircle2} label="Tasks Reviewed"  value={mp?.totalTasksReviewed ?? 0}       colorClass="text-purple-600 bg-purple-50" />
           </div>
 
           {/* Specializations */}
-          {mp?.specialization && mp.specialization.length > 0 && (
+          {specializations.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
               <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-slate-400" />
                 Specializations
               </h3>
               <div className="flex flex-wrap gap-2">
-                {mp.specialization.map((s) => (
+                {specializations.map((s) => (
                   <span key={s} className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-medium">{s}</span>
                 ))}
               </div>
@@ -242,7 +272,12 @@ export default function AdminMentorProfilePage() {
                           {match.mentee?.firstName} {match.mentee?.lastName}
                         </p>
                         <p className="text-xs text-slate-500 truncate">
-                          {match.enrollment?.program?.name ?? 'No program'} · {match.enrollment?.status ?? '—'}
+                          {match.enrollment?.program?.name ?? 'No program'}
+                          {match.enrollment?.status && (
+                            <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                              {formatStatus(match.enrollment.status)}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">

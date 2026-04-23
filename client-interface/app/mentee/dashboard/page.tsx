@@ -9,11 +9,13 @@ import {
   Loader2,
   Plus,
   TrendingUp,
-  Send
+  Send,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useMenteeDashboard } from '@/lib/hooks/mentee';
 import { ProgressBar, StatusBadge } from '@/components/admin/ui';
+import { RateMentorModal } from '@/components/mentee/dashboard';
 
 export default function MenteeDashboard() {
   const { user } = useAuth();
@@ -26,8 +28,14 @@ export default function MenteeDashboard() {
     approvedEnrollments,
     pendingCompletionEnrollments,
     levelCompletedEnrollments,
+    completedEnrollments,
     WORKING_STATUSES,
     handleRequestCompletion,
+    handleSubmitRating,
+    ratingTarget,
+    openRatingModal,
+    closeRatingModal,
+    ratedEnrollmentIds,
   } = useMenteeDashboard();
 
   return (
@@ -243,6 +251,49 @@ export default function MenteeDashboard() {
             </div>
           )}
 
+          {/* Completed Programs — Rate Your Mentor prompt */}
+          {completedEnrollments.length > 0 && (
+            <div>
+              <h2 className="text-slate-900 mb-4">Completed Programs 🎓</h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {completedEnrollments.map((e) => {
+                  const alreadyRated = ratedEnrollmentIds.has(e.id);
+                  return (
+                    <div
+                      key={e.id}
+                      className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start justify-between gap-4"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                          <h3 className="text-slate-900 truncate">{e.program?.name || 'Unknown Program'}</h3>
+                        </div>
+                        <p className="text-slate-500 text-sm">
+                          Completed · {parseFloat(e.overallProgressPercentage || 0).toFixed(0)}% progress
+                        </p>
+                      </div>
+
+                      {alreadyRated ? (
+                        <div className="flex items-center gap-1.5 text-amber-500 text-sm font-medium shrink-0">
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                          Rated
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => openRatingModal(e.id, e.program?.name || 'this program')}
+                          className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-sm transition-colors"
+                        >
+                          <Star className="w-4 h-4" />
+                          Rate Mentor
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* All Enrollments */}
           {enrollments.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -289,6 +340,16 @@ export default function MenteeDashboard() {
             </div>
           )}
         </>
+      )}
+
+      {/* Rate Mentor Modal */}
+      {ratingTarget && (
+        <RateMentorModal
+          mentorName={ratingTarget.mentorName}
+          programName={ratingTarget.programName}
+          onSubmit={(rating) => handleSubmitRating(ratingTarget.enrollmentId, rating)}
+          onClose={closeRatingModal}
+        />
       )}
     </div>
   );

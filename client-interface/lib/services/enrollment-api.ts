@@ -106,6 +106,11 @@ export const matchingApi = {
   getMentorAssignedLevels: () => {
     return apiClient.get(`${apiConfig.endpoints.matches}/mentor-levels`);
   },
+
+  // Submit a satisfaction rating for a match (mentee rates mentor, mentor rates mentee)
+  submitRating: (matchId: string, rating: number) => {
+    return apiClient.patch(`${apiConfig.endpoints.matches}/${matchId}/rate`, { rating });
+  },
 };
 
 // ─── Mentor API ───────────────────────────────────────────────────────────────
