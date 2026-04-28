@@ -194,7 +194,6 @@ export default function MenteeDashboard() {
                     {(() => {
                       const completed = enrollment.tasksCompleted || 0;
                       const total     = enrollment.tasksTotal     || 0;
-                      const remaining = Math.max(0, total - completed);
                       // prefer server-supplied percentage; fall back to task ratio
                       const rawPct    = parseFloat(enrollment.overallProgressPercentage);
                       const pct       = rawPct > 0 ? rawPct : (total > 0 ? Math.round((completed / total) * 100) : 0);
@@ -208,15 +207,14 @@ export default function MenteeDashboard() {
                           <div className="flex items-center gap-4 text-sm text-slate-600 mb-4">
                             <span className="flex items-center gap-1.5">
                               <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              {completed} task{completed !== 1 ? 's' : ''} done
+                              {completed} completed
                             </span>
                             {total > 0 && (
                               <>
                                 <span className="flex items-center gap-1.5">
                                   <ListTodo className="w-4 h-4 text-indigo-600" />
-                                  {remaining} remaining
+                                  {total} program tasks
                                 </span>
-                                <span className="text-slate-400 ml-auto">{total} total</span>
                               </>
                             )}
                           </div>
