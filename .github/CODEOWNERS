@@ -1,0 +1,11 @@
+# Global fallback owner
+* @pathment
+
+# Backend
+/server/ @pathment/backend-maintainers
+
+# Frontend application
+/client-interface/ @pathment/frontend-maintainers
+
+# Marketing website
+/marketing-site/ @pathment/frontend-marketing-maintainers

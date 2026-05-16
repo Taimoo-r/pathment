@@ -23,6 +23,8 @@ Pathment enables organizations to:
 - [Technologies Used](#technologies-used)
 - [Development Guide](#development-guide)
 - [Troubleshooting](#troubleshooting)
+- [Quick Start Checklist](#-quick-start-checklist)
+- [Contributing](#-contributing)
 
 ---
 
@@ -990,11 +992,22 @@ Check browser console for client-side errors.
 
 ## 🤝 Contributing
 
+We welcome external contributions and use a structured OSS workflow.
+
+- Read the full guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Use branch prefixes:
+  - `feature/<name>`
+  - `fix/<name>`
+  - `docs/<name>`
+- Follow the repository templates:
+  - Pull Request template: [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)
+  - Issue templates: [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/)
+
+Quick PR flow:
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+2. Create a branch (`feature/...`, `fix/...`, or `docs/...`)
+3. Make focused changes and run relevant checks
+4. Open a pull request with linked issue and context
 
 ---
 
@@ -1026,6 +1039,8 @@ For questions or issues:
 - [ ] Configure frontend .env.local
 - [ ] Run `npm install` in client-interface/
 - [ ] Start frontend server
+- [ ] Run `npm install` in marketing-site/
+- [ ] Start marketing-site server
 - [ ] Login with admin credentials
 - [ ] Create first program
 - [ ] Test complete flow
