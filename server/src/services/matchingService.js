@@ -101,9 +101,7 @@ class MatchingService {
     } catch (err) {
       // Don't fail match creation if task assignment fails (e.g. roadmap not set up yet)
       console.warn('Could not auto-assign week 1 tasks on match creation:', err.message);
-    }
-
-    const hydratedMatch = await models.MentorMenteeMatch.findByPk(match.id, {
+    }    const hydratedMatch = await models.MentorMenteeMatch.findByPk(match.id, {
       include: [
         { model: models.User, as: 'mentor', attributes: ['id', 'firstName', 'lastName', 'email'] },
         { model: models.User, as: 'mentee', attributes: ['id', 'firstName', 'lastName', 'email'] },
