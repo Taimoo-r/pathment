@@ -94,7 +94,7 @@ function PasswordChangeForm({ onClose, onSubmit }: PasswordChangeFormProps) {
   };
 
   return (
-       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
+       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
       <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">Change Password</h3>
