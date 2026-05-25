@@ -61,10 +61,22 @@ class ProfileController {
     }
 
     // Update mentee profile
-    const menteeProfile = await models.MenteeProfile.findOne({ where: { userId } });
-    if (!menteeProfile) {
-      throw new NotFoundError('Mentee profile not found');
-    }
+   // Update or create mentee profile (auto-create if missing)
+let menteeProfile = await models.MenteeProfile.findOne({ where: { userId } });
+if (!menteeProfile) {
+  // Auto-create if it doesn't exist (handles legacy users)
+  menteeProfile = await models.MenteeProfile.create({
+    userId,
+    learningGoals: [],
+    interests: [],
+    currentEducation: null,
+    currentOccupation: null,
+    priorExperience: null,
+    preferredLearningStyle: 'visual',
+    currentLevel: 1,
+    totalPoints: 0
+  });
+}
 
     await menteeProfile.update({
       currentEducation,
