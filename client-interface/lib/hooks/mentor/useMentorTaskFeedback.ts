@@ -145,6 +145,11 @@ export function useMentorTaskFeedback(taskId: string): UseMentorTaskFeedbackRetu
 
       setIsSubmitting(true);
       try {
+        const maxPoints = task?.roadmapTask?.pointsBase || 10;
+        const safePointsAwarded = decision === 'approve'
+          ? Math.min(Math.max(0, pointsAwarded), maxPoints)
+          : 0;
+
         const validInlineFeedback = inlineFeedback
           .filter((item) => item.comment.trim())
           .map((item) => ({ line: 0, comment: item.comment, type: item.type }));
@@ -154,7 +159,7 @@ export function useMentorTaskFeedback(taskId: string): UseMentorTaskFeedbackRetu
           feedbackText,
           isApproved: decision === 'approve',
           revisionNotes: decision === 'revision' ? revisionNotes : undefined,
-          pointsAwarded: decision === 'approve' ? pointsAwarded : 0,
+          pointsAwarded: safePointsAwarded,
           inlineFeedback: validInlineFeedback,
         } as any);
 
@@ -173,6 +178,7 @@ export function useMentorTaskFeedback(taskId: string): UseMentorTaskFeedbackRetu
       decision,
       revisionNotes,
       pointsAwarded,
+      task,
       inlineFeedback,
       router,
     ]
