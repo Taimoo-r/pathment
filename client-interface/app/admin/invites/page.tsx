@@ -1,7 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Loader2, RefreshCw, ShieldAlert, UserPlus, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Copy,
+  FileSpreadsheet,
+  Loader2,
+  RefreshCw,
+  Send,
+  ShieldAlert,
+  Trash2,
+  Upload,
+  UserPlus,
+  XCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/services/api-client';
 import { apiConfig } from '@/lib/config/api';
@@ -30,6 +43,52 @@ type CreatedInvite = {
   inviteUrl: string;
 };
 
+type CsvRow = {
+  email: string;
+  role: string;
+};
+
+type BulkReport = {
+  successCount: number;
+  skippedCount: number;
+  totalProcessed: number;
+  successfulInvites: { email: string; role: string }[];
+  skippedInvites: { email: string; role: string; reason: string }[];
+};
+
+const MAX_CSV_SIZE = 5 * 1024 * 1024;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const VALID_ROLES = ['mentor', 'mentee'];
+
+function isRowValid(row: CsvRow): boolean {
+  return EMAIL_REGEX.test(row.email) && VALID_ROLES.includes(row.role);
+}
+
+function parseCsvText(text: string): CsvRow[] {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+
+  const header = lines[0].toLowerCase().replace(/\s/g, '');
+  if (!header.includes('email') || !header.includes('role')) return [];
+
+  const headerCols = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const emailIdx = headerCols.indexOf('email');
+  const roleIdx = headerCols.indexOf('role');
+  if (emailIdx === -1 || roleIdx === -1) return [];
+
+  const rows: CsvRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map((c) => c.trim());
+    const email = cols[emailIdx]?.toLowerCase() || '';
+    const role = cols[roleIdx]?.toLowerCase() || '';
+    if (email || role) {
+      rows.push({ email, role });
+    }
+  }
+  return rows;
+}
+
 export default function AdminInvitesPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -42,6 +101,13 @@ export default function AdminInvitesPage() {
     role: 'mentee' as 'mentor' | 'mentee',
     expiresInHours: 72,
   });
+
+  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkReport, setBulkReport] = useState<BulkReport | null>(null);
+  const [csvFilter, setCsvFilter] = useState<'valid' | 'invalid' | 'all'>('valid');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchInvites = useCallback(async (isManualRefresh = false) => {
     try {
@@ -119,6 +185,112 @@ export default function AdminInvitesPage() {
     return `${invites.length} ${status} invite${invites.length === 1 ? '' : 's'}`;
   }, [invites.length, status]);
 
+  const handleFileSelected = (file: File) => {
+    if (!file.name.endsWith('.csv')) {
+      toast.error('Please upload a .csv file');
+      return;
+    }
+    if (file.size > MAX_CSV_SIZE) {
+      toast.error('File exceeds the 5MB size limit');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCsvText(text);
+      if (rows.length === 0) {
+        toast.error('No valid rows found. Ensure the CSV has "email" and "role" columns.');
+        return;
+      }
+      setCsvRows(rows);
+      setBulkReport(null);
+      toast.success(`${rows.length} rows parsed from CSV`);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelected(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelected(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+
+
+  const updateCsvRow = (index: number, field: keyof CsvRow, value: string) => {
+    setCsvRows((prev) =>
+      prev.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      )
+    );
+  };
+
+  const removeCsvRow = (index: number) => {
+    setCsvRows((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const validRows = useMemo(() => csvRows.filter(isRowValid), [csvRows]);
+  const invalidCount = csvRows.length - validRows.length;
+
+  const filteredCsvRows = useMemo(() => {
+    if (csvFilter === 'valid') return csvRows.map((r, i) => ({ ...r, _idx: i })).filter((r) => isRowValid(r));
+    if (csvFilter === 'invalid') return csvRows.map((r, i) => ({ ...r, _idx: i })).filter((r) => !isRowValid(r));
+    return csvRows.map((r, i) => ({ ...r, _idx: i }));
+  }, [csvRows, csvFilter]);
+
+  const handleBulkSend = async () => {
+    if (validRows.length === 0) {
+      toast.error('No valid rows to send');
+      return;
+    }
+
+    try {
+      setBulkSending(true);
+      const response = await apiClient.post<any>(apiConfig.endpoints.bulkAdminInvites, {
+        invites: validRows,
+      });
+      const report: BulkReport = response?.data?.report || response?.report;
+
+      // Merge client-side invalid rows into the backend report
+      const clientSkippedRows = csvRows.filter(r => !isRowValid(r)).map(r => {
+        let reason = 'Invalid format';
+        if (!EMAIL_REGEX.test(r.email) && !VALID_ROLES.includes(r.role)) reason = 'Invalid email and role';
+        else if (!EMAIL_REGEX.test(r.email)) reason = 'Invalid email';
+        else if (!VALID_ROLES.includes(r.role)) reason = 'Invalid role';
+        return { email: r.email, role: r.role, reason };
+      });
+
+      if (clientSkippedRows.length > 0) {
+        report.skippedInvites = [...clientSkippedRows, ...(report.skippedInvites || [])];
+        report.skippedCount = report.skippedInvites.length;
+        report.totalProcessed = report.successCount + report.skippedCount;
+      }
+
+      setBulkReport(report);
+      setCsvRows([]);
+      toast.success(`${report.successCount} invites sent successfully`);
+      await fetchInvites(true);
+    } catch (error: any) {
+      toast.error(extractApiErrorMessage(error, 'Bulk invite failed'));
+    } finally {
+      setBulkSending(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -134,6 +306,7 @@ export default function AdminInvitesPage() {
         <p className="text-slate-600">Mentor and mentee signup is invite-only. Create one-time invites below.</p>
       </div>
 
+      {/* Single invite form */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2 text-slate-900">
           <UserPlus className="w-5 h-5 text-indigo-600" />
@@ -207,6 +380,242 @@ export default function AdminInvitesPage() {
         )}
       </div>
 
+      {/* Bulk CSV upload */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2 text-slate-900">
+          <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+          <h2>Bulk Invite via CSV</h2>
+        </div>
+
+        {csvRows.length === 0 && !bulkReport && (
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${isDragging
+                ? 'border-indigo-400 bg-indigo-50'
+                : 'border-slate-300 hover:border-indigo-300 hover:bg-slate-50'
+              }`}
+          >
+            <FileSpreadsheet className="w-8 h-8 text-green-400 mx-auto mb-3" />
+            <p className="text-slate-700 font-medium">Drop your CSV file here or click to browse</p>
+            <p className="text-slate-500 text-sm mt-1">CSV must have "email" and "role" columns · Max 5MB</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+          </div>
+        )}
+
+        {csvRows.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                {(['valid', 'invalid', 'all'] as const).map((f) => {
+                  const count = f === 'valid' ? validRows.length : f === 'invalid' ? invalidCount : csvRows.length;
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setCsvFilter(f)}
+                      className={`px-3 py-1.5 text-sm rounded-md capitalize transition-colors ${csvFilter === f
+                          ? 'bg-white text-slate-900 shadow-sm font-medium'
+                          : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      {f} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCsvRows([])}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkSend}
+                  disabled={bulkSending || validRows.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg"
+                >
+                  {bulkSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Confirm & Send ({validRows.length})
+                </button>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className="max-h-[400px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2.5 text-slate-600 font-medium">#</th>
+                      <th className="text-left px-4 py-2.5 text-slate-600 font-medium">Email</th>
+                      <th className="text-left px-4 py-2.5 text-slate-600 font-medium">Role</th>
+                      <th className="text-left px-4 py-2.5 text-slate-600 font-medium">Status</th>
+                      <th className="px-4 py-2.5"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredCsvRows.map((row) => {
+                      const valid = isRowValid(row);
+                      const emailBad = !EMAIL_REGEX.test(row.email);
+                      const roleBad = !VALID_ROLES.includes(row.role);
+
+                      return (
+                        <tr key={row._idx} className={valid ? 'hover:bg-slate-50' : 'bg-red-50'}>
+                          <td className={`px-4 py-2 ${valid ? 'text-slate-400' : 'text-red-400'}`}>{row._idx + 1}</td>
+                          <td className="px-4 py-2">
+                            <input
+                              type="email"
+                              value={row.email}
+                              onChange={(e) => updateCsvRow(row._idx, 'email', e.target.value)}
+                              className={`w-full px-2 py-1 border rounded-md focus:outline-none focus:ring-1 text-sm ${emailBad
+                                  ? 'border-red-300 bg-red-50 text-red-700 focus:ring-red-400'
+                                  : 'border-slate-200 focus:ring-indigo-500'
+                                }`}
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <select
+                              value={VALID_ROLES.includes(row.role) ? row.role : ''}
+                              onChange={(e) => updateCsvRow(row._idx, 'role', e.target.value)}
+                              className={`px-2 py-1 border rounded-md focus:outline-none focus:ring-1 text-sm ${roleBad
+                                  ? 'border-red-300 bg-red-50 text-red-700 focus:ring-red-400'
+                                  : 'border-slate-200 focus:ring-indigo-500'
+                                }`}
+                            >
+                              {roleBad && <option value="">Invalid: {row.role}</option>}
+                              <option value="mentee">Mentee</option>
+                              <option value="mentor">Mentor</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-2">
+                            {valid ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Valid
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-red-600">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                {emailBad && roleBad ? 'Bad email & role' : emailBad ? 'Invalid email' : 'Invalid role'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => removeCsvRow(row._idx)}
+                              className="text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {bulkReport && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="bg-slate-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-semibold text-slate-900">{bulkReport.totalProcessed}</p>
+                <p className="text-slate-500 text-sm">Total Processed</p>
+              </div>
+              <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-semibold text-emerald-700">{bulkReport.successCount}</p>
+                <p className="text-emerald-600 text-sm">Invites Sent</p>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-semibold text-amber-700">{bulkReport.skippedCount}</p>
+                <p className="text-amber-600 text-sm">Skipped</p>
+              </div>
+            </div>
+
+            {bulkReport.successfulInvites.length > 0 && (
+              <details className="border border-emerald-200 rounded-xl">
+                <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-emerald-800 bg-emerald-50 rounded-xl hover:bg-emerald-100 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  {bulkReport.successfulInvites.length} Successful Invite{bulkReport.successfulInvites.length !== 1 ? 's' : ''}
+                </summary>
+                <div className="max-h-[250px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-emerald-50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-4 py-2 text-emerald-700 font-medium">Email</th>
+                        <th className="text-left px-4 py-2 text-emerald-700 font-medium">Role</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-emerald-100">
+                      {bulkReport.successfulInvites.map((inv, i) => (
+                        <tr key={i}>
+                          <td className="px-4 py-2 text-slate-700">{inv.email}</td>
+                          <td className="px-4 py-2 capitalize text-slate-600">{inv.role}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            )}
+
+            {bulkReport.skippedInvites.length > 0 && (
+              <details className="border border-amber-200 rounded-xl" open>
+                <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-amber-800 bg-amber-50 rounded-xl hover:bg-amber-100 flex items-center gap-2">
+                  <XCircle className="w-4 h-4" />
+                  {bulkReport.skippedInvites.length} Skipped Row{bulkReport.skippedInvites.length !== 1 ? 's' : ''}
+                </summary>
+                <div className="max-h-[250px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-amber-50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-4 py-2 text-amber-700 font-medium">Email</th>
+                        <th className="text-left px-4 py-2 text-amber-700 font-medium">Role</th>
+                        <th className="text-left px-4 py-2 text-amber-700 font-medium">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-amber-100">
+                      {bulkReport.skippedInvites.map((inv, i) => (
+                        <tr key={i}>
+                          <td className="px-4 py-2 text-slate-700">{inv.email}</td>
+                          <td className="px-4 py-2 capitalize text-slate-600">{inv.role}</td>
+                          <td className="px-4 py-2 text-amber-700">{inv.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setBulkReport(null)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Another CSV
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Invite inventory */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
