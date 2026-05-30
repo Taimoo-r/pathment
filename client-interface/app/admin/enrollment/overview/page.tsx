@@ -21,6 +21,7 @@ import {
   StatsCard,
   PageHeader,
   SearchAndFilterBar,
+  ConfirmDialog,
 } from '@/components/admin/ui';
 import { useEnrollmentList, Enrollment } from '@/lib/hooks/admin/useEnrollmentList';
 import { enrollmentApi } from '@/lib/services/enrollment-api';
@@ -242,6 +243,8 @@ export default function EnrollmentOverviewPage() {
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [removeEnrollmentId, setRemoveEnrollmentId] = useState<string | null>(null);
+  const [removeMenteeName, setRemoveMenteeName] = useState<string>('');
 
   const handleExportCSV = async () => {
     try {
@@ -316,7 +319,6 @@ export default function EnrollmentOverviewPage() {
   };
 
   const handleRemoveEnrollment = async (enrollmentId: string, menteeName: string) => {
-    if (!confirm(`Remove ${menteeName} from this program? This cannot be undone.`)) return;
     try {
       setActionLoading(`remove-${enrollmentId}`);
       await enrollmentApi.remove(enrollmentId);
@@ -359,7 +361,10 @@ export default function EnrollmentOverviewPage() {
             </button>
           )}
           <button
-            onClick={() => handleRemoveEnrollment(id, menteeName)}
+            onClick={() => {
+              setRemoveEnrollmentId(id);
+              setRemoveMenteeName(menteeName);
+            }}
             disabled={removeBusy}
             title="Remove enrollment"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs rounded-lg transition-colors disabled:opacity-50"
@@ -470,6 +475,22 @@ export default function EnrollmentOverviewPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!removeEnrollmentId}
+        title="Remove Enrollment"
+        description={`Are you sure you want to remove ${removeMenteeName} from this program? This action cannot be undone and will permanently delete all progress and matching logs.`}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={actionLoading === `remove-${removeEnrollmentId}`}
+        onConfirm={async () => {
+          if (!removeEnrollmentId) return;
+          await handleRemoveEnrollment(removeEnrollmentId, removeMenteeName);
+          setRemoveEnrollmentId(null);
+        }}
+        onCancel={() => setRemoveEnrollmentId(null)}
+      />
     </>
   );
 }

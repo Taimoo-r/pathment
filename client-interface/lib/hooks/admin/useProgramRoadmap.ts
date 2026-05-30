@@ -322,7 +322,6 @@ export function useProgramRoadmap(): UseProgramRoadmapReturn {
   }, [taskForm, taskModal, fetchRoadmap, selectedLevelId]);
 
   const deleteTask = useCallback(async (taskId: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
     try {
       await programManagementApi.roadmaps.deleteTask(taskId);
       toast.success('Task deleted successfully');
@@ -334,7 +333,6 @@ export function useProgramRoadmap(): UseProgramRoadmapReturn {
   }, [fetchRoadmap, selectedLevelId]);
 
   const deleteWeek = useCallback(async (weekId: string) => {
-    if (!confirm('Are you sure you want to delete this week and all its tasks?')) return;
     try {
       await programManagementApi.roadmaps.deleteWeek(weekId);
       toast.success('Week deleted successfully');

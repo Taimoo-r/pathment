@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useProgramRoadmap } from '@/lib/hooks/admin';
 import { GenerateConfirmModal } from '@/components/admin/programs';
+import { ConfirmDialog } from '@/components/admin/ui';
 
 export default function RoadmapGenerator() {
   const router = useRouter();
@@ -32,6 +34,11 @@ export default function RoadmapGenerator() {
     openAddTask, openEditTask, handleSaveTask,
     deleteTask, deleteWeek,
   } = useProgramRoadmap();
+
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [deleteWeekId, setDeleteWeekId] = useState<string | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [isDeletingWeek, setIsDeletingWeek] = useState(false);
 
   if (loading && selectedLevelId) {
     return (
@@ -209,7 +216,7 @@ export default function RoadmapGenerator() {
                     <Edit2 className="w-5 h-5 text-slate-600" />
                   </button>
                   <button
-                    onClick={() => week.id && deleteWeek(week.id)}
+                    onClick={() => week.id && setDeleteWeekId(week.id)}
                     className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-5 h-5 text-red-600" />
@@ -254,7 +261,7 @@ export default function RoadmapGenerator() {
                         <Edit2 className="w-4 h-4 text-slate-600" />
                       </button>
                       <button 
-                        onClick={() => deleteTask(task.id)}
+                        onClick={() => setDeleteTaskId(task.id)}
                         className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
@@ -569,6 +576,50 @@ export default function RoadmapGenerator() {
           Save Roadmap
         </button>
       </div>
+
+      {/* Delete Task Confirmation */}
+      <ConfirmDialog
+        open={!!deleteTaskId}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={isDeletingTask}
+        onConfirm={async () => {
+          if (!deleteTaskId) return;
+          setIsDeletingTask(true);
+          try {
+            await deleteTask(deleteTaskId);
+          } finally {
+            setIsDeletingTask(false);
+            setDeleteTaskId(null);
+          }
+        }}
+        onCancel={() => setDeleteTaskId(null)}
+      />
+
+      {/* Delete Week Confirmation */}
+      <ConfirmDialog
+        open={!!deleteWeekId}
+        title="Delete Week"
+        description="Are you sure you want to delete this week and all its tasks? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={isDeletingWeek}
+        onConfirm={async () => {
+          if (!deleteWeekId) return;
+          setIsDeletingWeek(true);
+          try {
+            await deleteWeek(deleteWeekId);
+          } finally {
+            setIsDeletingWeek(false);
+            setDeleteWeekId(null);
+          }
+        }}
+        onCancel={() => setDeleteWeekId(null)}
+      />
     </>
   );
 }

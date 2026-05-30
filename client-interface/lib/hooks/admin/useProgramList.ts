@@ -33,7 +33,7 @@ export interface UseProgramListReturn {
   setSortOrder: (v: SortOrder) => void;
   resetFilters: () => void;
   refetch: () => void;
-  handleDelete: (id: string, name: string) => Promise<void>;
+  handleDelete: (id: string) => Promise<void>;
 }
 
 export function useProgramList(): UseProgramListReturn {
@@ -97,8 +97,7 @@ export function useProgramList(): UseProgramListReturn {
     fetchPrograms();
   }, [fetchPrograms]);
 
-  const handleDelete = useCallback(async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+  const handleDelete = useCallback(async (id: string) => {
     try {
       const { programsApi: api } = await import('@/lib/services/program-api');
       await api.delete(id);
@@ -106,6 +105,7 @@ export function useProgramList(): UseProgramListReturn {
       fetchPrograms();
     } catch (err: any) {
       toast.error(extractApiErrorMessage(err, 'Failed to delete program'));
+      throw err;
     }
   }, [fetchPrograms]);
 

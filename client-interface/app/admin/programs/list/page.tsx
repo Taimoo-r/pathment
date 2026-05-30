@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   Plus, Users, Calendar, TrendingUp,
@@ -8,7 +9,7 @@ import {
 import { TablePagination } from '@/components/shared/TablePagination';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { PageHeader, StatusBadge, SearchAndFilterBar } from '@/components/admin/ui';
+import { PageHeader, StatusBadge, SearchAndFilterBar, ConfirmDialog } from '@/components/admin/ui';
 import { useProgramList, ProgramStatus, ProgramSortBy, SortOrder } from '@/lib/hooks/admin/useProgramList';
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
@@ -93,6 +94,10 @@ export default function ProgramListPage() {
     setSearch, setStatus, setType, setSortBy, setSortOrder,
     resetFilters, refetch, handleDelete,
   } = useProgramList();
+
+  const [deleteProgramId, setDeleteProgramId] = useState<string | null>(null);
+  const [deleteProgramName, setDeleteProgramName] = useState<string>('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   return (
     <>
@@ -289,7 +294,10 @@ export default function ProgramListPage() {
                           Edit Roadmap
                         </Link>
                         <button
-                          onClick={() => handleDelete(program.id, program.name)}
+                          onClick={() => {
+                            setDeleteProgramId(program.id);
+                            setDeleteProgramName(program.name);
+                          }}
                           className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 w-full rounded-b-xl text-sm"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -315,6 +323,29 @@ export default function ProgramListPage() {
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        open={!!deleteProgramId}
+        title="Delete Program"
+        description={`Are you sure you want to delete "${deleteProgramName}"? This action cannot be undone and will permanently remove all related level data, roadmaps, and enrollments.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={isDeleting}
+        onConfirm={async () => {
+          if (!deleteProgramId) return;
+          setIsDeleting(true);
+          try {
+            await handleDelete(deleteProgramId);
+          } catch (err) {
+            console.error(err);
+          } finally {
+            setIsDeleting(false);
+            setDeleteProgramId(null);
+          }
+        }}
+        onCancel={() => setDeleteProgramId(null)}
+      />
     </>
   );
 }
