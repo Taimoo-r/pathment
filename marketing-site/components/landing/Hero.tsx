@@ -1,4 +1,4 @@
-import { GitBranch, LayoutDashboard, LineChart, Sparkles, Trophy, Users } from 'lucide-react';
+import { Check, GitBranch, LayoutDashboard, LineChart, Sparkles, Trophy, Users } from 'lucide-react';
 import { heroHighlights } from './content';
 
 export function Hero() {
@@ -39,14 +39,14 @@ export function Hero() {
             </a>
           </div>
 
-          <div className="mx-auto mt-8 flex max-w-md flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-zinc-200/60 pt-6 text-xs font-medium text-zinc-400">
-            {heroHighlights.map((item, index) => (
-              <span key={item} className="flex items-center gap-6">
-                {index > 0 && <span className="hidden h-3 w-px bg-zinc-200 sm:block" />}
-                <span className="flex items-center gap-1.5">
-                  <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  {item}
-                </span>
+          <div className="mx-auto mt-10 flex max-w-2xl flex-wrap items-center justify-center gap-2.5">
+            {heroHighlights.map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm-soft"
+              >
+                <Check className="h-3.5 w-3.5 text-brand-600" />
+                {item}
               </span>
             ))}
           </div>
