@@ -11,7 +11,7 @@ export default function HomePage() {
   return (
     <>
       <Navbar />
-      <main className="landing-shell">
+      <main>
         <Hero />
         <ProblemSolution />
         <Workflow />

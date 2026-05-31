@@ -1,15 +1,16 @@
 import type { Metadata } from 'next';
-import { Manrope, Sora } from 'next/font/google';
+import { Inter, Instrument_Sans } from 'next/font/google';
 import './globals.css';
 
-const manrope = Manrope({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-body',
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-inter',
 });
 
-const sora = Sora({
+const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
-  variable: '--font-display',
+  variable: '--font-instrument',
 });
 
 export const metadata: Metadata = {
@@ -49,7 +50,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${manrope.variable} ${sora.variable}`}>
+      <body suppressHydrationWarning className={`${inter.variable} ${instrumentSans.variable}`}>
         {children}
       </body>
     </html>
