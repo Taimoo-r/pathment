@@ -1,8 +1,15 @@
 export const navItems = [
-  { href: '#problem', label: 'Problem and Solution' },
-  { href: '#workflow', label: 'How It Works' },
+  { href: '#solution', label: 'Problem & Solution' },
+  { href: '#how-it-works', label: 'How It Works' },
   { href: '#capabilities', label: 'Capabilities' },
   { href: '#enterprise', label: 'Enterprise' },
+] as const;
+
+export const heroHighlights = [
+  'Built for 800+ engineers',
+  'AI-generated roadmaps',
+  'Smart mentor matching',
+  'Gamified progress',
 ] as const;
 
 export const workflowSteps = [
@@ -10,63 +17,97 @@ export const workflowSteps = [
     step: '01',
     title: 'Progression Blueprint',
     description:
-      'Define capability pathways with measurable milestones and role-specific targets.',
+      'Define precise technical and operational career pathways with measurable milestones, system dependencies, and role-specific target competencies built directly into your program config.',
   },
   {
     step: '02',
-    title: 'Guided Mentorship Execution',
+    title: 'Guided Execution',
     description:
-      'Run mentor-mentee workflows with structured submissions, reviews, and accountability.',
+      'Execute seamless mentor-mentee operations through program templates, structured check-ins, AI-generated tasks, and concrete, async progression checkpoints.',
   },
   {
     step: '03',
     title: 'Outcome Intelligence',
     description:
-      'Track progression health and identify intervention points through AI-assisted signals.',
+      'Gain direct insights into program wellness, detect mentorship blockages or stumbles instantly, and generate actionable strategic feedback to inform promotion review processes.',
   },
 ] as const;
 
-export const capabilities = [
+export const currentStatePoints = [
   {
-    title: 'Mentorship Tracking',
-    bullets: [
-      'Role-aware assignment and oversight',
-      'Submission and feedback lifecycle visibility',
-      'Program-level progress transparency',
-    ],
+    label: 'Ad-hoc matching:',
+    body: 'Programs depend heavily on accidental personal connections and individual efforts, leading to unequal opportunity.',
   },
   {
-    title: 'Progress Systems',
-    bullets: [
-      'Milestone and competency progression',
-      'Pathway standardization across teams',
-      'Measurable capability advancement',
-    ],
+    label: 'No progression blueprint:',
+    body: 'Milestones are generic, non-standardized, and untracked. Mentees lack definitive skill targets.',
   },
   {
-    title: 'AI-Assisted Insights',
-    bullets: [
-      'Early detection of mentorship stalls',
-      'Roadmap acceleration recommendations',
-      'Leader-ready decision summaries',
-    ],
+    label: 'Blind engineering leaders:',
+    body: 'Executive teams cannot see capability growth in real-time, resulting in promotion misalignment and talent churn.',
+  },
+] as const;
+
+export const pathmentSystemPoints = [
+  {
+    label: 'Smart matching:',
+    body: 'Mentees are paired with the right mentors based on skills, goals, and availability, with admin approval.',
+  },
+  {
+    label: 'AI-generated pathways:',
+    body: 'Personalized roadmaps break goals into milestones and actionable tasks, adjusting as progress is made.',
+  },
+  {
+    label: 'Gamified progress:',
+    body: 'Points, badges, and leaderboards keep mentees motivated while leaders see capability growth in real time.',
   },
 ] as const;
 
 export const enterprisePillars = [
   {
-    title: 'Security',
+    icon: 'workspace',
+    title: 'Isolated Workspaces',
     description:
-      'Enterprise-grade controls with isolated deployment patterns and governed access.',
+      'Every company runs in its own dedicated, isolated workspace on a private subdomain, so each organization’s programs, members, and data stay fully separated.',
   },
   {
-    title: 'Scalability',
+    icon: 'roles',
+    title: 'Role-Based Programs',
     description:
-      'Operate mentorship systems across business units without losing process integrity.',
+      'Purpose-built admin, mentor, and mentee experiences with permissions scoped to each role, so the right people see the right tools and information.',
   },
   {
-    title: 'Team-Level Control',
+    icon: 'auth',
+    title: 'Secure Sign-In',
     description:
-      'Program leaders can configure standards, progression rules, and reporting boundaries.',
+      'Straightforward email and password authentication with email verification and secure password reset — scoped to each tenant, with no SSO setup required to get started.',
+  },
+] as const;
+
+export const footerColumns = [
+  {
+    title: 'Product',
+    links: [
+      { href: '#solution', label: 'Problem & Solution' },
+      { href: '#how-it-works', label: 'How It Works' },
+      { href: '#capabilities', label: 'Capabilities' },
+      { href: '#enterprise', label: 'Enterprise Scope' },
+    ],
+  },
+  {
+    title: 'Resources',
+    links: [
+      { href: '#', label: 'Documentation' },
+      { href: '#request-access', label: 'Request Access' },
+      { href: 'mailto:hello@pathment.me', label: 'Contact Support' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { href: '#', label: 'About Us' },
+      { href: '#', label: 'Careers' },
+      { href: '#', label: 'Privacy Policy' },
+    ],
   },
 ] as const;

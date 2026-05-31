@@ -1,15 +1,26 @@
 import type { Metadata } from 'next';
-import { Manrope, Sora } from 'next/font/google';
+import { Inter, JetBrains_Mono, Sora } from 'next/font/google';
 import './globals.css';
 
-const manrope = Manrope({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-body',
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-inter',
+  display: 'swap',
 });
 
 const sora = Sora({
   subsets: ['latin'],
-  variable: '--font-display',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sora',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-jetbrains',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -49,7 +60,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${manrope.variable} ${sora.variable}`}>
+      <body
+        suppressHydrationWarning
+        className={`${inter.variable} ${sora.variable} ${jetbrainsMono.variable}`}
+      >
         {children}
       </body>
     </html>
