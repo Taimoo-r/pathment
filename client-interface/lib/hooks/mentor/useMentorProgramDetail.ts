@@ -53,18 +53,10 @@ export function useMentorProgramDetail(programId: string): UseMentorProgramDetai
     }
   }, [programId]);
 
+  // Levels were removed — programs no longer have level sub-structure.
   const fetchLevels = useCallback(async () => {
-    if (!programId) return;
-    try {
-      const response = await programManagementApi.levels.getByProgram(programId);
-      const levelsList = response?.data?.levels || response?.levels || response || [];
-      const arr = Array.isArray(levelsList) ? levelsList : [];
-      setLevels(arr);
-      if (arr.length > 0) setSelectedLevelId(arr[0].id);
-    } catch (error: any) {
-      console.error('Failed to fetch levels:', error);
-    }
-  }, [programId]);
+    setLevels([]);
+  }, []);
 
   // Legacy week-based per-level roadmap was removed; linear roadmaps live in the
   // Roadmaps area. This view no longer loads a curriculum.

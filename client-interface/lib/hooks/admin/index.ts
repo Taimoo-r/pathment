@@ -44,13 +44,11 @@ export { useProgramDetail } from './useProgramDetail';
 export type {
   ProgramDetailProgram,
   ProgramDetailTab,
-  ProgramLevel,
-  AssignedMentor,
   ProgramEnrollment,
 } from './useProgramDetail';
 
 export { useProgramCreate } from './useProgramCreate';
-export type { ProgramFormData, LevelFormData, SavedLevel } from './useProgramCreate';
+export type { ProgramFormData } from './useProgramCreate';
 
 export { useInvites, isRowValid, EMAIL_REGEX, VALID_ROLES } from './useInvites';
 export type {

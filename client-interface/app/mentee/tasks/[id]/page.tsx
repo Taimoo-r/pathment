@@ -126,15 +126,6 @@ export default function TaskDetailsPage({ params }: PageProps) {
               </p>
             </div>
           )}
-          {task.roadmapTask?.week && (
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Week</p>
-              <p className="text-sm text-slate-900 flex items-center gap-1">
-                <BookOpen className="w-4 h-4 text-slate-400" />
-                Week {task.roadmapTask.week.weekNumber}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Rating & Points (completed tasks) */}

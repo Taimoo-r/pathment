@@ -48,6 +48,9 @@ export const navigationConfig: Record<string, NavLink[]> = {
   admin: [
     { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/programs/list', icon: BookOpen, label: 'Programs' },
+    { path: '/admin/roadmaps', icon: Route, label: 'Roadmaps' },
+    { path: '/admin/rewards', icon: Gift, label: 'Rewards' },
+    { path: '/admin/mentor-spec', icon: Compass, label: 'Mentor Spec' },
     { path: '/admin/clans', icon: Users2, label: 'Clans' },
     { path: '/admin/requests', icon: GitPullRequest, label: 'Clan Requests' },
     { path: '/admin/matching/mentor-assignment', icon: UserCheck, label: 'Mentor Matching' },

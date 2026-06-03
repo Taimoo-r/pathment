@@ -1,7 +1,8 @@
 'use client';
 
-import { Loader2, TrendingUp, TrendingDown, Minus, Flag, Clock, Check, CheckCircle2 } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Minus, Flag, Clock, Check, CheckCircle2, Route } from 'lucide-react';
 import { useMyProgress } from '@/lib/hooks/mentee';
+import { useMyRoadmaps } from '@/lib/hooks/mentee/useMyRoadmaps';
 import { DualProgress } from '@/components/mentor/DualProgress';
 import { AISummaryPanel } from '@/components/mentor/AISummaryPanel';
 import { PersonalityBars } from '@/components/mentor/PersonalityBars';
@@ -17,6 +18,39 @@ function MetricChip({ label, value }: { label: string; value: string | number })
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
       <div className="text-xs text-slate-500">{label}</div>
       <div className="mt-1 text-lg font-semibold text-slate-900 tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function MyRoadmapsSection() {
+  const { roadmaps, loading } = useMyRoadmaps();
+  if (loading || roadmaps.length === 0) return null;
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
+        <Route className="w-4 h-4 text-indigo-600" /><h2 className="text-slate-900">Your roadmaps</h2>
+      </div>
+      <div className="p-6 space-y-5">
+        {roadmaps.map((r) => (
+          <div key={r.roadmapId}>
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <div className="min-w-0">
+                <div className="font-medium text-slate-900 truncate">{r.name}</div>
+                {!r.completed && r.currentStepTitle && (
+                  <div className="text-sm text-slate-500 truncate">Next: {r.currentStepTitle}</div>
+                )}
+                {r.completed && <div className="text-sm text-green-600">Completed 🎉</div>}
+              </div>
+              <span className="text-xs text-slate-400 tabular-nums shrink-0">
+                {Math.min(r.currentStep, r.totalSteps)}/{r.totalSteps}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className={`h-full rounded-full ${r.completed ? 'bg-green-500' : 'bg-indigo-500'}`} style={{ width: `${r.percent}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -80,6 +114,9 @@ export default function MenteeProgress() {
           <p className="mt-4 text-xs leading-relaxed text-slate-500 border-t border-slate-100 pt-3">{encouragement}</p>
         </div>
       </div>
+
+      {/* Roadmaps (step X of N) */}
+      <MyRoadmapsSection />
 
       {/* Working style (read-only self-view) */}
       {progress.personality && <PersonalityBars personality={progress.personality} />}

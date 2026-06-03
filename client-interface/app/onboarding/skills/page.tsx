@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { apiClient } from '@/lib/services/api-client';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { ArrowRight, Loader2, Star, CheckCircle2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -48,62 +50,18 @@ export default function SkillsOnboardingPage() {
   };
 
   const fetchSkills = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/skills`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch skills (${response.status})`);
-      }
-
-      const data = await response.json();
-      if (data.success && Array.isArray(data.data)) {
-        setSkills(data.data);
-      } else {
-        throw new Error('Invalid response format from skills API');
-      }
-    } catch (error: any) {
-      console.error('Error fetching skills:', error);
-      toast.error('Failed to load skills');
-      throw error;
-    }
+    const res = await apiClient.get('/skills');
+    const list = (res as any)?.data;
+    if (Array.isArray(list)) setSkills(list);
+    else throw new Error('Invalid response format from skills API');
   };
 
   const fetchCategories = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/skills/categories`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        console.error('Failed to fetch categories, using defaults');
-        setCategories(['all']);
-        return;
-      }
-
-      const data = await response.json();
-      if (data.success && Array.isArray(data.data)) {
-        setCategories(['all', ...data.data]);
-      } else {
-        setCategories(['all']);
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
+      const res = await apiClient.get('/skills/categories');
+      const list = (res as any)?.data;
+      setCategories(Array.isArray(list) ? ['all', ...list] : ['all']);
+    } catch {
       setCategories(['all']);
     }
   };
@@ -142,40 +100,12 @@ export default function SkillsOnboardingPage() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please log in again');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/add-skills`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ skills: selectedSkills })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to add skills');
-      }
-
-      toast.success('Skills added successfully! Welcome to Pathment!');
-      
-      // Update user context
-      if (updateUser) {
-        updateUser({ ...user, onboardingStep: 2, profileCompleted: true });
-      }
-
-      // Redirect to dashboard based on role
-      setTimeout(() => {
-        router.push(`/${user?.role}/dashboard`);
-      }, 1500);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to add skills');
+      await apiClient.post('/profile/add-skills', { skills: selectedSkills });
+      toast.success('Skills added — welcome to Pathment!');
+      if (updateUser) updateUser({ ...user, onboardingStep: 2, profileCompleted: true });
+      setTimeout(() => router.push(`/${user?.role}/dashboard`), 1200);
+    } catch (error: unknown) {
+      toast.error(extractApiErrorMessage(error, 'Failed to add skills'));
     } finally {
       setLoading(false);
     }
@@ -183,23 +113,12 @@ export default function SkillsOnboardingPage() {
 
   const handleSkip = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/skip-skills`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        toast.success('Welcome to Pathment!');
-        if (updateUser) {
-          updateUser({ ...user, onboardingStep: 2, profileCompleted: true });
-        }
-        router.push(`/${user?.role}/dashboard`);
-      }
-    } catch (error) {
-      toast.error('Failed to skip');
+      await apiClient.post('/profile/skip-skills', {});
+      toast.success('Welcome to Pathment!');
+      if (updateUser) updateUser({ ...user, onboardingStep: 2, profileCompleted: true });
+      router.push(`/${user?.role}/dashboard`);
+    } catch (error: unknown) {
+      toast.error(extractApiErrorMessage(error, 'Failed to skip'));
     }
   };
 

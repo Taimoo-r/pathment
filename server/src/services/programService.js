@@ -180,15 +180,15 @@ class ProgramService {
     const programsWithCompletion = await Promise.all(rows.map(async program => {
       const programJSON = program.toJSON();
       
-      // Count unique mentors assigned to any level of this program
+      // Count unique mentors with an active match in this program.
       const [mentorCount, completionResult] = await Promise.all([
-        models.LevelMentorAssignment.count({
+        models.MentorMenteeMatch.count({
           distinct: true,
           col: 'mentor_id',
-          where: { isActive: true },
+          where: { status: 'active' },
           include: [{
-            model: models.ProgramLevel,
-            as: 'level',
+            model: models.Enrollment,
+            as: 'enrollment',
             where: { programId: program.id },
             attributes: [],
             required: true
@@ -260,13 +260,13 @@ class ProgramService {
       userRole !== 'admin' &&
       program.createdBy !== userId
     ) {
-      // Also allow mentors who are assigned to any level of this program
+      // Also allow mentors who have an active match in this program.
       if (userRole === 'mentor' && userId) {
-        const isMentorAssigned = await models.LevelMentorAssignment.count({
-          where: { mentorId: userId, isActive: true },
+        const isMentorAssigned = await models.MentorMenteeMatch.count({
+          where: { mentorId: userId, status: 'active' },
           include: [{
-            model: models.ProgramLevel,
-            as: 'level',
+            model: models.Enrollment,
+            as: 'enrollment',
             where: { programId: program.id },
             attributes: [],
             required: true
@@ -282,13 +282,13 @@ class ProgramService {
 
     // Count unique mentors and compute average completion in parallel
     const [mentorCount, completionResult] = await Promise.all([
-      models.LevelMentorAssignment.count({
+      models.MentorMenteeMatch.count({
         distinct: true,
         col: 'mentor_id',
-        where: { isActive: true },
+        where: { status: 'active' },
         include: [{
-          model: models.ProgramLevel,
-          as: 'level',
+          model: models.Enrollment,
+          as: 'enrollment',
           where: { programId: program.id },
           attributes: [],
           required: true

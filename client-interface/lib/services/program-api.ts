@@ -1,7 +1,7 @@
-// API Service for Program, Level, and Roadmap Management
+// API Service for Program Management
 
 import { apiClient } from './api-client';
-import type { Program, ProgramLevel, Roadmap, RoadmapWeek, RoadmapTask } from '../types';
+import type { Program } from '../types';
 
 export interface ProgramFilters {
   search?: string;
@@ -74,37 +74,9 @@ export const programsApi = {
 };
 
 // Level API
-export const levelsApi = {
-  create: async (programId: string, data: any) => {
-    const response = await apiClient.post<any>(`/programs/${programId}/levels`, data);
-    return response.data;
-  },
-  getByProgram: async (programId: string) => {
-    const response = await apiClient.get<any>(`/programs/${programId}/levels`);
-    return response.data;
-  },
-  getById: async (id: string) => {
-    const response = await apiClient.get<any>(`/levels/${id}`);
-    return response.data;
-  },
-  update: async (id: string, data: any) => {
-    const response = await apiClient.put<any>(`/levels/${id}`, data);
-    return response.data;
-  },
-  delete: async (id: string) => {
-    const response = await apiClient.delete(`/levels/${id}`);
-    return response.data;
-  },
-  reorder: async (programId: string, levelIds: string[]) => {
-    const response = await apiClient.put(`/programs/${programId}/levels/reorder`, { levelIds });
-    return response.data;
-  },
-};
-
 // Combined API export
 export const programManagementApi = {
   programs: programsApi,
-  levels: levelsApi,
 };
 
 export default programManagementApi;

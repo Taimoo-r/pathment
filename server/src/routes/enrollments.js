@@ -18,8 +18,6 @@ router.post('/:id/request-completion', authenticate, authorize(['mentee', 'mento
 router.post('/:id/approve-completion', authenticate, authorize(['mentor', 'admin']), enrollmentController.approveCompletion);
 // Mentor or Admin: reject the completion request (send back to active)
 router.post('/:id/reject-completion',  authenticate, authorize(['mentor', 'admin']), enrollmentController.rejectCompletion);
-// Admin: promote level_completed mentee to the next program level
-router.post('/:id/promote-next-level', authenticate, authorize(['admin']), enrollmentController.promoteToNextLevel);
 // Admin: remove (unenroll) a mentee from a program
 router.delete('/:id', authenticate, authorize(['admin']), enrollmentController.removeEnrollment);
 

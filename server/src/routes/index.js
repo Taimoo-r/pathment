@@ -4,7 +4,6 @@ const router = express.Router();
 const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
 const programRoutes = require('./programs');
-const levelRoutes = require('./levels');
 const enrollmentRoutes = require('./enrollments');
 const matchingRoutes = require('./matching');
 const mentorRoutes = require('./mentors');
@@ -28,6 +27,8 @@ const rewardsRoutes = require('./rewards');
 const libraryRoutes = require('./library');
 const scheduleRoutes = require('./schedules');
 const trackRoutes = require('./tracks');
+const linearRoadmapRoutes = require('./linearRoadmaps');
+const mentorSpecRoutes = require('./mentorSpec');
 
 /**
  * API Routes
@@ -52,12 +53,8 @@ router.use('/skills', skillRoutes);
 // Admin routes (protected)
 router.use('/admin', adminRoutes);
 
-// Program routes (includes nested level routes)
+// Program routes
 router.use('/programs', programRoutes);
-router.use('/programs', levelRoutes);
-
-// Standalone level routes
-router.use('/', levelRoutes);
 
 // Enrollment and matching routes
 router.use('/enrollments', enrollmentRoutes);
@@ -117,6 +114,12 @@ router.use('/schedules', scheduleRoutes);
 
 // Tracks (per-mentee personal lanes)
 router.use('/tracks', trackRoutes);
+
+// Linear roadmaps: mentee progress (/me) + admin org authoring (/org)
+router.use('/roadmaps', linearRoadmapRoutes);
+
+// Mentor handbook (admin-authored org doc, read by mentors)
+router.use('/mentor-spec', mentorSpecRoutes);
 
 
 

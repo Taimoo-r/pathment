@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, SkipForward, Check, MessageSquarePlus, Loader2,
-  TrendingUp, TrendingDown, Minus, Flag, Clock, ClipboardCheck, Keyboard, CheckCircle2, ArrowUpRight, Send,
+  TrendingUp, TrendingDown, Minus, Flag, Clock, ClipboardCheck, Keyboard, CheckCircle2, ArrowUpRight, Send, Plus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useMentorCohort, useMentorApprovals, type CohortMentee, type CohortMomentum, type CohortRisk, type ApprovalItem } from '@/lib/hooks/mentor';
@@ -14,6 +14,7 @@ import { submissionService } from '@/lib/services/submissionService';
 import { frictionApi } from '@/lib/services/friction-api';
 import { DualProgress } from '@/components/mentor/DualProgress';
 import { ReviewDrawer } from '@/components/mentor/ReviewDrawer';
+import { AssignTaskDrawer } from '@/components/mentor/AssignTaskDrawer';
 
 type Attendance = 'present' | 'absent' | 'excused';
 
@@ -44,6 +45,7 @@ export default function CohortReview() {
   const [busy, setBusy] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<ApprovalItem | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   const mentee: CohortMentee | undefined = cohort[idx];
   const pending = useMemo(
@@ -111,8 +113,9 @@ export default function CohortReview() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || reviewing) return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || reviewing || assigning) return;
       const k = e.key.toLowerCase();
+      if (k === 't') { e.preventDefault(); setAssigning(true); return; }
       if (k === 'arrowright' || k === 'l') { e.preventDefault(); go(1); }
       else if (k === 'arrowleft' || k === 'h') { e.preventDefault(); go(-1); }
       else if (k === 's') { e.preventDefault(); skip(); }
@@ -128,7 +131,7 @@ export default function CohortReview() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, skip, approve, requestChanges, mark, pending, focus, reviewing]);
+  }, [go, skip, approve, requestChanges, mark, pending, focus, reviewing, assigning]);
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
   if (!cohort.length) return (
@@ -149,6 +152,7 @@ export default function CohortReview() {
           <p className="text-slate-600 text-sm">{idx + 1} of {cohort.length} · review each mentee, then finish</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setAssigning(true)} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm hover:bg-slate-50 inline-flex items-center gap-1" title="Assign a task (t)"><Plus className="w-4 h-4" />Assign task</button>
           <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100" title="Shortcuts"><Keyboard className="w-4 h-4" /></button>
           <button onClick={() => go(-1)} disabled={idx === 0} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1"><ChevronLeft className="w-4 h-4" />Prev</button>
           <button onClick={skip} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm hover:bg-slate-50 inline-flex items-center gap-1"><SkipForward className="w-4 h-4" />Skip</button>
@@ -299,12 +303,21 @@ export default function CohortReview() {
 
       {reviewing && <ReviewDrawer item={reviewing} onClose={() => setReviewing(null)} onReviewed={refresh} />}
 
+      {assigning && mentee && (
+        <AssignTaskDrawer
+          mode="single"
+          mentee={{ id: mentee.id, name: mentee.name }}
+          onClose={() => setAssigning(false)}
+          onAssigned={refresh}
+        />
+      )}
+
       {showHelp && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowHelp(false)}>
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-slate-900 mb-3">Keyboard shortcuts</h3>
             <div className="space-y-1.5 text-sm text-slate-600">
-              {[['← / →', 'Prev / next mentee'], ['S', 'Skip (defer)'], ['J / K', 'Focus next / prev submission'], ['A', 'Approve focused'], ['C', 'Request changes'], ['R', 'Open full review'], ['P / X / E', 'Present / absent / excused'], ['?', 'Toggle this help']].map(([k, d]) => (
+              {[['← / →', 'Prev / next mentee'], ['S', 'Skip (defer)'], ['J / K', 'Focus next / prev submission'], ['A', 'Approve focused'], ['C', 'Request changes'], ['R', 'Open full review'], ['T', 'Assign a task'], ['P / X / E', 'Present / absent / excused'], ['?', 'Toggle this help']].map(([k, d]) => (
                 <div key={k} className="flex justify-between gap-4"><kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-xs font-mono">{k}</kbd><span className="text-right flex-1">{d}</span></div>
               ))}
             </div>

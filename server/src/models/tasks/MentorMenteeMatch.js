@@ -20,11 +20,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       field: 'enrollment_id'
     },
-    levelId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      field: 'level_id'
-    },
     matchedBy: {
       type: DataTypes.UUID,
       allowNull: false,
@@ -73,8 +68,7 @@ module.exports = (sequelize, DataTypes) => {
       { fields: ['mentor_id'] },
       { fields: ['mentee_id'] },
       { fields: ['enrollment_id'] },
-      { fields: ['status'] },
-      { fields: ['level_id'] }
+      { fields: ['status'] }
     ]
   });
 
@@ -82,7 +76,6 @@ module.exports = (sequelize, DataTypes) => {
     MentorMenteeMatch.belongsTo(models.User, { foreignKey: 'mentor_id', as: 'mentor' });
     MentorMenteeMatch.belongsTo(models.User, { foreignKey: 'mentee_id', as: 'mentee' });
     MentorMenteeMatch.belongsTo(models.Enrollment, { foreignKey: 'enrollment_id', as: 'enrollment' });
-    MentorMenteeMatch.belongsTo(models.ProgramLevel, { foreignKey: 'level_id', as: 'level' });
     MentorMenteeMatch.belongsTo(models.User, { foreignKey: 'matched_by', as: 'matcher' });
   };
 

@@ -48,9 +48,6 @@ const convertToCSV = (data: Enrollment[]): string => {
     'Program Name',
     'Program Type',
     'Program Status',
-    'Current Level ID',
-    'Current Level Name',
-    'Level Duration (Weeks)',
     'Enrollment Status',
     'Current Week',
     'Tasks Completed',
@@ -100,9 +97,6 @@ const convertToCSV = (data: Enrollment[]): string => {
       enrollment.program?.name || 'N/A',
       enrollment.program?.type || 'N/A',
       enrollment.program?.status || 'N/A',
-      enrollment.currentLevelId || '',
-      enrollment.currentLevel?.name || 'N/A',
-      enrollment.currentLevel?.durationWeeks?.toString() || 'N/A',
       enrollment.status || 'N/A',
       enrollment.currentWeek?.toString() || '0',
       enrollment.tasksCompleted?.toString() || '0',
@@ -179,9 +173,6 @@ const columns: DataTableColumn<Enrollment>[] = [
     render: (_, row) => (
       <div className="min-w-0">
         <p className="text-sm text-slate-900 truncate max-w-[180px]">{row.program?.name ?? '—'}</p>
-        {row.currentLevel && (
-          <p className="text-xs text-slate-500 mt-0.5">Level: {row.currentLevel.name}</p>
-        )}
       </div>
     ),
   },

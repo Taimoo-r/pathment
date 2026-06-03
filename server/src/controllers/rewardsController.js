@@ -12,8 +12,17 @@ const createGift = catchAsync(async (req, res) => {
   res.status(201).json(successResponse('Gift added', { gift }, 201));
 });
 
+const updateGift = catchAsync(async (req, res) => {
+  const gift = await rewardsService.updateGift(req.params.id, req.body);
+  res.status(200).json(successResponse('Gift updated', { gift }));
+});
+
 const removeGift = catchAsync(async (req, res) => {
   res.status(200).json(successResponse('Gift removed', await rewardsService.removeGift(req.params.id)));
+});
+
+const menteeBalance = catchAsync(async (req, res) => {
+  res.status(200).json(successResponse('Balance retrieved', await rewardsService.menteePointsBalance(req.params.menteeId)));
 });
 
 const redeem = catchAsync(async (req, res) => {
@@ -21,4 +30,4 @@ const redeem = catchAsync(async (req, res) => {
   res.status(201).json(successResponse('Gift redeemed', { redemption }, 201));
 });
 
-module.exports = { overview, createGift, removeGift, redeem };
+module.exports = { overview, createGift, updateGift, removeGift, redeem, menteeBalance };

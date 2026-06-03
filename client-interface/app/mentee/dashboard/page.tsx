@@ -19,6 +19,7 @@ import { useMenteeDashboard, useMyActivity, useMenteeTasks } from '@/lib/hooks/m
 import { ProgressBar, StatusBadge } from '@/components/admin/ui';
 import { RateMentorModal } from '@/components/mentee/dashboard';
 import { ActivityCard } from '@/components/shared/ActivityCard';
+import { RecurringRitualsCard } from '@/components/mentee/RecurringRitualsCard';
 
 export default function MenteeDashboard() {
   const { user } = useAuth();
@@ -105,6 +106,9 @@ export default function MenteeDashboard() {
           </span>
         </Link>
       )}
+
+      {/* Recurring rituals (from your schedule) */}
+      <RecurringRitualsCard />
 
       {/* This week's tasks */}
       {weekTasks.length > 0 && (
@@ -282,9 +286,7 @@ export default function MenteeDashboard() {
                       <div className="flex-1 min-w-0 mr-3">
                         <h3 className="text-slate-900 truncate mb-1">{enrollment.program?.name || 'Unknown Program'}</h3>
                         <p className="text-slate-600 text-sm">
-                          {enrollment.currentLevel?.name
-                            ? `Level: ${enrollment.currentLevel.name} · Week ${enrollment.currentWeek || 1}`
-                            : `Week ${enrollment.currentWeek || 1}`}
+                          Week {enrollment.currentWeek || 1}
                         </p>
                       </div>
                       <StatusBadge status={enrollment.status} noIcon />

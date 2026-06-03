@@ -174,7 +174,7 @@ export default function MenteeDetail() {
   const profile = mentee?.menteeProfile;
   const progress = insights?.absoluteProgress ?? (parseFloat(enrollment?.overallProgressPercentage) || 0);
 
-  const levelName = insights?.level || match?.level?.name || enrollment?.currentLevel?.name || 'Level 1';
+  const levelName = insights?.level || 'Level 1';
   const week = insights?.week ?? enrollment?.currentWeek ?? 1;
   const totalWeeks = insights?.totalWeeks || 0;
 

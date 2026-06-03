@@ -10,10 +10,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       field: 'program_id'
     },
-    levelId: {
-      type: DataTypes.UUID,
-      field: 'level_id'
-    },
     name: {
       type: DataTypes.STRING(255),
       allowNull: false
@@ -90,14 +86,12 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true,
     indexes: [
       { fields: ['program_id'] },
-      { fields: ['level_id'] },
       { fields: ['is_base_roadmap'] }
     ]
   });
 
   Roadmap.associate = (models) => {
     Roadmap.belongsTo(models.Program, { foreignKey: 'program_id', as: 'program' });
-    Roadmap.belongsTo(models.ProgramLevel, { foreignKey: 'level_id', as: 'level' });
     Roadmap.belongsTo(models.Roadmap, { foreignKey: 'adapted_from', as: 'parentRoadmap' });
     Roadmap.hasMany(models.AdaptiveRecommendation, { foreignKey: 'current_roadmap_id', as: 'recommendations' });
     // Linear steps: RoadmapTasks linked directly to the roadmap, ordered by task_order.

@@ -134,19 +134,6 @@ exports.rejectCompletion = catchAsync(async (req, res) => {
 });
 
 /**
- * Promote mentee to next level (admin only)
- * POST /api/enrollments/:id/promote-next-level
- */
-exports.promoteToNextLevel = catchAsync(async (req, res) => {
-  const { id } = req.params;
-  const result = await enrollmentService.promoteToNextLevel(id, req.user.id);
-  res.status(200).json(successResponse(
-    `Mentee promoted to "${result.promotedToLevel.name}" — assign a mentor to continue`,
-    result
-  ));
-});
-
-/**
  * Remove enrollment (admin only)
  * DELETE /api/enrollments/:id
  */

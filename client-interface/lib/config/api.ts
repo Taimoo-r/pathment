@@ -38,7 +38,6 @@ export const apiConfig = {
     matchById: (id: string) => `/matches/${id}`,
     matchStatus: (id: string) => `/matches/${id}/status`,
     matchSuggestions: (enrollmentId: string) => `/matches/suggestions/${enrollmentId}`,
-    levelMentors: (levelId: string) => `/matches/levels/${levelId}/mentors`,
 
     // Mentors
     mentors: '/mentors',

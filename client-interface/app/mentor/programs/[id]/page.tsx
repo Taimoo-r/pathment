@@ -351,13 +351,6 @@ export default function MentorProgramDetail() {
                     </div>
                   </div>
 
-                  {/* Level badge */}
-                  {enrollment?.level?.name && (
-                    <div className="hidden sm:block text-right flex-shrink-0">
-                      <div className="text-xs text-slate-400 mb-0.5">Level</div>
-                      <div className="text-sm text-slate-700 font-medium">{enrollment.level.name}</div>
-                    </div>
-                  )}
                 </Link>
               );
             })

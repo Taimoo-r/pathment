@@ -31,17 +31,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       field: 'lead_mentor_id'
     },
-    // Optional level this clan runs (clans may be single-level or level-wise).
-    levelId: {
-      type: DataTypes.UUID,
-      allowNull: true,
-      field: 'level_id'
-    },
-    levelLabel: {
-      type: DataTypes.STRING(60),
-      allowNull: true,
-      field: 'level_label'
-    },
     // Free-form technology / track tags (e.g. 'frontend', 'backend').
     tags: {
       type: DataTypes.ARRAY(DataTypes.STRING(40)),
@@ -91,9 +80,6 @@ module.exports = (sequelize, DataTypes) => {
     Clan.belongsTo(models.User, { foreignKey: 'lead_mentor_id', as: 'leadMentor' });
     Clan.belongsTo(models.User, { foreignKey: 'created_by', as: 'creator' });
     Clan.hasMany(models.ClanMembership, { foreignKey: 'clan_id', as: 'memberships' });
-    if (models.ProgramLevel) {
-      Clan.belongsTo(models.ProgramLevel, { foreignKey: 'level_id', as: 'level' });
-    }
 
     // Reverse side (kept here to avoid editing the live Program/User wiring).
     models.Program.hasMany(Clan, { foreignKey: 'program_id', as: 'clans' });

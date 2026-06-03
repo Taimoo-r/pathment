@@ -146,8 +146,7 @@ class CohortService {
           as: 'enrollments',
           required: false,
           include: [
-            { model: models.Program, as: 'program', attributes: ['id', 'name', 'totalDurationWeeks'] },
-            { model: models.ProgramLevel, as: 'currentLevel', attributes: ['id', 'name', 'durationWeeks'] }
+            { model: models.Program, as: 'program', attributes: ['id', 'name', 'totalDurationWeeks'] }
           ]
         }
       ]

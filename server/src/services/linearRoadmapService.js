@@ -140,7 +140,6 @@ class LinearRoadmapService {
     return sequelize.transaction(async (transaction) => {
       const copy = await models.Roadmap.create({
         programId: org.programId,
-        levelId: org.levelId,
         name: org.name,
         description: org.description,
         source: 'local',
@@ -159,6 +158,105 @@ class LinearRoadmapService {
 
       return copy;
     }).then((copy) => this.getRoadmap(copy.id));
+  }
+
+  // ── Admin org-roadmap authoring ───────────────────────────────────────────
+  // Admins author the shared org library (source='org'); mentors import + assign.
+  async listOrgRoadmaps() {
+    const roadmaps = await models.Roadmap.findAll({ where: { source: 'org' }, order: [['created_at', 'DESC']] });
+    return Promise.all(roadmaps.map((r) => this.withSteps(r)));
+  }
+
+  async createOrgRoadmap(adminId, data) {
+    const { name, programId, description, skillTags, steps, published } = data;
+    if (!name || !programId) throw new ValidationError('name and programId are required');
+    if (!Array.isArray(steps) || steps.length === 0) throw new ValidationError('At least one step is required');
+
+    return sequelize.transaction(async (transaction) => {
+      const roadmap = await models.Roadmap.create({
+        programId,
+        name,
+        description: description || null,
+        source: 'org',
+        published: published !== false,
+        ownerMentorId: null,
+        skillTags: Array.isArray(skillTags) ? skillTags : [],
+        isBaseRoadmap: false,
+        totalTasks: steps.length
+      }, { transaction });
+
+      await models.RoadmapTask.bulkCreate(
+        steps.map((s, i) => this._stepToTask(s, roadmap.id, i)),
+        { transaction }
+      );
+      return roadmap;
+    }).then((roadmap) => this.getRoadmap(roadmap.id));
+  }
+
+  async _assertOrg(roadmapId) {
+    const roadmap = await models.Roadmap.findByPk(roadmapId);
+    if (!roadmap) throw new NotFoundError('Roadmap not found');
+    if (roadmap.source !== 'org') throw new ForbiddenError('Not an org roadmap');
+    return roadmap;
+  }
+
+  async updateOrgMeta(roadmapId, updates) {
+    const roadmap = await this._assertOrg(roadmapId);
+    ['name', 'description', 'skillTags', 'published'].forEach((k) => {
+      if (updates[k] !== undefined) roadmap[k] = updates[k];
+    });
+    await roadmap.save();
+    return this.getRoadmap(roadmapId);
+  }
+
+  async addOrgStep(roadmapId, step) {
+    await this._assertOrg(roadmapId);
+    const max = await models.RoadmapTask.max('taskOrder', { where: { roadmapId } });
+    const order = (Number.isFinite(max) ? max : -1) + 1;
+    await models.RoadmapTask.create(this._stepToTask(step, roadmapId, order));
+    return this.getRoadmap(roadmapId);
+  }
+
+  async removeOrgStep(roadmapId, stepId) {
+    await this._assertOrg(roadmapId);
+    await models.RoadmapTask.destroy({ where: { id: stepId, roadmapId } });
+    return this.getRoadmap(roadmapId);
+  }
+
+  async deleteOrgRoadmap(roadmapId) {
+    await this._assertOrg(roadmapId);
+    // Org roadmaps are templates; mentors import a copy, so deleting the org
+    // source doesn't touch imported local copies or assigned work.
+    await models.RoadmapTask.destroy({ where: { roadmapId } });
+    await models.Roadmap.destroy({ where: { id: roadmapId } });
+    return { deleted: true };
+  }
+
+  // ── Mentee progress view ──────────────────────────────────────────────────
+  /** A mentee's active/complete roadmaps with step X/N progress for their UI. */
+  async getMenteeRoadmaps(menteeId) {
+    const progresses = await models.RoadmapProgress.findAll({ where: { menteeId }, order: [['created_at', 'DESC']] });
+    const out = [];
+    for (const p of progresses) {
+      const roadmap = await models.Roadmap.findByPk(p.roadmapId, { attributes: ['id', 'name', 'description', 'skillTags'] });
+      if (!roadmap) continue;
+      const steps = await this.getSteps(p.roadmapId);
+      const total = steps.length;
+      const currentStep = Math.min(p.currentStep, total);
+      out.push({
+        roadmapId: roadmap.id,
+        name: roadmap.name,
+        description: roadmap.description,
+        skillTags: roadmap.skillTags || [],
+        currentStep,
+        totalSteps: total,
+        completed: !!p.completed,
+        percent: total > 0 ? Math.round((currentStep / total) * 100) : 0,
+        currentStepTitle: !p.completed && steps[currentStep] ? steps[currentStep].title : null,
+        steps: steps.map((s, i) => ({ id: s.id, title: s.title, type: s.type, done: i < currentStep, current: !p.completed && i === currentStep }))
+      });
+    }
+    return out;
   }
 
   async _activeEnrollment(menteeId) {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Plus, Users, Calendar, TrendingUp,
   MoreVertical, Eye, Edit, Trash2, ArrowUpDown,
@@ -11,6 +12,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { PageHeader, StatusBadge, SearchAndFilterBar, ConfirmDialog } from '@/components/admin/ui';
 import { useProgramList, ProgramStatus, ProgramSortBy, SortOrder } from '@/lib/hooks/admin/useProgramList';
+import { CreateProgramDrawer } from '@/components/admin/CreateProgramDrawer';
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
@@ -95,9 +97,11 @@ export default function ProgramListPage() {
     resetFilters, refetch, handleDelete,
   } = useProgramList();
 
+  const searchParams = useSearchParams();
   const [deleteProgramId, setDeleteProgramId] = useState<string | null>(null);
   const [deleteProgramName, setDeleteProgramName] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCreate, setShowCreate] = useState(searchParams.get('create') === '1');
 
   return (
     <>
@@ -106,13 +110,13 @@ export default function ProgramListPage() {
         title="Programs"
         subtitle="Manage all mentorship programs"
         actions={
-          <Link
-            href="/admin/programs/create"
+          <button
+            onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             Create Program
-          </Link>
+          </button>
         }
       />
 
@@ -197,7 +201,7 @@ export default function ProgramListPage() {
           action={
             hasActiveFilters
               ? { label: 'Clear filters', onClick: resetFilters }
-              : { label: 'Create Program', href: '/admin/programs/create' }
+              : { label: 'Create Program', onClick: () => setShowCreate(true) }
           }
         />
       ) : (
@@ -287,11 +291,11 @@ export default function ProgramListPage() {
                           View Details
                         </Link>
                         <Link
-                          href={`/admin/programs/${program.id}/roadmap`}
+                          href="/admin/roadmaps"
                           className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-slate-700 text-sm"
                         >
                           <Edit className="w-4 h-4" />
-                          Edit Roadmap
+                          Roadmaps
                         </Link>
                         <button
                           onClick={() => {
@@ -327,7 +331,7 @@ export default function ProgramListPage() {
       <ConfirmDialog
         open={!!deleteProgramId}
         title="Delete Program"
-        description={`Are you sure you want to delete "${deleteProgramName}"? This action cannot be undone and will permanently remove all related level data, roadmaps, and enrollments.`}
+        description={`Are you sure you want to delete "${deleteProgramName}"? This action cannot be undone and will permanently remove all related roadmaps and enrollments.`}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"
@@ -346,6 +350,8 @@ export default function ProgramListPage() {
         }}
         onCancel={() => setDeleteProgramId(null)}
       />
+
+      {showCreate && <CreateProgramDrawer onClose={() => setShowCreate(false)} />}
     </>
   );
 }

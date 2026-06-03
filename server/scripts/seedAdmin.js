@@ -1,4 +1,9 @@
-require("dotenv").config();
+// Load the server's .env regardless of where the script is invoked from
+// (e.g. `node scripts/seedAdmin.js` from server/, or `node seedAdmin.js` from
+// scripts/). Without an explicit path, dotenv only reads .env in the CWD, so
+// DATABASE_URL would be missing and the DB connection falls back to a bad
+// default → "password authentication failed for user postgres".
+require("dotenv").config({ path: require("path").resolve(__dirname, "../.env") });
 const bcrypt = require("bcrypt");
 const { sequelize, models } = require("../src/db");
 

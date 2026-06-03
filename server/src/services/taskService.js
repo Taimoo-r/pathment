@@ -182,8 +182,7 @@ class TaskService {
           model: models.Enrollment,
           as: 'enrollment',
           include: [
-            { model: models.Program, as: 'program' },
-            { model: models.ProgramLevel, as: 'currentLevel' }
+            { model: models.Program, as: 'program' }
           ]
         },
         {
@@ -245,8 +244,7 @@ class TaskService {
           model: models.Enrollment,
           as: 'enrollment',
           include: [
-            { model: models.Program, as: 'program' },
-            { model: models.ProgramLevel, as: 'currentLevel' }
+            { model: models.Program, as: 'program' }
           ]
         },
         {
@@ -300,8 +298,7 @@ class TaskService {
           model: models.Enrollment,
           as: 'enrollment',
           include: [
-            { model: models.Program, as: 'program' },
-            { model: models.ProgramLevel, as: 'currentLevel' }
+            { model: models.Program, as: 'program' }
           ]
         },
         {
@@ -763,17 +760,17 @@ class TaskService {
   }
 
   /**
-   * Get roadmap tasks for a program level (for mentors to view and assign)
-   * If menteeId is provided, include assignment status for that mentee
+   * Get roadmap tasks for a program (for mentors to view and assign).
+   * If menteeId is provided, include assignment status for that mentee.
    */
-  async getRoadmapTasks(programId, levelId, menteeId = null) {
-    // Get the base roadmap for this program/level.
+  async getRoadmapTasks(programId, menteeId = null) {
+    // Get the base roadmap for this program.
     const roadmap = await models.Roadmap.findOne({
-      where: { programId, levelId, isBaseRoadmap: true }
+      where: { programId, isBaseRoadmap: true }
     });
 
     if (!roadmap) {
-      throw new NotFoundError('Roadmap not found for this program level');
+      throw new NotFoundError('Roadmap not found for this program');
     }
 
     // Tasks link to the roadmap directly via roadmap_id (weeks were removed).

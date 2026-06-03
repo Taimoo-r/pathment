@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Clock, BookOpen, Target, Users, Star, Loader2, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, Clock, Target, Users, Star, Loader2, ArrowLeft } from 'lucide-react';
 import { useProgramEnroll } from '@/lib/hooks/mentee';
 import { PageHeader } from '@/components/admin/ui';
 
@@ -12,7 +12,6 @@ export default function ProgramEnrollment() {
 
   const {
     program,
-    levels,
     loading,
     enrolling,
     existingEnrollment,
@@ -75,10 +74,10 @@ export default function ProgramEnrollment() {
             </div>
           </div>
           <div className="text-center">
-            <div className="text-slate-900 text-2xl mb-1">{levels.length}</div>
+            <div className="text-slate-900 text-2xl mb-1">{program.estimatedHoursPerWeek || 0}</div>
             <div className="text-slate-600 text-sm flex items-center justify-center gap-1">
-              <Target className="w-4 h-4" />
-              Levels
+              <Clock className="w-4 h-4" />
+              Hrs/week
             </div>
           </div>
           <div className="text-center">
@@ -120,129 +119,28 @@ export default function ProgramEnrollment() {
                 <div className="text-slate-900">{program.estimatedHoursPerWeek || 0} hrs/week</div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <div className="text-slate-600 text-sm">Program Levels</div>
-                <div className="text-slate-900">{levels.length} levels</div>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Curriculum Preview */}
+        {/* What you'll learn */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-slate-900 mb-4">Program Levels</h2>
-          <div className="space-y-3">
-            {levels.slice(0, 3).map((level: any) => (
-              <div key={level.id} className="p-4 border border-slate-200 rounded-xl hover:border-indigo-200 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="text-slate-900 font-medium">{level.name}</div>
-                  <span className="text-indigo-600 text-sm font-medium">Level {level.levelOrder}</span>
-                </div>
-                <div className="text-slate-600 text-sm mb-3">{level.durationWeeks} weeks</div>
-                {level.description && (
-                  <p className="text-slate-600 text-sm mb-3 line-clamp-2">{level.description}</p>
-                )}
-                {level.learningOutcomes && level.learningOutcomes.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-100">
-                    <div className="text-slate-700 text-sm font-medium mb-2">Learning Outcomes:</div>
-                    <ul className="space-y-1">
-                      {level.learningOutcomes.slice(0, 3).map((outcome: string, idx: number) => (
-                        <li key={idx} className="text-slate-600 text-sm flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                          <span>{outcome}</span>
-                        </li>
-                      ))}
-                      {level.learningOutcomes.length > 3 && (
-                        <li className="text-slate-500 text-xs ml-6">+ {level.learningOutcomes.length - 3} more outcomes</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
-            {levels.length > 3 && (
-              <div className="text-center text-slate-600 text-sm pt-2">
-                + {levels.length - 3} more levels
-              </div>
-            )}
-            {levels.length === 0 && (
-              <div className="text-center text-slate-500 text-sm py-4">
-                No levels defined yet
-              </div>
-            )}
-          </div>
+          <h2 className="text-slate-900 mb-4">What you&apos;ll learn</h2>
+          {program.learningOutcomes && program.learningOutcomes.length > 0 ? (
+            <ul className="space-y-2">
+              {program.learningOutcomes.map((outcome: string, idx: number) => (
+                <li key={idx} className="text-slate-600 text-sm flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                  <span>{outcome}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-slate-500 text-sm">
+              Once you&apos;re enrolled and matched, your mentor assigns roadmaps and tasks tailored to you.
+            </p>
+          )}
         </div>
       </div>
-
-      {/* Detailed Level Information */}
-      {levels.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-8">
-          <h2 className="text-slate-900 mb-6">Complete Program Curriculum</h2>
-          <div className="space-y-6">
-            {levels.map((level: any) => (
-              <div key={level.id} className="pb-6 last:pb-0 border-b last:border-b-0 border-slate-200">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
-                    <span className="text-indigo-600 font-bold text-lg">{level.levelOrder}</span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-slate-900 font-semibold mb-2">{level.name}</h3>
-                    <div className="flex gap-4 mb-3">
-                      <span className="text-slate-600 text-sm flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {level.durationWeeks} weeks
-                      </span>
-                    </div>
-                    
-                    {level.description && (
-                      <p className="text-slate-600 mb-4">{level.description}</p>
-                    )}
-
-                    {level.targetAudience && (
-                      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                        <div className="text-blue-900 text-sm font-medium mb-1">Target Audience:</div>
-                        <div className="text-blue-700 text-sm">{level.targetAudience}</div>
-                      </div>
-                    )}
-
-                    {level.learningOutcomes && level.learningOutcomes.length > 0 && (
-                      <div className="mb-4">
-                        <div className="text-slate-700 font-medium mb-2">Learning Outcomes:</div>
-                        <ul className="space-y-2">
-                          {level.learningOutcomes.map((outcome: string, idx: number) => (
-                            <li key={idx} className="text-slate-600 text-sm flex items-start gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                              <span>{outcome}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {level.prerequisites && level.prerequisites.length > 0 && (
-                      <div>
-                        <div className="text-slate-700 font-medium mb-2">Prerequisites:</div>
-                        <ul className="space-y-2">
-                          {level.prerequisites.map((prereq: string, idx: number) => (
-                            <li key={idx} className="text-slate-600 text-sm flex items-start gap-2">
-                              <Star className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                              <span>{prereq}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Enrollment CTA */}
       <div className="bg-white rounded-2xl border border-slate-200 p-8">

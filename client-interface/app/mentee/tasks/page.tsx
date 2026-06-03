@@ -202,12 +202,6 @@ export default function MenteeTasks() {
                       </p>
                       
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
-                        {task.roadmapTask?.week && (
-                          <>
-                            <span>Week {task.roadmapTask.week.weekNumber}</span>
-                            <span>•</span>
-                          </>
-                        )}
                         {task.dueDate && (
                           <>
                             <span className={`flex items-center gap-1 ${overdue ? 'text-red-600' : ''}`}>

@@ -7,7 +7,7 @@ import { enrollmentApi } from '@/lib/services/enrollment-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { toast } from 'sonner';
 
-export type ProgramDetailTab = 'overview' | 'levels' | 'mentors' | 'enrollments';
+export type ProgramDetailTab = 'overview' | 'enrollments';
 
 export interface ProgramDetailProgram {
   id: string;
@@ -27,21 +27,6 @@ export interface ProgramDetailProgram {
   completion?: number;
 }
 
-export interface ProgramLevel {
-  id: string;
-  name: string;
-  durationWeeks: number;
-  description?: string;
-}
-
-export interface AssignedMentor {
-  id: string;
-  name: string;
-  mentees: number;
-  expertise: string;
-  title: string;
-}
-
 export interface ProgramEnrollment {
   id: string;
   status: string;
@@ -49,35 +34,21 @@ export interface ProgramEnrollment {
   mentee?: { id: string; firstName: string; lastName: string; email: string };
 }
 
-interface ProgramRoadmap {
-  id?: string;
-  weeks?: unknown[];
-}
-
 interface UseProgramDetailReturn {
   id: string;
   program: ProgramDetailProgram | null;
   loading: boolean;
-  levels: ProgramLevel[];
-  selectedLevelId: string;
-  roadmap: ProgramRoadmap | null;
-  loadingRoadmap: boolean;
-  generatingRoadmap: boolean;
-  assignedMentors: AssignedMentor[];
   enrollments: ProgramEnrollment[];
   loadingEnrollments: boolean;
   shareOpen: boolean;
   shareRef: React.RefObject<HTMLDivElement>;
-  setSelectedLevelId: (id: string) => void;
   setShareOpen: (open: boolean) => void;
   copyToClipboard: (text: string, label: string) => void;
-  handleGenerateRoadmap: () => Promise<void>;
   handleApproveEnrollment: (enrollmentId: string) => Promise<void>;
   handleRejectEnrollment: (enrollmentId: string) => Promise<void>;
   handleStatusUpdate: (newStatus: string) => Promise<void>;
   updatingStatus: boolean;
   fetchEnrollments: () => Promise<void>;
-  fetchRoadmap: () => Promise<void>;
 }
 
 export function useProgramDetail(): UseProgramDetailReturn {
@@ -86,12 +57,6 @@ export function useProgramDetail(): UseProgramDetailReturn {
 
   const [program, setProgram] = useState<ProgramDetailProgram | null>(null);
   const [loading, setLoading] = useState(true);
-  const [levels, setLevels] = useState<ProgramLevel[]>([]);
-  const [selectedLevelId, setSelectedLevelId] = useState<string>('');
-  const [roadmap, setRoadmap] = useState<ProgramRoadmap | null>(null);
-  const [loadingRoadmap, setLoadingRoadmap] = useState(false);
-  const [generatingRoadmap, setGeneratingRoadmap] = useState(false);
-  const [assignedMentors, setAssignedMentors] = useState<AssignedMentor[]>([]);
   const [enrollments, setEnrollments] = useState<ProgramEnrollment[]>([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -125,33 +90,6 @@ export function useProgramDetail(): UseProgramDetailReturn {
     }
   }, [id]);
 
-  const fetchLevels = useCallback(async () => {
-    if (!id) return;
-    try {
-      const response = (await programManagementApi.levels.getByProgram(id)) as {
-        data?: { levels?: ProgramLevel[] };
-        levels?: ProgramLevel[];
-      } | ProgramLevel[];
-      const list: ProgramLevel[] = Array.isArray(response)
-        ? response
-        : (response as { data?: { levels?: ProgramLevel[] }; levels?: ProgramLevel[] })?.data?.levels
-          ?? (response as { data?: { levels?: ProgramLevel[] }; levels?: ProgramLevel[] })?.levels
-          ?? [];
-      setLevels(list);
-      if (list.length > 0) {
-        setSelectedLevelId((prev) => prev || list[0].id);
-      }
-    } catch (err: unknown) {
-      console.error('Failed to fetch levels:', err);
-    }
-  }, [id]);
-
-  // Level-mentor assignment was removed; mentors are matched to mentees directly
-  // (clan/MentorMenteeMatch), not assigned to program levels.
-  const fetchMentorAssignments = useCallback(async () => {
-    setAssignedMentors([]);
-  }, []);
-
   const fetchEnrollments = useCallback(async () => {
     if (!id) return;
     try {
@@ -170,25 +108,9 @@ export function useProgramDetail(): UseProgramDetailReturn {
     }
   }, [id]);
 
-  // Legacy week-based curriculum was removed. Linear roadmaps are authored by
-  // mentors/admins in the dedicated Roadmaps area, not per program level here.
-  const fetchRoadmap = useCallback(async () => {
-    setRoadmap(null);
-  }, []);
-
   useEffect(() => {
-    if (id) {
-      fetchProgram();
-      fetchLevels();
-      fetchMentorAssignments();
-    }
-  }, [id, fetchProgram, fetchLevels, fetchMentorAssignments]);
-
-  // Legacy AI week-curriculum generation was removed. Roadmaps are authored as
-  // linear roadmaps in the Roadmaps area.
-  const handleGenerateRoadmap = useCallback(async () => {
-    toast('Curriculum is now authored as linear roadmaps in the Roadmaps area.');
-  }, []);
+    if (id) fetchProgram();
+  }, [id, fetchProgram]);
 
   const handleApproveEnrollment = useCallback(async (enrollmentId: string) => {
     try {
@@ -251,25 +173,16 @@ export function useProgramDetail(): UseProgramDetailReturn {
     id,
     program,
     loading,
-    levels,
-    selectedLevelId,
-    roadmap,
-    loadingRoadmap,
-    generatingRoadmap,
-    assignedMentors,
     enrollments,
     loadingEnrollments,
     shareOpen,
     shareRef,
-    setSelectedLevelId,
     setShareOpen,
     copyToClipboard,
-    handleGenerateRoadmap,
     handleApproveEnrollment,
     handleRejectEnrollment,
     handleStatusUpdate,
     updatingStatus,
     fetchEnrollments,
-    fetchRoadmap,
   };
 }

@@ -354,13 +354,15 @@ class AdminService {
    */
   async #enrichProgramWithStats(program, excludedStatuses) {
     const [mentorCount, avgResult] = await Promise.all([
-      models.LevelMentorAssignment.count({
+      // Distinct mentors with an active match in this program (level-mentor
+      // assignment was removed; mentor↔program is via matches now).
+      models.MentorMenteeMatch.count({
         distinct: true,
         col: 'mentor_id',
-        where: { isActive: true },
+        where: { status: 'active' },
         include: [{
-          model: models.ProgramLevel,
-          as: 'level',
+          model: models.Enrollment,
+          as: 'enrollment',
           where: { programId: program.id },
           attributes: [],
           required: true
@@ -528,13 +530,8 @@ class AdminService {
       }
     }
 
-    // For mentors: deactivate any active level assignments
+    // For mentors: cancel their active matches (mentees revert to pending_match).
     if (user.role === 'mentor') {
-      await models.LevelMentorAssignment.update(
-        { isActive: false },
-        { where: { mentorId: targetUserId, isActive: true } }
-      );
-      // Cancel their active matches (mentees revert to pending_match)
       const activeMatches = await models.MentorMenteeMatch.findAll({
         where: { mentorId: targetUserId, status: 'active' },
         attributes: ['enrollmentId'],

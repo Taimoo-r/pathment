@@ -113,7 +113,6 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
               </p>
               <p className="text-xs text-slate-500">
                 {task.enrollment?.program?.name}
-                {task.enrollment?.currentLevel?.name && ` · ${task.enrollment.currentLevel.name}`}
               </p>
             </div>
           </div>

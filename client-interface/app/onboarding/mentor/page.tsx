@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { apiClient } from '@/lib/services/api-client';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { ArrowRight, Loader2, Award, Briefcase, Globe, Github, Linkedin, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -70,39 +72,16 @@ export default function MentorOnboardingPage() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please log in again');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/complete-mentor`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
-          maxMentees: parseInt(formData.maxMentees) || 5
-        })
+      await apiClient.post('/profile/complete-mentor', {
+        ...formData,
+        yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
+        maxMentees: parseInt(formData.maxMentees) || 5
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to complete profile');
-      }
-
-      toast.success('Profile completed! Let\'s add your skills.');
-      // Update user context with new onboarding step
-      if (updateUser) {
-        updateUser({ ...user, onboardingStep: 1 });
-      }
+      toast.success('Profile saved — let\'s add your skills.');
+      if (updateUser) updateUser({ ...user, onboardingStep: 1 });
       router.push('/onboarding/skills');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to complete profile');
+    } catch (error: unknown) {
+      toast.error(extractApiErrorMessage(error, 'Failed to complete profile'));
     } finally {
       setLoading(false);
     }

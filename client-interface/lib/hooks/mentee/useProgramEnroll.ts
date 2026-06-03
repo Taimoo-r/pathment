@@ -11,7 +11,6 @@ import { useAuth } from '@/lib/context/AuthContext';
 
 export interface UseProgramEnrollReturn {
   program: any;
-  levels: any[];
   loading: boolean;
   enrolling: boolean;
   existingEnrollment: any;
@@ -25,7 +24,6 @@ export function useProgramEnroll(programId: string): UseProgramEnrollReturn {
   const router = useRouter();
 
   const [program, setProgram] = useState<any>(null);
-  const [levels, setLevels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [existingEnrollment, setExistingEnrollment] = useState<any>(null);
@@ -38,16 +36,6 @@ export function useProgramEnroll(programId: string): UseProgramEnrollReturn {
     } catch (err: any) {
       console.error('Failed to fetch program:', err);
       toast.error('Failed to load program details');
-    }
-  }, [programId]);
-
-  const fetchLevels = useCallback(async () => {
-    try {
-      const response = await programManagementApi.levels.getByProgram(programId);
-      const list = response?.data?.levels || response?.levels || response || [];
-      setLevels(Array.isArray(list) ? list : []);
-    } catch (err: any) {
-      console.error('Failed to fetch levels:', err);
     }
   }, [programId]);
 
@@ -65,11 +53,11 @@ export function useProgramEnroll(programId: string): UseProgramEnrollReturn {
   useEffect(() => {
     if (programId && user) {
       setLoading(true);
-      Promise.all([fetchProgram(), fetchLevels(), checkEnrollmentStatus()]).finally(() =>
+      Promise.all([fetchProgram(), checkEnrollmentStatus()]).finally(() =>
         setLoading(false)
       );
     }
-  }, [programId, user, fetchProgram, fetchLevels, checkEnrollmentStatus]);
+  }, [programId, user, fetchProgram, checkEnrollmentStatus]);
 
   const handleEnroll = useCallback(async () => {
     try {
@@ -88,7 +76,6 @@ export function useProgramEnroll(programId: string): UseProgramEnrollReturn {
 
   return {
     program,
-    levels,
     loading,
     enrolling,
     existingEnrollment,

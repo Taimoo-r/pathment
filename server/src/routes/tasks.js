@@ -117,7 +117,7 @@ router.post(
  * @access  Admin, Mentor
  */
 router.get(
-  '/roadmap/program/:programId/level/:levelId',
+  '/roadmap/program/:programId',
   authenticate,
   authorize(['admin', 'mentor']),
   taskController.getRoadmapTasks

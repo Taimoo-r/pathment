@@ -21,7 +21,6 @@ export interface Enrollment {
   id: string;
   menteeId: string;
   programId: string;
-  currentLevelId: string;
   status: EnrollmentStatus;
   currentWeek: number;
   tasksCompleted: number;
@@ -43,11 +42,6 @@ export interface Enrollment {
     type: string;
     status: string;
   };
-  currentLevel: {
-    id: string;
-    name: string;
-    durationWeeks: number;
-  } | null;
   matches: Array<{
     id: string;
     status: string;

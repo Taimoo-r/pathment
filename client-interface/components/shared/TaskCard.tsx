@@ -131,12 +131,6 @@ export function TaskCard({
               <span>{estimatedHours}h</span>
             </div>
           )}
-          {roadmapTask?.week && (
-            <div className="flex items-center gap-1">
-              <BookOpen className="w-4 h-4" />
-              <span>Week {roadmapTask.week.weekNumber}</span>
-            </div>
-          )}
           {finalRating && (
             <div className="flex items-center gap-1 text-yellow-600">
               <Star className="w-4 h-4 fill-yellow-400" />

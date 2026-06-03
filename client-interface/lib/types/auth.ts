@@ -14,6 +14,10 @@ export interface User {
   firstName: string;
   lastName: string;
   isVerified: boolean;
+  /** Onboarding state (mirrors the server User model). */
+  profileCompleted?: boolean;
+  /** 0=registered, 1=profile, 2=skills, 3=finished. */
+  onboardingStep?: number;
   createdAt: string;
   updatedAt: string;
   profile?: UserProfile;

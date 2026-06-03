@@ -9,7 +9,7 @@ export function QuickActions() {
       <h3 className="text-slate-900 font-semibold mb-4">Quick Actions</h3>
       <div className="space-y-3">
         <Link
-          href="/admin/programs/create"
+          href="/admin/programs/list?create=1"
           className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
         >
           <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
