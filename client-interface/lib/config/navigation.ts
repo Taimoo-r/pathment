@@ -3,7 +3,6 @@ import {
   BookOpen,
   Users,
   Users2,
-  UserCheck,
   ClipboardList,
   ClipboardCheck,
   AlertTriangle,
@@ -57,7 +56,6 @@ export const navigationConfig: Record<string, NavLink[]> = {
     { path: '/admin/mentor-spec', icon: Compass, label: 'Mentor Spec' },
     { path: '/admin/clans', icon: Users2, label: 'Clans' },
     { path: '/admin/requests', icon: GitPullRequest, label: 'Clan Requests' },
-    { path: '/admin/matching/mentor-assignment', icon: UserCheck, label: 'Mentor Matching' },
     { path: '/admin/enrollment/overview', icon: Users, label: 'Enrollments' },
     { path: '/admin/invites', icon: UserPlus, label: 'Invites' },
     {

@@ -33,6 +33,7 @@ export interface ProgramEnrollment {
   status: string;
   enrolledAt: string;
   mentee?: { id: string; firstName: string; lastName: string; email: string };
+  clan?: { id: string; name: string } | null;
 }
 
 interface UseProgramDetailReturn {

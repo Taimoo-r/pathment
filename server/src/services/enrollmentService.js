@@ -243,6 +243,29 @@ class EnrollmentService {
    * Mentee or Mentor requests completion of the current level/program.
    * Sets status to pending_completion and records who requested it.
    */
+  /**
+   * Is this mentor responsible for this enrollment's mentee? True via a legacy
+   * active 1:1 match OR (the current model) a shared clan where the user is a
+   * lead/co/core mentor and the mentee is an active member. Keeps completion
+   * flows working now that placement is clan-based, not match-based.
+   */
+  async _mentorAuthorizedForMentee(mentorId, menteeId, enrollmentId) {
+    const match = await models.MentorMenteeMatch.findOne({
+      where: { enrollmentId, mentorId, status: 'active' }
+    });
+    if (match) return true;
+    const mentorClans = await models.ClanMembership.findAll({
+      where: { userId: mentorId, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor', 'core_team'] } },
+      attributes: ['clanId']
+    });
+    const clanIds = mentorClans.map((c) => c.clanId);
+    if (!clanIds.length) return false;
+    const menteeMembership = await models.ClanMembership.findOne({
+      where: { userId: menteeId, status: 'active', role: 'mentee', clanId: { [Op.in]: clanIds } }
+    });
+    return Boolean(menteeMembership);
+  }
+
   async requestCompletion(enrollmentId, requestedById, requestedByRole) {
     const enrollment = await models.Enrollment.findByPk(enrollmentId);
     if (!enrollment) throw new NotFoundError('Enrollment not found');
@@ -253,11 +276,8 @@ class EnrollmentService {
     }
 
     if (requestedByRole === 'mentor') {
-      // Verify this mentor is actively paired with this enrollment
-      const match = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId, mentorId: requestedById, status: 'active' }
-      });
-      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+      const authorized = await this._mentorAuthorizedForMentee(requestedById, enrollment.menteeId, enrollmentId);
+      if (!authorized) throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
     if (!['active', 'matched'].includes(enrollment.status)) {
@@ -288,10 +308,8 @@ class EnrollmentService {
     }
 
     if (approverRole === 'mentor') {
-      const match = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId, mentorId: approverId, status: 'active' }
-      });
-      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+      const authorized = await this._mentorAuthorizedForMentee(approverId, enrollment.menteeId, enrollmentId);
+      if (!authorized) throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
     await enrollment.update({
@@ -322,10 +340,8 @@ class EnrollmentService {
     }
 
     if (rejecterRole === 'mentor') {
-      const match = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId, mentorId: rejecterId, status: 'active' }
-      });
-      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+      const authorized = await this._mentorAuthorizedForMentee(rejecterId, enrollment.menteeId, enrollmentId);
+      if (!authorized) throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
     await enrollment.update({

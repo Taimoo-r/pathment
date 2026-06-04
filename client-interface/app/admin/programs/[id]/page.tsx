@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Users,
+  Users2,
   UserCheck,
   Clock,
   CheckCircle2,
@@ -447,13 +448,12 @@ export default function ProgramDetails() {
                           </div>
                           <div className="text-slate-600 text-sm mt-1">{enrollment.mentee?.email}</div>
                         </div>
-                        {enrollment.status === 'approved' && (
-                          <Link
-                            href={`/admin/matching/mentor-assignment?enrollmentId=${enrollment.id}`}
-                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors"
-                          >
-                            Match Mentor
-                          </Link>
+                        {enrollment.clan?.name ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium shrink-0">
+                            <Users2 className="w-3.5 h-3.5" />{enrollment.clan.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400 shrink-0">No clan</span>
                         )}
                       </div>
                     </div>
