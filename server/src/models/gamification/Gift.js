@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
     name: { type: DataTypes.STRING(150), allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     costXp: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'cost_xp' },
+    imageUrl: { type: DataTypes.STRING(500), allowNull: true, field: 'image_url' },
     stock: { type: DataTypes.INTEGER, allowNull: true },
     active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     createdBy: { type: DataTypes.UUID, allowNull: true, field: 'created_by' }

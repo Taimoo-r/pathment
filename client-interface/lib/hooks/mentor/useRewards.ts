@@ -6,6 +6,7 @@ export interface Gift {
   name: string;
   description: string | null;
   costXp: number;
+  imageUrl: string | null;
   stock: number | null;
 }
 export interface Redemption {

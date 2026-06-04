@@ -75,11 +75,17 @@ export default function MentorRewards() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {gifts.map((g) => (
-                <div key={g.id} className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center"><GiftIcon className="w-5 h-5 text-indigo-600" /></div>
+                <div key={g.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                  <div className="relative h-28 bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center">
+                    {g.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={g.imageUrl} alt={g.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <GiftIcon className="w-9 h-9 text-indigo-300" />
+                    )}
                   </div>
-                  <h3 className="mt-3 font-medium text-slate-900">{g.name}</h3>
+                  <div className="p-5 flex flex-col flex-1">
+                  <h3 className="font-medium text-slate-900">{g.name}</h3>
                   {g.description && <p className="text-sm text-slate-500 mt-0.5 flex-1">{g.description}</p>}
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-sm font-semibold text-indigo-700">{g.costXp.toLocaleString()} XP</span>
@@ -89,6 +95,7 @@ export default function MentorRewards() {
                     className="mt-3 w-full px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50">
                     {g.stock === 0 ? 'Out of stock' : 'Redeem'}
                   </button>
+                  </div>
                 </div>
               ))}
             </div>

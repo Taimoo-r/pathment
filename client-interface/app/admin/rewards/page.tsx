@@ -47,18 +47,28 @@ export default function AdminRewardsPage() {
               </div>
             )}
             {gifts.map((g) => (
-              <div key={g.id} className="bg-white rounded-2xl border border-slate-200 p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-slate-900 font-semibold">{g.name}</h3>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => setEditing(g)} aria-label="Edit" className="p-1.5 text-slate-400 hover:text-indigo-600"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => removeGift(g.id)} disabled={busy === g.id} aria-label="Remove" className="p-1.5 text-slate-400 hover:text-red-600 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
-                  </div>
+              <div key={g.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                <div className="relative h-32 bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center">
+                  {g.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={g.imageUrl} alt={g.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <GiftIcon className="w-10 h-10 text-indigo-300" />
+                  )}
+                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur text-indigo-700 text-xs font-semibold tabular-nums shadow-sm">{g.costXp} pts</span>
                 </div>
-                {g.description && <p className="text-slate-500 text-sm mt-1">{g.description}</p>}
-                <div className="mt-3 flex items-center gap-2 text-xs">
-                  <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium tabular-nums">{g.costXp} pts</span>
-                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{g.stock === null ? 'Unlimited' : `${g.stock} in stock`}</span>
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-slate-900 font-semibold">{g.name}</h3>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => setEditing(g)} aria-label="Edit" className="p-1.5 text-slate-400 hover:text-indigo-600"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => removeGift(g.id)} disabled={busy === g.id} aria-label="Remove" className="p-1.5 text-slate-400 hover:text-red-600 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                  {g.description && <p className="text-slate-500 text-sm mt-1 flex-1">{g.description}</p>}
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">{g.stock === null ? 'Unlimited' : `${g.stock} in stock`}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -92,12 +102,23 @@ function GiftDrawer({ gift, onClose, onSaved }: { gift: Gift | null; onClose: ()
   const [costXp, setCostXp] = useState<number>(gift?.costXp ?? 100);
   const [unlimited, setUnlimited] = useState(gift ? gift.stock === null : false);
   const [stock, setStock] = useState<number>(gift?.stock ?? 10);
+  const [imageUrl, setImageUrl] = useState<string | null>(gift?.imageUrl ?? null);
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const field = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
+  const onPickImage = async (file?: File) => {
+    if (!file) return;
+    try {
+      setUploading(true);
+      const res: any = await rewardsApi.uploadGiftImage(file);
+      setImageUrl(res?.data?.url ?? null);
+    } catch { toast.error('Could not upload image'); } finally { setUploading(false); }
+  };
+
   const submit = async () => {
     if (!name.trim()) { toast.error('Name is required'); return; }
-    const payload = { name: name.trim(), description: description.trim() || undefined, costXp, stock: unlimited ? null : stock };
+    const payload = { name: name.trim(), description: description.trim() || undefined, costXp, imageUrl, stock: unlimited ? null : stock };
     try {
       setSaving(true);
       if (gift) await rewardsApi.updateGift(gift.id, payload);
@@ -119,6 +140,27 @@ function GiftDrawer({ gift, onClose, onSaved }: { gift: Gift | null; onClose: ()
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Name <span className="text-red-500">*</span></label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Swag pack" className={field} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Image / GIF</label>
+            <div className="flex items-center gap-3">
+              <div className="w-20 h-20 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt="Gift preview" className="w-full h-full object-cover" />
+                ) : (
+                  <GiftIcon className="w-7 h-7 text-slate-300" />
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {imageUrl ? 'Replace' : 'Upload'} image
+                  <input type="file" accept="image/*,image/gif" className="hidden" onChange={(e) => onPickImage(e.target.files?.[0])} />
+                </label>
+                {imageUrl && <button onClick={() => setImageUrl(null)} className="block text-xs text-slate-400 hover:text-red-600">Remove image</button>}
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>

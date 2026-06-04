@@ -1,6 +1,15 @@
 const { catchAsync } = require('../middlewares/errorHandler');
 const { successResponse } = require('../utils/responses');
+const { ValidationError } = require('../utils/errors/errorTypes');
 const rewardsService = require('../services/rewardsService');
+const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
+
+// Upload a gift image/GIF → returns { url } for the gift form to store.
+const uploadGiftImage = catchAsync(async (req, res) => {
+  if (!req.file) throw new ValidationError('No image uploaded');
+  const result = await uploadToCloudinary(req.file.buffer, 'pathment/gifts', 'image');
+  res.status(200).json(successResponse('Uploaded', { url: result.secure_url }));
+});
 
 const overview = catchAsync(async (req, res) => {
   const data = await rewardsService.overview();
@@ -30,4 +39,4 @@ const redeem = catchAsync(async (req, res) => {
   res.status(201).json(successResponse('Gift redeemed', { redemption }, 201));
 });
 
-module.exports = { overview, createGift, updateGift, removeGift, redeem, menteeBalance };
+module.exports = { overview, createGift, updateGift, removeGift, redeem, menteeBalance, uploadGiftImage };
