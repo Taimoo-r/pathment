@@ -25,6 +25,7 @@ import {
   GraduationCap,
   School,
   BarChart2,
+  ShieldAlert,
   type LucideIcon
 } from 'lucide-react';
 import { UserRole } from '@/lib/types';
@@ -67,6 +68,7 @@ export const navigationConfig: Record<string, NavLink[]> = {
       ],
     },
     { path: '/admin/announcements', icon: Megaphone, label: 'Announcements' },
+    { path: '/admin/moderation', icon: ShieldAlert, label: 'Moderation' },
     { path: '/admin/messages', icon: MessageSquare, label: 'Messages', hasBadge: true },
     { path: '/admin/activity', icon: BarChart2, label: 'Activity' },
     { path: '/admin/settings', icon: Settings, label: 'Settings' },

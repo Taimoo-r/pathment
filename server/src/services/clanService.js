@@ -164,6 +164,31 @@ class ClanService {
         await clan.save({ transaction });
       }
 
+      // Placing a mentee in a clan IS their placement — make sure they have an
+      // active enrollment in the clan's program so the mentee dashboard reflects
+      // it and tasks (which require an enrollment) can be assigned to them.
+      if (role === 'mentee') {
+        let enrollment = await models.Enrollment.findOne({
+          where: { menteeId: userId, programId: clan.programId },
+          transaction
+        });
+        if (!enrollment) {
+          enrollment = await models.Enrollment.create({
+            menteeId: userId,
+            programId: clan.programId,
+            status: 'active',
+            enrolledAt: new Date()
+          }, { transaction });
+        } else if (['rejected', 'dropped'].includes(enrollment.status)) {
+          enrollment.status = 'active';
+          await enrollment.save({ transaction });
+        }
+        if (membership.enrollmentId !== enrollment.id) {
+          membership.enrollmentId = enrollment.id;
+          await membership.save({ transaction });
+        }
+      }
+
       return membership;
     });
   }

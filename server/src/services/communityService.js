@@ -372,15 +372,34 @@ class CommunityService {
       order: [['created_at', 'DESC']],
       include: [{ model: models.User, as: 'reporter', attributes: ['id', 'firstName', 'lastName'] }]
     });
-    return reports.map((r) => ({
-      id: r.id,
-      targetType: r.targetType,
-      targetId: r.targetId,
-      reason: r.reason,
-      status: r.status,
-      at: r.createdAt,
-      reporter: { id: r.reporter?.id, name: fullName(r.reporter) }
-    }));
+
+    // Attach a preview of each reported target so a moderator can judge without leaving the queue.
+    const postIds = reports.filter((r) => r.targetType === 'post').map((r) => r.targetId);
+    const commentIds = reports.filter((r) => r.targetType === 'comment').map((r) => r.targetId);
+    const authorInc = [{ model: models.User, as: 'author', attributes: ['id', 'firstName', 'lastName'] }];
+    const [posts, comments] = await Promise.all([
+      postIds.length ? models.CommunityPost.findAll({ where: { id: { [Op.in]: postIds } }, include: authorInc, paranoid: false }) : [],
+      commentIds.length ? models.CommunityComment.findAll({ where: { id: { [Op.in]: commentIds } }, include: authorInc, paranoid: false }) : []
+    ]);
+    const postMap = new Map(posts.map((p) => [p.id, p]));
+    const commentMap = new Map(comments.map((c) => [c.id, c]));
+
+    return reports.map((r) => {
+      const t = r.targetType === 'post' ? postMap.get(r.targetId) : commentMap.get(r.targetId);
+      const preview = t ? `${t.title ? `${t.title} — ` : ''}${t.body || ''}`.slice(0, 240) : '(content removed)';
+      return {
+        id: r.id,
+        targetType: r.targetType,
+        targetId: r.targetId,
+        reason: r.reason,
+        status: r.status,
+        at: r.createdAt,
+        reporter: { id: r.reporter?.id, name: fullName(r.reporter) },
+        preview,
+        targetAuthor: t ? fullName(t.author) : null,
+        targetDeleted: t ? Boolean(t.deletedAt) : true
+      };
+    });
   }
 
   async resolveReport(user, reportId, status) {

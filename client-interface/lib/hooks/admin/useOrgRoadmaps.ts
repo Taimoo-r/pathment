@@ -30,6 +30,9 @@ export interface UseOrgRoadmapsReturn {
   error: string | null;
   refetch: () => Promise<void>;
   create: (data: { name: string; programId: string; description?: string; skillTags?: string[]; steps: RoadmapStepInput[]; published?: boolean }) => Promise<void>;
+  update: (id: string, data: { name?: string; description?: string; skillTags?: string[]; published?: boolean }) => Promise<void>;
+  addStep: (id: string, step: RoadmapStepInput) => Promise<void>;
+  removeStep: (id: string, stepId: string) => Promise<void>;
   setPublished: (id: string, published: boolean) => Promise<void>;
   remove: (id: string) => Promise<void>;
 }
@@ -58,6 +61,21 @@ export function useOrgRoadmaps(): UseOrgRoadmapsReturn {
     await fetchAll();
   }, [fetchAll]);
 
+  const update = useCallback(async (id: string, data: { name?: string; description?: string; skillTags?: string[]; published?: boolean }) => {
+    await orgRoadmapApi.update(id, data);
+    await fetchAll();
+  }, [fetchAll]);
+
+  const addStep = useCallback(async (id: string, step: RoadmapStepInput) => {
+    await orgRoadmapApi.addStep(id, step);
+    await fetchAll();
+  }, [fetchAll]);
+
+  const removeStep = useCallback(async (id: string, stepId: string) => {
+    await orgRoadmapApi.removeStep(id, stepId);
+    await fetchAll();
+  }, [fetchAll]);
+
   const setPublished = useCallback(async (id: string, published: boolean) => {
     await orgRoadmapApi.update(id, { published });
     await fetchAll();
@@ -70,5 +88,5 @@ export function useOrgRoadmaps(): UseOrgRoadmapsReturn {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  return { roadmaps, loading, error, refetch: fetchAll, create, setPublished, remove };
+  return { roadmaps, loading, error, refetch: fetchAll, create, update, addStep, removeStep, setPublished, remove };
 }

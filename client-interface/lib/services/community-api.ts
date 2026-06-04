@@ -14,6 +14,7 @@ export interface CreatePostInput {
   tags?: string[];
   linkUrl?: string;
   mentionedUserIds?: string[];
+  attachments?: { url?: string; name?: string; kind?: string }[];
 }
 
 export interface FeedQuery {
@@ -41,6 +42,13 @@ export const communityApi = {
 
   // feed
   feed: (q: FeedQuery) => apiClient.get('/community/feed', { params: params(q) }),
+
+  // attachments → returns { attachments: [{ url, name, kind }] }
+  upload: (files: File[]) => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    return apiClient.post('/community/upload', fd);
+  },
 
   // posts
   createPost: (data: CreatePostInput) => apiClient.post('/community/posts', data),

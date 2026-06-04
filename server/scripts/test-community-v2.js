@@ -6,6 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const { models, sequelize } = require('../src/db');
 const community = require('../src/services/communityService');
 const spaceSvc = require('../src/services/communitySpaceService');
+const scheduler = require('../src/services/notificationScheduler');
 
 const TAG = `cmtytest_${Date.now()}_`;
 const e = (s) => (TAG + s + '@x.io').toLowerCase();
@@ -159,6 +160,31 @@ async function mkUser(first, caps) {
     const openAfter = await community.listReports(admin, { status: 'open' });
     ok(!openAfter.some(r => r.id === myRep.id), 'resolved report leaves the open queue');
 
+    // ── @mention sanitization (only space members are kept) ────────────────
+    const mentionPost = await community.createPost(menteeA, {
+      type: 'discussion', scopeType: 'clan', scopeId: clan.id, body: 'ping',
+      mentionedUserIds: [menteeB.id, outsider.id]
+    });
+    created.posts.push(mentionPost.id);
+    const reloadedMention = await models.CommunityPost.findByPk(mentionPost.id);
+    ok(reloadedMention.mentionedUserIds.includes(menteeB.id), 'mention to a clan member is kept');
+    ok(!reloadedMention.mentionedUserIds.includes(outsider.id), 'mention to a non-member is dropped');
+
+    // ── report preview (moderation queue shows target content) ──────────────
+    await community.report(menteeB, { targetType: 'post', targetId: q.id, reason: 'preview check' });
+    const repList = await community.listReports(admin, { status: 'open' });
+    const qRep = repList.find(r => r.targetId === q.id);
+    ok(qRep && /deploy/i.test(qRep.preview), 'report carries a content preview');
+    ok(qRep && qRep.targetAuthor && qRep.targetAuthor.includes('menteeA'), 'report shows the target author');
+
+    // ── weekly standup auto-post (scoped to our clan; idempotent) ───────────
+    const postedN = await scheduler._postStandupsToActiveClans([clan.id]);
+    ok(postedN === 1, 'standup posted to the active clan');
+    const standup = await models.CommunityPost.findOne({ where: { scopeType: 'clan', scopeId: clan.id, type: 'standup' } });
+    ok(Boolean(standup), 'standup post exists in the clan space');
+    const postedAgain = await scheduler._postStandupsToActiveClans([clan.id]);
+    ok(postedAgain === 0, 'standup is idempotent within the week');
+
     // ── soft delete ─────────────────────────────────────────────────────
     await community.deletePost(menteeA, kudos.id);
     const feedDel = await community.feed(menteeA, { scopeType: 'clan', scopeId: clan.id });
@@ -172,9 +198,12 @@ async function mkUser(first, caps) {
     // ── cleanup ───────────────────────────────────────────────────────────
     try {
       await models.CommunityReport.destroy({ where: { reporterId: created.users } });
-      await models.CommunityComment.destroy({ where: { postId: created.posts } });
-      await models.CommunityReaction.destroy({ where: { postId: created.posts } });
-      await models.CommunityPost.destroy({ where: { id: created.posts } });
+      // Posts created directly (tracked) + any scheduler-created standups in our clans.
+      const clanPosts = created.clans.length ? await models.CommunityPost.findAll({ where: { scopeId: created.clans }, attributes: ['id'] }) : [];
+      const allPostIds = [...new Set([...created.posts, ...clanPosts.map(p => p.id)])];
+      await models.CommunityComment.destroy({ where: { postId: allPostIds } });
+      await models.CommunityReaction.destroy({ where: { postId: allPostIds } });
+      await models.CommunityPost.destroy({ where: { id: allPostIds } });
       await models.Enrollment.destroy({ where: { id: created.enrollments } });
       await models.ClanMembership.destroy({ where: { id: created.memberships } });
       await models.Clan.destroy({ where: { id: created.clans } });

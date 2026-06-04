@@ -1,6 +1,20 @@
 const { catchAsync } = require('../middlewares/errorHandler');
 const { successResponse } = require('../utils/responses');
 const communityService = require('../services/communityService');
+const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
+
+// Upload images/files for a post; returns attachment descriptors the client
+// then includes in createPost ({ url, name, kind }).
+const uploadAttachments = catchAsync(async (req, res) => {
+  const files = req.files || [];
+  const attachments = [];
+  for (const f of files) {
+    const isImage = (f.mimetype || '').startsWith('image/');
+    const result = await uploadToCloudinary(f.buffer, 'pathment/community', isImage ? 'image' : 'raw');
+    attachments.push({ url: result.secure_url, name: f.originalname, kind: isImage ? 'image' : 'file' });
+  }
+  res.status(200).json(successResponse('Uploaded', { attachments }));
+});
 
 // ── spaces ────────────────────────────────────────────────────────────────
 const listSpaces = catchAsync(async (req, res) => {
@@ -102,7 +116,7 @@ const resolveReport = catchAsync(async (req, res) => {
 });
 
 module.exports = {
-  listSpaces, members, people, feed,
+  listSpaces, members, people, feed, uploadAttachments,
   createPost, updatePost, deletePost, pinPost, react,
   listComments, addComment, updateComment, deleteComment, acceptAnswer,
   report, listReports, resolveReport

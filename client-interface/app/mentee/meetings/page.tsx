@@ -50,7 +50,6 @@ export default function MenteeMeetings() {
 
   const upcoming = meetings.filter((m) => m.status === 'scheduled');
   const past = meetings.filter((m) => m.status !== 'scheduled');
-  const totalOpen = bookable.reduce((n, b) => n + b.slots.length, 0);
 
   return (
     <div className="space-y-8 max-w-4xl">
@@ -68,33 +67,41 @@ export default function MenteeMeetings() {
         </div>
       ) : (
         <>
-          {/* Book a 1:1 */}
+          {/* Your mentor(s) + book a 1:1 */}
           <section className="bg-white rounded-2xl border border-slate-200">
             <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
               <CalendarClock className="w-4 h-4 text-indigo-500" />
-              <h2 className="text-slate-900">Book a 1:1</h2>
+              <h2 className="text-slate-900">Your mentor</h2>
             </div>
             <div className="p-6 space-y-5">
-              {totalOpen === 0 ? (
-                <p className="text-sm text-slate-500">No open slots right now — check back, or message your mentor.</p>
+              {bookable.length === 0 ? (
+                <p className="text-sm text-slate-500">No mentor assigned yet — once you&apos;re placed in a clan, your mentor shows up here.</p>
               ) : (
                 bookable.map((b) => (
-                  <div key={b.mentor.id}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <User className="w-4 h-4 text-slate-400" />
-                      <h3 className="text-sm font-medium text-slate-700">{b.mentor.name}</h3>
+                  <div key={b.mentor.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                        <User className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-slate-900">{b.mentor.name}</h3>
+                        <p className="text-xs text-slate-400">Your mentor</p>
+                      </div>
                     </div>
                     {b.slots.length === 0 ? (
-                      <p className="text-sm text-slate-400">No open slots.</p>
+                      <p className="text-sm text-slate-400">No open 1:1 slots right now — message your mentor to set some up.</p>
                     ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {b.slots.map((s) => (
-                          <button key={s.id} onClick={() => { setBooking(s); setAgenda(''); }}
-                            className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
-                            {s.day} · {s.time} <span className="text-slate-400">({s.durationMins}m)</span>
-                          </button>
-                        ))}
-                      </div>
+                      <>
+                        <p className="text-xs font-medium text-slate-500 mb-2">Book a 1:1</p>
+                        <div className="flex flex-wrap gap-2">
+                          {b.slots.map((s) => (
+                            <button key={s.id} onClick={() => { setBooking(s); setAgenda(''); }}
+                              className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
+                              {s.day} · {s.time} <span className="text-slate-400">({s.durationMins}m)</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
                 ))

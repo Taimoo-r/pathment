@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const communityController = require('../controllers/communityController');
 const { authenticate, authorize } = require('../middlewares/auth');
+const upload = require('../middlewares/upload');
 
 // All community routes require auth; per-space access is enforced in the
 // service via communitySpaceService (membership-derived), so a member only
@@ -15,6 +16,9 @@ router.get('/people', communityController.people);
 
 // Feed
 router.get('/feed', communityController.feed);
+
+// Attachments (images/files) for posts
+router.post('/upload', upload.array('files', 4), communityController.uploadAttachments);
 
 // Posts
 router.post('/posts', communityController.createPost);

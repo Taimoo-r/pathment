@@ -41,17 +41,11 @@ class TaskService {
       enrollmentId = enrollment.id;
     }
 
-    // Verify mentor-mentee relationship
-    const match = await models.MentorMenteeMatch.findOne({
-      where: {
-        mentorId,
-        menteeId,
-        enrollmentId,
-        status: 'active'
-      }
-    });
-
-    if (!match) {
+    // Verify the mentor is responsible for this mentee — via a legacy 1:1 match
+    // OR (the current model) a shared clan where the mentor leads/co-mentors and
+    // the mentee is an active member.
+    const isMentor = await this._isMentorForMentee(mentorId, menteeId);
+    if (!isMentor) {
       throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
@@ -67,7 +61,7 @@ class TaskService {
       // Create custom roadmap task (not part of any roadmap — a one-off).
       roadmapTask = await models.RoadmapTask.create({
         title,
-        description,
+        description: description || title || 'No description provided',
         type: type || 'custom',
         difficulty: difficulty || 'medium',
         taskOrder: 0,
@@ -115,6 +109,30 @@ class TaskService {
     });
 
     return fullTask;
+  }
+
+  /**
+   * Is `mentorId` responsible for `menteeId`? True if an active 1:1 match exists,
+   * or they share an active clan where the user is lead/co/core mentor and the
+   * mentee is an active 'mentee' member (the clan-based model).
+   */
+  async _isMentorForMentee(mentorId, menteeId) {
+    const match = await models.MentorMenteeMatch.findOne({
+      where: { mentorId, menteeId, status: 'active' }
+    });
+    if (match) return true;
+
+    const mentorClans = await models.ClanMembership.findAll({
+      where: { userId: mentorId, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor', 'core_team'] } },
+      attributes: ['clanId']
+    });
+    const clanIds = mentorClans.map((c) => c.clanId);
+    if (!clanIds.length) return false;
+
+    const menteeMembership = await models.ClanMembership.findOne({
+      where: { userId: menteeId, status: 'active', role: 'mentee', clanId: { [Op.in]: clanIds } }
+    });
+    return Boolean(menteeMembership);
   }
 
   /** Active enrollment for a mentee (for assign flows that only know the mentee). */

@@ -116,7 +116,15 @@ export function AssignTaskDrawer({
       };
       if (mode === 'bulk') {
         const res: any = await taskApi.bulkCreateCustomTasks({ ...base, menteeIds: [...selected] });
-        setDone(res?.data?.assigned ?? selected.size);
+        const assigned = res?.data?.assigned ?? 0;
+        const failed = (res?.data?.results || []).filter((r: any) => !r.ok);
+        if (assigned === 0) {
+          toast.error(failed[0]?.error || 'No tasks were assigned');
+          setSaving(false);
+          return;
+        }
+        if (failed.length) toast.error(`${failed.length} mentee${failed.length > 1 ? 's' : ''} couldn't be assigned`);
+        setDone(assigned);
       } else {
         await taskApi.createCustomTask({ ...base, menteeId: mentee!.id, trackId: trackId || undefined });
         setDone(1);

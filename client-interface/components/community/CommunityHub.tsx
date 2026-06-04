@@ -6,9 +6,55 @@ import {
   Users, Loader2, PartyPopper, Trophy, HelpCircle, MessagesSquare, BookOpen, Smile, Sunrise,
   Heart, ThumbsUp, Lightbulb, Send, Search, MessageCircle, Pin, CheckCircle2, MoreHorizontal,
   Trash2, Flag, Link2, Hash, ChevronDown, ChevronRight, Shield, CornerDownRight,
+  AtSign, Paperclip, X, Check,
 } from 'lucide-react';
-import { useCommunityHub, type CommunityPost, type CommunityComment } from '@/lib/hooks/community/useCommunityHub';
+import { useCommunityHub, type CommunityPost, type CommunityComment, type CommunityPerson } from '@/lib/hooks/community/useCommunityHub';
 import { communityApi, type PostType, type ReactionType } from '@/lib/services/community-api';
+import FileUploader from '@/components/shared/FileUploader';
+
+/* ── Mention picker ─────────────────────────────────────────────────────── */
+function MentionPicker({ people, value, onChange }: { people: CommunityPerson[]; value: string[]; onChange: (ids: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const selected = people.filter((p) => value.includes(p.id));
+  const filtered = people.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative inline-block">
+        <button type="button" onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:border-slate-300">
+          <AtSign className="w-4 h-4" />Mention{value.length > 0 ? ` (${value.length})` : ''}
+        </button>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <div className="absolute left-0 mt-1 w-60 bg-white border border-slate-200 rounded-xl shadow-lg z-20 p-2">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people…" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div className="max-h-44 overflow-y-auto space-y-0.5">
+                {filtered.length === 0 && <p className="text-xs text-slate-400 px-1 py-2">No one to mention.</p>}
+                {filtered.map((p) => (
+                  <button key={p.id} type="button" onClick={() => toggle(p.id)} className={`w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center justify-between ${value.includes(p.id) ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}>
+                    {p.name}{value.includes(p.id) && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((p) => (
+            <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700">
+              @{p.name}<button type="button" onClick={() => toggle(p.id)}><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const TYPE_META: Record<PostType, { label: string; icon: typeof Trophy; cls: string }> = {
   kudos:      { label: 'Kudos',      icon: PartyPopper,    cls: 'bg-pink-100 text-pink-700' },
@@ -48,11 +94,12 @@ const Avatar = ({ text }: { text: string }) => (
 );
 
 /* ── Comment thread ─────────────────────────────────────────────────────── */
-function Thread({ post, canModerate, onChanged }: { post: CommunityPost; canModerate: boolean; onChanged: () => void }) {
+function Thread({ post, canModerate, people, onChanged }: { post: CommunityPost; canModerate: boolean; people: CommunityPerson[]; onChanged: () => void }) {
   const [comments, setComments] = useState<CommunityComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [body, setBody] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [mentions, setMentions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -65,8 +112,8 @@ function Thread({ post, canModerate, onChanged }: { post: CommunityPost; canMode
     if (!body.trim()) return;
     try {
       setBusy(true);
-      await communityApi.addComment(post.id, { body: body.trim(), parentId: replyTo || undefined });
-      setBody(''); setReplyTo(null);
+      await communityApi.addComment(post.id, { body: body.trim(), parentId: replyTo || undefined, mentionedUserIds: mentions.length ? mentions : undefined });
+      setBody(''); setReplyTo(null); setMentions([]);
       await load(); onChanged();
     } catch { toast.error('Could not reply'); } finally { setBusy(false); }
   };
@@ -109,17 +156,20 @@ function Thread({ post, canModerate, onChanged }: { post: CommunityPost; canMode
         ))
       )}
 
-      <div className="flex items-center gap-2">
-        <input
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
-          placeholder={replyTo ? 'Write a threaded reply…' : 'Write a reply…'}
-          className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <button onClick={submit} disabled={busy || !body.trim()} className="inline-flex items-center justify-center w-9 h-9 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg shrink-0">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </button>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <input
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            placeholder={replyTo ? 'Write a threaded reply…' : 'Write a reply…'}
+            className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button onClick={submit} disabled={busy || !body.trim()} className="inline-flex items-center justify-center w-9 h-9 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg shrink-0">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
+        {people.length > 0 && <MentionPicker people={people} value={mentions} onChange={setMentions} />}
       </div>
     </div>
   );
@@ -187,6 +237,23 @@ function PostCard({ post, canModerate, hub }: { post: CommunityPost; canModerate
         </a>
       )}
 
+      {post.attachments?.length > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {post.attachments.map((a, i) => (
+            a.kind === 'image' && a.url ? (
+              <a key={i} href={a.url} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.url} alt={a.name || 'image'} className="rounded-xl border border-slate-200 max-h-52 w-full object-cover" />
+              </a>
+            ) : (
+              <a key={i} href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:border-slate-300 truncate">
+                <Paperclip className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{a.name || 'Attachment'}</span>
+              </a>
+            )
+          ))}
+        </div>
+      )}
+
       {post.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {post.tags.map((t) => (
@@ -213,7 +280,7 @@ function PostCard({ post, canModerate, hub }: { post: CommunityPost; canModerate
         </button>
       </div>
 
-      {open && <Thread post={post} canModerate={canModerate} onChanged={hub.refetch} />}
+      {open && <Thread post={post} canModerate={canModerate} people={hub.people} onChanged={hub.refetch} />}
     </div>
   );
 }
@@ -226,6 +293,9 @@ function Composer({ hub }: { hub: ReturnType<typeof useCommunityHub> }) {
   const [toId, setToId] = useState('');
   const [tags, setTags] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [mentions, setMentions] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [showAttach, setShowAttach] = useState(false);
   const [posting, setPosting] = useState(false);
 
   const needsTitle = type === 'question' || type === 'resource';
@@ -234,6 +304,15 @@ function Composer({ hub }: { hub: ReturnType<typeof useCommunityHub> }) {
     if (!body.trim()) { toast.error('Say something first'); return; }
     if (type === 'kudos' && !toId) { toast.error('Pick who the kudos is for'); return; }
     setPosting(true);
+
+    let attachments: { url?: string; name?: string; kind?: string }[] | undefined;
+    if (files.length) {
+      try {
+        const r: any = await communityApi.upload(files);
+        attachments = r?.data?.attachments ?? [];
+      } catch { toast.error('Could not upload attachment'); setPosting(false); return; }
+    }
+
     const okPost = await hub.createPost({
       type,
       title: needsTitle && title.trim() ? title.trim() : undefined,
@@ -241,9 +320,11 @@ function Composer({ hub }: { hub: ReturnType<typeof useCommunityHub> }) {
       toId: type === 'kudos' ? toId : undefined,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       linkUrl: linkUrl.trim() || undefined,
+      mentionedUserIds: mentions.length ? mentions : undefined,
+      attachments,
     });
     setPosting(false);
-    if (okPost) { setTitle(''); setBody(''); setToId(''); setTags(''); setLinkUrl(''); }
+    if (okPost) { setTitle(''); setBody(''); setToId(''); setTags(''); setLinkUrl(''); setMentions([]); setFiles([]); setShowAttach(false); }
   };
 
   const field = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
@@ -288,8 +369,16 @@ function Composer({ hub }: { hub: ReturnType<typeof useCommunityHub> }) {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button onClick={submit} disabled={posting} className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+      {showAttach && (
+        <FileUploader files={files} onFilesAdded={(fs) => setFiles((prev) => [...prev, ...fs])} onFileRemoved={(i) => setFiles((prev) => prev.filter((_, idx) => idx !== i))} maxFiles={4} />
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {hub.people.length > 0 && <MentionPicker people={hub.people} value={mentions} onChange={setMentions} />}
+        <button type="button" onClick={() => setShowAttach((s) => !s)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm ${showAttach || files.length ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+          <Paperclip className="w-4 h-4" />Attach{files.length ? ` (${files.length})` : ''}
+        </button>
+        <button onClick={submit} disabled={posting} className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
           {posting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Post
         </button>
       </div>
