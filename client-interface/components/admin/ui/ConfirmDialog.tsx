@@ -42,7 +42,7 @@ export function ConfirmDialog({
       />
 
       {/* Dialog */}
-      <div className="relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+      <div className="relative z-10 bg-card rounded-2xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-start gap-4">
           {variant === 'danger' && (
             <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
@@ -61,7 +61,7 @@ export function ConfirmDialog({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-card border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             {cancelLabel}
           </button>

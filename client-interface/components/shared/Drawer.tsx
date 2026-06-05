@@ -79,7 +79,7 @@ export function Drawer({ open, onClose, title, subtitle, width = 'md', footer, c
         aria-label={title}
         tabIndex={-1}
         style={{ willChange: 'transform' }}
-        className={`relative w-full ${WIDTHS[width]} h-full bg-white shadow-xl flex flex-col outline-none transform-gpu transition-transform duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${shown ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`relative w-full ${WIDTHS[width]} h-full bg-card shadow-xl flex flex-col outline-none transform-gpu transition-transform duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${shown ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-slate-200 shrink-0">
           <div className="min-w-0">

@@ -36,7 +36,7 @@ export function SearchAndFilterBar({
   const hasChips = activeChips.length > 0;
 
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200 p-5 mb-6 ${className}`}>
+    <div className={`bg-card rounded-2xl border border-slate-200 p-5 mb-6 ${className}`}>
       <div className={`grid gap-3 ${filters.length > 0 ? `sm:grid-cols-${Math.min(filters.length + 1, 4)}` : ''}`}>
         {/* Search */}
         <div className="relative sm:col-span-2">
@@ -64,7 +64,7 @@ export function SearchAndFilterBar({
             key={i}
             value={filter.value}
             onChange={(e) => filter.onChange(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-slate-700 appearance-none bg-white"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-slate-700 appearance-none bg-card"
           >
             {filter.options.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>

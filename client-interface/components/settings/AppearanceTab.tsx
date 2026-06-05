@@ -1,7 +1,13 @@
 'use client';
 
-import { Check, Palette, Sparkles } from 'lucide-react';
-import { useTheme } from '@/lib/context/ThemeContext';
+import { Check, Palette, Sparkles, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme, type ThemeMode } from '@/lib/context/ThemeContext';
+
+const MODES: { key: ThemeMode; label: string; Icon: typeof Sun }[] = [
+  { key: 'light', label: 'Light', Icon: Sun },
+  { key: 'dark', label: 'Dark', Icon: Moon },
+  { key: 'system', label: 'System', Icon: Monitor },
+];
 
 /**
  * Appearance settings — "Pick your vibe". A grid of accent presets that recolor
@@ -10,10 +16,26 @@ import { useTheme } from '@/lib/context/ThemeContext';
  * neutrals and status colors are always safe.
  */
 export function AppearanceTab() {
-  const { accent, setAccent, presets } = useTheme();
+  const { accent, setAccent, presets, mode, setMode } = useTheme();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Light / Dark / System */}
+      <div>
+        <h2 className="text-slate-900 flex items-center gap-2"><Sun className="w-4 h-4 text-brand-500" />Theme</h2>
+        <p className="text-slate-600 text-sm mt-1 mb-3">Light, dark, or match your device.</p>
+        <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+          {MODES.map(({ key, label, Icon }) => (
+            <button key={key} type="button" onClick={() => setMode(key)} aria-pressed={mode === key}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                mode === key ? 'bg-card text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}>
+              <Icon className="w-4 h-4" />{label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div>
         <h2 className="text-slate-900 flex items-center gap-2"><Palette className="w-4 h-4 text-brand-500" />Pick your vibe</h2>
         <p className="text-slate-600 text-sm mt-1">
@@ -31,7 +53,7 @@ export function AppearanceTab() {
               onClick={() => setAccent(p.key)}
               aria-pressed={selected}
               className={`group relative text-left rounded-2xl border p-4 transition-all ${
-                selected ? 'border-brand-400 ring-2 ring-brand-500/30 bg-brand-50/40' : 'border-slate-200 hover:border-slate-300 bg-white'
+                selected ? 'border-brand-400 ring-2 ring-brand-500/30 bg-brand-50/40' : 'border-slate-200 hover:border-slate-300 bg-card'
               }`}
             >
               <div className="flex items-center justify-between mb-3">

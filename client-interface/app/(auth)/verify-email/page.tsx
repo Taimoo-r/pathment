@@ -85,7 +85,7 @@ export default function VerifyEmailPage() {
       </div>
 
       {/* Verification Card */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
+      <div className="bg-card rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
         {/* Icon */}
         <div className="flex justify-center mb-6">
           {status === 'pending' && (

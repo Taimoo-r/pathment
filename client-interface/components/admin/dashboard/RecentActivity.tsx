@@ -22,7 +22,7 @@ interface RecentActivityProps {
 export function RecentActivity({ pendingMatches = [] }: RecentActivityProps) {
   return (
     <div>
-      <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="bg-card rounded-2xl border border-slate-200">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-slate-900 font-semibold">Pending Matches</h2>

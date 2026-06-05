@@ -41,13 +41,13 @@ export default function AdminRewardsPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 grid gap-4 sm:grid-cols-2">
             {gifts.length === 0 && (
-              <div className="sm:col-span-2 bg-white rounded-2xl border border-slate-200 p-12 text-center">
+              <div className="sm:col-span-2 bg-card rounded-2xl border border-slate-200 p-12 text-center">
                 <GiftIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-600">No gifts yet — add one to start the catalog.</p>
               </div>
             )}
             {gifts.map((g) => (
-              <div key={g.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+              <div key={g.id} className="bg-card rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
                 <div className="relative h-32 bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center">
                   {g.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -55,7 +55,7 @@ export default function AdminRewardsPage() {
                   ) : (
                     <GiftIcon className="w-10 h-10 text-brand-300" />
                   )}
-                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur text-brand-700 text-xs font-semibold tabular-nums shadow-sm">{g.costXp} pts</span>
+                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-card/90 backdrop-blur text-brand-700 text-xs font-semibold tabular-nums shadow-sm">{g.costXp} pts</span>
                 </div>
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-start justify-between gap-2">
@@ -74,7 +74,7 @@ export default function AdminRewardsPage() {
             ))}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200">
+          <div className="bg-card rounded-2xl border border-slate-200">
             <div className="px-5 py-4 border-b border-slate-200"><h2 className="text-slate-900 text-sm font-semibold">Recent redemptions</h2></div>
             <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
               {redemptions.length === 0 && <p className="px-5 py-4 text-sm text-slate-400">No redemptions yet.</p>}
@@ -131,7 +131,7 @@ function GiftDrawer({ gift, onClose, onSaved }: { gift: Gift | null; onClose: ()
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={gift ? 'Edit gift' : 'New gift'} className="relative w-full max-w-md h-full bg-white shadow-xl flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label={gift ? 'Edit gift' : 'New gift'} className="relative w-full max-w-md h-full bg-card shadow-xl flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900">{gift ? 'Edit gift' : 'New gift'}</h2>
           <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>

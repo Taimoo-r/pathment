@@ -57,7 +57,7 @@ function CreateCohortDrawer({ onClose, onCreated }: { onClose: () => void; onCre
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-md h-full bg-white shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-md h-full bg-card shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-slate-900 font-medium">New cohort</h2>
           <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -115,7 +115,7 @@ function CohortCard({ cohort }: { cohort: Cohort }) {
   const accepted = cohort.applicationsByStatus?.accepted ?? 0;
   const pending = (cohort.applicationsByStatus?.pending ?? 0) + (cohort.applicationsByStatus?.under_review ?? 0) + (cohort.applicationsByStatus?.assessment_sent ?? 0);
   return (
-    <Link href={`/admin/cohorts/${cohort.id}`} className="group block rounded-2xl border border-slate-200 bg-white p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+    <Link href={`/admin/cohorts/${cohort.id}`} className="group block rounded-2xl border border-slate-200 bg-card p-5 hover:border-brand-300 hover:shadow-sm transition-all">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium text-slate-900 truncate">{cohort.name}</p>
@@ -163,12 +163,12 @@ export default function AdminCohortsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : cohorts.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <CalendarRange className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No cohorts yet — create one to open an intake for a program.</p>
         </div>

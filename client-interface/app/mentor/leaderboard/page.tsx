@@ -72,7 +72,7 @@ export default function MentorLeaderboard() {
         <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
           {['all', ...programs].map((p) => (
             <button key={p} onClick={() => setProgram(p)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${program === p ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${program === p ? 'bg-card text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               {p === 'all' ? 'All clans' : p}
             </button>
           ))}
@@ -82,12 +82,12 @@ export default function MentorLeaderboard() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : ranked.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <Trophy className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No mentees to rank yet.</p>
         </div>
@@ -95,7 +95,7 @@ export default function MentorLeaderboard() {
         <>
           {/* Leader spotlight — one feature, not three floating cards */}
           {leader && (
-            <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 flex items-center gap-4">
+            <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-card p-5 flex items-center gap-4">
               <div className="relative shrink-0">
                 <Avatar m={leader} size="lg" />
                 <span className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center ring-2 ring-white">
@@ -115,7 +115,7 @@ export default function MentorLeaderboard() {
           )}
 
           {/* Standings — one scannable board, fair-progress bar per row */}
-          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+          <div className="bg-card rounded-2xl border border-slate-200 divide-y divide-slate-100">
             {ranked.map((m, i) => {
               const rs = rankStyle(i);
               const fair = Math.round(m.relativeProgress);

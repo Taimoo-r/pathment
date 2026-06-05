@@ -85,7 +85,7 @@ export default function FeedbackView({ params }: PageProps) {
       </button>
 
       {/* Task Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 mr-4">
             <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -141,7 +141,7 @@ export default function FeedbackView({ params }: PageProps) {
 
       {/* Feedback Section */}
       {latestFeedback ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
@@ -230,7 +230,7 @@ export default function FeedbackView({ params }: PageProps) {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 p-8 text-center">
           <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No feedback available yet</p>
           <p className="text-slate-500 text-sm mt-1">
@@ -241,7 +241,7 @@ export default function FeedbackView({ params }: PageProps) {
 
       {/* Your Submission */}
       {latestSubmission && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6">
           <h2 className="text-slate-900 mb-4">Your Submission</h2>
 
           {/* Submission text */}
@@ -296,7 +296,7 @@ export default function FeedbackView({ params }: PageProps) {
         </button>
         <button
           onClick={() => router.push(`/mentee/tasks/${id}`)}
-          className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors"
+          className="px-6 py-3 bg-card hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors"
         >
           View Task Details
         </button>

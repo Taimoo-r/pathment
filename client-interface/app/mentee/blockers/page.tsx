@@ -103,7 +103,7 @@ export default function MenteeBlockers() {
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-600" /></div>
       ) : blockers.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-14 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-14 text-center">
           <span className="grid h-11 w-11 place-items-center rounded-xl border border-emerald-200 text-emerald-600 mx-auto mb-3"><CheckCircle2 className="w-6 h-6" /></span>
           <p className="text-slate-700 font-medium">No blockers right now — clear runway.</p>
           <p className="text-slate-500 text-sm mt-1 max-w-sm mx-auto">If anything starts to slow you down, log it here. Flagging early helps your mentor support you.</p>
@@ -113,7 +113,7 @@ export default function MenteeBlockers() {
           {open.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Open</p>
-              <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+              <div className="bg-card rounded-2xl border border-slate-200 divide-y divide-slate-100">
                 {open.map((b) => <BlockerRow key={b.id} b={b} onResolve={() => resolve(b.id)} busy={busy === b.id} />)}
               </div>
             </div>
@@ -121,7 +121,7 @@ export default function MenteeBlockers() {
           {resolved.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Resolved</p>
-              <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+              <div className="bg-card rounded-2xl border border-slate-200 divide-y divide-slate-100">
                 {resolved.map((b) => <BlockerRow key={b.id} b={b} onResolve={() => {}} busy={false} />)}
               </div>
             </div>

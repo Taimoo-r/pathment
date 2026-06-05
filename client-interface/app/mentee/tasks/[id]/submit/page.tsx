@@ -194,7 +194,7 @@ export default function TaskSubmission({ params }: PageProps) {
       )}
 
       {/* Task Details */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -286,7 +286,7 @@ export default function TaskSubmission({ params }: PageProps) {
       {!showExtensionForm ? (
         <>
           {/* Submission Form */}
-          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="bg-card rounded-2xl border border-slate-200 p-6 space-y-6">
             <div>
               <h2 className="text-xl text-slate-900 mb-4">Submit Your Work</h2>
               
@@ -417,7 +417,7 @@ export default function TaskSubmission({ params }: PageProps) {
       ) : (
         <>
           {/* Extension Request Form */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-6">
             <h2 className="text-xl text-slate-900">Request Extension</h2>
             
             <div>

@@ -20,7 +20,7 @@ function DocCard({ d, onPin, onRemove, busy }: { d: LibraryDoc; onPin: () => voi
   const meta = CAT_META[d.category] || CAT_META.guidance;
   const Icon = meta.icon;
   return (
-    <div className={`group bg-white rounded-2xl border p-5 ${d.pinned ? 'border-brand-200' : 'border-slate-200'}`}>
+    <div className={`group bg-card rounded-2xl border p-5 ${d.pinned ? 'border-brand-200' : 'border-slate-200'}`}>
       <div className="flex items-start justify-between gap-2">
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${meta.cls}`}><Icon className="w-4 h-4" /></div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -101,10 +101,10 @@ export default function MentorLibrary() {
       </div>
 
       {adding && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2">
+        <div className="bg-card rounded-2xl border border-slate-200 p-4 space-y-2">
           <div className="flex flex-wrap gap-2">
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="border border-slate-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            <select value={cat} onChange={(e) => setCat(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white capitalize focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <select value={cat} onChange={(e) => setCat(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-card capitalize focus:outline-none focus:ring-2 focus:ring-brand-500">
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <input value={readMins} onChange={(e) => setReadMins(e.target.value)} type="number" placeholder="min read" className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-brand-500" />
@@ -129,7 +129,7 @@ export default function MentorLibrary() {
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
           {['all', ...CATEGORIES].map((c) => (
             <button key={c} onClick={() => setCategory(c)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${category === c ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${category === c ? 'bg-card text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               {c}
             </button>
           ))}
@@ -139,12 +139,12 @@ export default function MentorLibrary() {
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
           <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No documents{query || category !== 'all' ? ' match your filters' : ' yet'}.</p>
         </div>

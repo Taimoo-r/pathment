@@ -398,7 +398,7 @@ export default function EnrollmentOverviewPage() {
           <button 
             onClick={handleExportCSV}
             disabled={exportLoading || isLoading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-card hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {exportLoading ? (
               <>
@@ -450,7 +450,7 @@ export default function EnrollmentOverviewPage() {
       />
 
       {/* ── Table ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-card rounded-2xl border border-slate-200 overflow-hidden">
         <DataTable<Enrollment>
           columns={tableColumns}
           data={enrollments}

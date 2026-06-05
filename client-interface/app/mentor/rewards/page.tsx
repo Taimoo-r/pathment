@@ -40,7 +40,7 @@ function RedeemModal({ gift, onClose, onDone }: { gift: Gift; onClose: () => voi
     >
       <label className="block text-sm font-medium text-slate-700 mb-1">For which mentee?</label>
       <select value={menteeId} onChange={(e) => setMenteeId(e.target.value)}
-        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500">
         <option value="">Select a mentee</option>
         {cohort.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
@@ -62,21 +62,21 @@ export default function MentorRewards() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : (
         <>
           {gifts.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+            <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
               <GiftIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-600">No gifts in the catalog yet.</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {gifts.map((g) => (
-                <div key={g.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                <div key={g.id} className="bg-card rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
                   <div className="relative h-28 bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center">
                     {g.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -103,7 +103,7 @@ export default function MentorRewards() {
           )}
 
           {redemptions.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200">
+            <div className="bg-card rounded-2xl border border-slate-200">
               <div className="px-6 py-5 border-b border-slate-200"><h2 className="text-slate-900">Recently redeemed</h2></div>
               <div className="divide-y divide-slate-100">
                 {redemptions.map((r) => (

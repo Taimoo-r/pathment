@@ -15,7 +15,7 @@ const SEVERITY_CLASS: Record<string, string> = {
 
 function MetricChip({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+    <div className="rounded-xl border border-slate-200 bg-card px-4 py-3">
       <div className="text-xs text-slate-500">{label}</div>
       <div className="mt-1 text-lg font-semibold text-slate-900 tabular-nums">{value}</div>
     </div>
@@ -26,7 +26,7 @@ function MyRoadmapsSection() {
   const { roadmaps, loading } = useMyRoadmaps();
   if (loading || roadmaps.length === 0) return null;
   return (
-    <div className="bg-white rounded-2xl border border-slate-200">
+    <div className="bg-card rounded-2xl border border-slate-200">
       <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
         <Route className="w-4 h-4 text-brand-600" /><h2 className="text-slate-900">Your roadmaps</h2>
       </div>
@@ -63,7 +63,7 @@ export default function MenteeProgress() {
   }
   if (error || !progress) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center max-w-3xl">
+      <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center max-w-3xl">
         <p className="text-slate-600 mb-3">{error || 'No progress data yet — once you start tasks this fills in.'}</p>
         {error && <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>}
       </div>
@@ -103,7 +103,7 @@ export default function MenteeProgress() {
         <div className="lg:col-span-2">
           <AISummaryPanel summary={progress.aiSummary} signals={progress.aiSignals} />
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-slate-900">Measured fairly</h3>
             <span className={`inline-flex items-center gap-1 text-xs font-medium ${momentumTone}`}>
@@ -123,7 +123,7 @@ export default function MenteeProgress() {
 
       {/* What's slowing you down */}
       <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200">
+        <div className="bg-card rounded-2xl border border-slate-200">
           <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
             <Flag className="w-4 h-4 text-red-500" /><h2 className="text-slate-900">Your blockers</h2>
           </div>
@@ -146,7 +146,7 @@ export default function MenteeProgress() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200">
+        <div className="bg-card rounded-2xl border border-slate-200">
           <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
             <Clock className="w-4 h-4 text-amber-500" /><h2 className="text-slate-900">Logged delays</h2>
           </div>

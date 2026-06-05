@@ -60,7 +60,7 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-lg h-full bg-white shadow-xl flex flex-col">
+      <div className="relative w-full max-w-lg h-full bg-card shadow-xl flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900">New roadmap</h2>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -74,7 +74,7 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Program</label>
             <select value={programId} onChange={(e) => setProgramId(e.target.value)}
-              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-card">
               <option value="">{progLoading ? 'Loading…' : 'Select a program'}</option>
               {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -103,12 +103,12 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
                     className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                   <div className="flex flex-wrap gap-2">
                     <select value={s.type} onChange={(e) => setStep(i, { type: e.target.value })}
-                      className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white capitalize focus:outline-none focus:ring-2 focus:ring-brand-500">
+                      className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-card capitalize focus:outline-none focus:ring-2 focus:ring-brand-500">
                       {STEP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                     <select value={s.effort} onChange={(e) => setStep(i, { effort: e.target.value })}
                       title="Effort"
-                      className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white uppercase focus:outline-none focus:ring-2 focus:ring-brand-500">
+                      className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-card uppercase focus:outline-none focus:ring-2 focus:ring-brand-500">
                       {EFFORTS.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
                     </select>
                     <input type="number" min={1} value={s.dueOffsetDays}
@@ -170,7 +170,7 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md h-full bg-white shadow-xl flex flex-col">
+      <div className="relative w-full max-w-md h-full bg-card shadow-xl flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-slate-900">Assign roadmap</h2>
@@ -182,7 +182,7 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Start at step</label>
             <select value={startStep} onChange={(e) => setStartStep(Number(e.target.value))}
-              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500">
               {roadmap.steps.map((s, i) => <option key={s.id} value={i}>{i + 1}. {s.title}</option>)}
             </select>
             <p className="text-xs text-slate-400 mt-1">Skip steps they already know.</p>
@@ -220,7 +220,7 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
 // ── Roadmap card ──────────────────────────────────────────────────────────────
 function RoadmapCard({ r, action }: { r: LinearRoadmap; action: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+    <div className="bg-card rounded-2xl border border-slate-200 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-medium text-slate-900 truncate">{r.name}</h3>
@@ -285,7 +285,7 @@ export default function MentorRoadmaps() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
@@ -295,7 +295,7 @@ export default function MentorRoadmaps() {
           <section>
             <h2 className="text-slate-900 mb-4 flex items-center gap-2"><Route className="w-4 h-4 text-brand-500" />My roadmaps</h2>
             {local.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 py-10 text-center">
+              <div className="bg-card rounded-2xl border border-slate-200 py-10 text-center">
                 <p className="text-slate-600 text-sm">No roadmaps yet — create one or import from your organization below.</p>
               </div>
             ) : (

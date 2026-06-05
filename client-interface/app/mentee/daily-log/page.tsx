@@ -108,7 +108,7 @@ export default function MenteeDailyLog() {
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-600" /></div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-5">
           {/* Rituals / slots for this day */}
           {daySlots.length > 0 && (
             <div>

@@ -47,7 +47,7 @@ function MomentumPill({ momentum }: { momentum: CohortMomentum }) {
 
 function MetricChip({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+    <div className="rounded-xl border border-slate-200 bg-card px-4 py-3">
       <div className="text-xs text-slate-500">{label}</div>
       <div className="mt-1 text-lg font-semibold text-slate-900 tabular-nums">{value}</div>
     </div>
@@ -230,7 +230,7 @@ export default function MenteeDetail() {
             </button>
             <button
               onClick={() => setAssigningTask(true)}
-              className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-card hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />Assign task
             </button>
@@ -265,7 +265,7 @@ export default function MenteeDetail() {
           </div>
           <div className="flex gap-3 shrink-0">
             <button onClick={() => setShowRejectModal(true)} disabled={completionLoading}
-              className="px-4 py-2 bg-white border border-red-300 text-red-700 hover:bg-red-50 rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50">
+              className="px-4 py-2 bg-card border border-red-300 text-red-700 hover:bg-red-50 rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50">
               <ThumbsDown className="w-4 h-4" />Send back
             </button>
             <button onClick={handleApproveCompletion} disabled={completionLoading}
@@ -290,7 +290,7 @@ export default function MenteeDetail() {
           <div className="lg:col-span-2">
             <AISummaryPanel summary={insights.aiSummary} signals={insights.aiSignals} />
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <h3 className="font-semibold text-slate-900 mb-4">Measured fairly</h3>
             <DualProgress absolute={insights.absoluteProgress} relative={insights.relativeProgress} />
             {insights.riskReason && (
@@ -303,7 +303,7 @@ export default function MenteeDetail() {
       )}
 
       {/* ── Work history ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="bg-card rounded-2xl border border-slate-200">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-slate-900">Work history</h2>
@@ -363,7 +363,7 @@ export default function MenteeDetail() {
       {insights && (
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Blockers */}
-          <div className="bg-white rounded-2xl border border-slate-200">
+          <div className="bg-card rounded-2xl border border-slate-200">
             <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
               <Flag className="w-4 h-4 text-red-500" />
               <h2 className="text-slate-900">Blockers</h2>
@@ -396,7 +396,7 @@ export default function MenteeDetail() {
           </div>
 
           {/* Delays */}
-          <div className="bg-white rounded-2xl border border-slate-200">
+          <div className="bg-card rounded-2xl border border-slate-200">
             <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" />
               <h2 className="text-slate-900">Logged delays</h2>
@@ -445,7 +445,7 @@ export default function MenteeDetail() {
 
       {/* ── 1:1 notes ────────────────────────────────────────────────── */}
       {insights && (
-        <div className="bg-white rounded-2xl border border-slate-200">
+        <div className="bg-card rounded-2xl border border-slate-200">
           <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-slate-900">1:1 notes</h2>
             <button onClick={() => setLoggingOneOnOne(true)}
@@ -497,7 +497,7 @@ export default function MenteeDetail() {
 
       {/* ── Recent daily logs ────────────────────────────────────────── */}
       {insights && insights.dailyLogs.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200">
+        <div className="bg-card rounded-2xl border border-slate-200">
           <div className="px-6 py-5 border-b border-slate-200">
             <h2 className="text-slate-900">Recent daily logs</h2>
           </div>
@@ -534,7 +534,7 @@ export default function MenteeDetail() {
 
       {/* ── Learning profile + Activity ──────────────────────────────── */}
       <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6">
           <h3 className="text-slate-900 mb-4">Learning profile</h3>
           {profile?.learningGoals?.length > 0 && (
             <div className="mb-4">
@@ -585,7 +585,7 @@ export default function MenteeDetail() {
       {/* ── Complete level confirmation modal ────────────────────────── */}
       {showCompleteConfirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h3 className="text-slate-900 text-lg font-semibold mb-2">Complete this level?</h3>
             {progress < 100 && (
               <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4">
@@ -615,7 +615,7 @@ export default function MenteeDetail() {
       {/* ── Reject completion modal ──────────────────────────────────── */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h3 className="text-slate-900 text-lg font-semibold mb-2">Reject completion request</h3>
             <p className="text-slate-600 text-sm mb-4">Provide a reason so the mentee knows what still needs doing.</p>
             <textarea

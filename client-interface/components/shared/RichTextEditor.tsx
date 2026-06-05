@@ -67,7 +67,7 @@ export default function RichTextEditor({
   };
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-card">
       {/* Toolbar */}
       <div className="flex flex-wrap gap-1 p-2 border-b border-slate-200 bg-slate-50">
         <button

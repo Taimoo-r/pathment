@@ -111,7 +111,7 @@ export default function FeedbackProvision({ params }: PageProps) {
       )}
 
       {/* Mentee & Task Info */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start gap-4 mb-4">
           <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center shrink-0">
             <User className="w-6 h-6 text-slate-600" />
@@ -186,7 +186,7 @@ export default function FeedbackProvision({ params }: PageProps) {
       </div>
 
       {/* Submission Content */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <h3 className="text-lg text-slate-900 mb-4">Mentee&apos;s Submission</h3>
         
         <div className="prose prose-sm max-w-none mb-6 p-4 bg-slate-50 rounded-lg">
@@ -248,7 +248,7 @@ export default function FeedbackProvision({ params }: PageProps) {
       </div>
 
       {/* Review Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-card rounded-2xl border border-slate-200 p-6 space-y-6">
         <h3 className="text-lg text-slate-900">Provide Feedback</h3>
 
         {/* Rating */}

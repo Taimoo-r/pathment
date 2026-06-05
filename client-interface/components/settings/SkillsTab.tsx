@@ -131,7 +131,7 @@ export function SkillsTab({ heading = 'Your skills', blurb = 'Type to add skills
           className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         {focused && query.trim() && (
-          <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+          <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-card shadow-lg overflow-hidden">
             {matches.length === 0 ? (
               <p className="px-3.5 py-3 text-sm text-slate-400">No matching skills.</p>
             ) : matches.map((s) => (
@@ -154,7 +154,7 @@ export function SkillsTab({ heading = 'Your skills', blurb = 'Type to add skills
           {picked.map((p) => {
             const lvl = levelOf(p.proficiencyLevel);
             return (
-              <span key={p.skillId} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white pl-2.5 pr-1.5 py-1">
+              <span key={p.skillId} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-card pl-2.5 pr-1.5 py-1">
                 <span className="text-sm font-medium text-slate-800">{p.name}</span>
                 <button type="button" onClick={() => cycleLevel(p.skillId)} title="Tap to change level"
                   className={`px-1.5 py-0.5 rounded-md text-[11px] font-medium hover:opacity-80 transition-opacity ${lvl.cls}`}>

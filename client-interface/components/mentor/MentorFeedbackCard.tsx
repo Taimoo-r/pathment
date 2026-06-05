@@ -48,7 +48,7 @@ export function MentorFeedbackCard() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-brand-600" />
       </div>
     );
@@ -67,7 +67,7 @@ export function MentorFeedbackCard() {
   if (!summary.revealed) {
     const need = (summary.minResponses ?? 3) - (summary.total ?? 0);
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         {header}
         <div className="flex items-start gap-3 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
           <Lock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
@@ -83,7 +83,7 @@ export function MentorFeedbackCard() {
   const dims = summary.dimensions || Object.keys(summary.perDimension || {});
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+    <div className="bg-card rounded-2xl border border-slate-200 p-6">
       {header}
 
       <div className="flex flex-wrap items-end gap-x-8 gap-y-3 mb-5">

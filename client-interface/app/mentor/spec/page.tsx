@@ -34,7 +34,7 @@ export default function MentorSpec() {
       {spec.principles.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {spec.principles.map((p, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div key={i} className="bg-card rounded-2xl border border-slate-200 p-5">
               <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center mb-3">
                 <Compass className="w-4 h-4 text-brand-600" />
               </div>
@@ -48,7 +48,7 @@ export default function MentorSpec() {
       {spec.time.length > 0 && (
         <div className="grid grid-cols-3 gap-4">
           {spec.time.map((t, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5 text-center">
+            <div key={i} className="bg-card rounded-2xl border border-slate-200 p-5 text-center">
               <div className="text-2xl font-semibold text-brand-700 tabular-nums">{t.value}</div>
               <div className="text-xs text-slate-500 mt-1">{t.label}</div>
             </div>
@@ -58,7 +58,7 @@ export default function MentorSpec() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {spec.responsibilities.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <h2 className="text-slate-900 mb-3">Your responsibilities</h2>
             <ul className="space-y-2">
               {spec.responsibilities.map((r, i) => (
@@ -70,7 +70,7 @@ export default function MentorSpec() {
           </div>
         )}
         {spec.conduct.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <h2 className="text-slate-900 mb-3">Code of conduct</h2>
             <ul className="space-y-2">
               {spec.conduct.map((c, i) => (

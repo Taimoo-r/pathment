@@ -5,7 +5,7 @@ import { Plus, UserCheck, CheckCircle2 } from 'lucide-react';
 
 export function QuickActions() {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+    <div className="bg-card rounded-2xl border border-slate-200 p-6">
       <h3 className="text-slate-900 font-semibold mb-4">Quick Actions</h3>
       <div className="space-y-3">
         <Link

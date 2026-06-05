@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { themeConfig } from '../config/theme';
 import {
   ACCENT_STORAGE_KEY, DEFAULT_ACCENT, THEME_PRESETS, isAccentKey, type AccentKey, type ThemePreset,
@@ -8,9 +8,14 @@ import {
 import { appearanceApi } from '../services/appearance-api';
 
 type Theme = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
+  /** Resolved theme actually applied. */
   theme: Theme;
+  /** User preference: light, dark, or follow the OS. */
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
   /** Brand accent ("vibe") preset key. */
@@ -21,7 +26,11 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-/** Apply theme + accent to <html> immediately (used before first paint). */
+const prefersDark = () =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+const resolve = (mode: ThemeMode): Theme => (mode === 'system' ? (prefersDark() ? 'dark' : 'light') : mode);
+
 function applyToRoot(theme: Theme, accent: AccentKey) {
   const root = document.documentElement;
   root.classList.toggle('dark', theme === 'dark');
@@ -31,83 +40,97 @@ function applyToRoot(theme: Theme, accent: AccentKey) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(themeConfig.defaultTheme);
+  const [mode, setModeState] = useState<ThemeMode>('system');
+  const [theme, setThemeStateResolved] = useState<Theme>(themeConfig.defaultTheme);
   const [accent, setAccentState] = useState<AccentKey>(DEFAULT_ACCENT);
   const [mounted, setMounted] = useState(false);
+  const modeRef = useRef<ThemeMode>('system');
+  const accentRef = useRef<AccentKey>(DEFAULT_ACCENT);
 
-  // Mount: read cached prefs and apply synchronously (no flash, since the
-  // provider gates children on `mounted`). Then reconcile with the server.
+  // Mount: read cached prefs, apply synchronously (no flash — provider gates
+  // children on `mounted`), wire the OS listener, then reconcile with server.
   useEffect(() => {
-    let initialTheme: Theme = themeConfig.defaultTheme;
+    let initialMode: ThemeMode = 'system';
     let initialAccent: AccentKey = DEFAULT_ACCENT;
     try {
-      const savedTheme = localStorage.getItem(themeConfig.storageKey) as Theme | null;
-      if (savedTheme === 'light' || savedTheme === 'dark') initialTheme = savedTheme;
+      const saved = localStorage.getItem(themeConfig.storageKey);
+      if (saved === 'light' || saved === 'dark' || saved === 'system') initialMode = saved;
       const savedAccent = localStorage.getItem(ACCENT_STORAGE_KEY);
       if (isAccentKey(savedAccent)) initialAccent = savedAccent;
     } catch { /* ignore */ }
 
-    applyToRoot(initialTheme, initialAccent);
-    setThemeState(initialTheme);
+    modeRef.current = initialMode;
+    accentRef.current = initialAccent;
+    const resolved = resolve(initialMode);
+    applyToRoot(resolved, initialAccent);
+    setModeState(initialMode);
+    setThemeStateResolved(resolved);
     setAccentState(initialAccent);
     setMounted(true);
 
-    // Cross-device sync: pull the user's saved appearance (best-effort).
+    // Follow the OS when in system mode.
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => {
+      if (modeRef.current !== 'system') return;
+      const r = prefersDark() ? 'dark' : 'light';
+      setThemeStateResolved(r);
+      applyToRoot(r, accentRef.current);
+    };
+    mq.addEventListener?.('change', onChange);
+
+    // Cross-device sync (best-effort).
     try {
-      const hasToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('token');
-      if (hasToken) {
-        appearanceApi.get()
-          .then((res: any) => {
-            const data = res?.data ?? res ?? {};
-            const serverAccent = data.colorTheme;
-            const serverTheme = data.theme;
-            if (isAccentKey(serverAccent) && serverAccent !== initialAccent) {
-              setAccentState(serverAccent);
-              applyToRoot(serverTheme === 'dark' || serverTheme === 'light' ? serverTheme : initialTheme, serverAccent);
-              localStorage.setItem(ACCENT_STORAGE_KEY, serverAccent);
-            }
-            if ((serverTheme === 'light' || serverTheme === 'dark') && serverTheme !== initialTheme) {
-              setThemeState(serverTheme);
-              localStorage.setItem(themeConfig.storageKey, serverTheme);
-              document.documentElement.classList.toggle('dark', serverTheme === 'dark');
-              document.documentElement.setAttribute('data-theme', serverTheme);
-            }
-          })
-          .catch(() => { /* not logged in / offline — cache wins */ });
+      if (localStorage.getItem('token')) {
+        appearanceApi.get().then((res: any) => {
+          const data = res?.data ?? res ?? {};
+          if (isAccentKey(data.colorTheme) && data.colorTheme !== accentRef.current) {
+            accentRef.current = data.colorTheme;
+            setAccentState(data.colorTheme);
+            applyToRoot(resolve(modeRef.current), data.colorTheme);
+            localStorage.setItem(ACCENT_STORAGE_KEY, data.colorTheme);
+          }
+        }).catch(() => { /* offline — cache wins */ });
       }
     } catch { /* ignore */ }
+
+    return () => mq.removeEventListener?.('change', onChange);
   }, []);
 
-  const persist = (next: { theme?: Theme; accent?: AccentKey }) => {
+  const persist = (next: { mode?: ThemeMode; accent?: AccentKey; resolvedTheme?: Theme }) => {
     try {
-      if (next.theme) localStorage.setItem(themeConfig.storageKey, next.theme);
+      if (next.mode) localStorage.setItem(themeConfig.storageKey, next.mode);
       if (next.accent) localStorage.setItem(ACCENT_STORAGE_KEY, next.accent);
       if (localStorage.getItem('token')) {
         appearanceApi.update({
           ...(next.accent ? { colorTheme: next.accent } : {}),
-          ...(next.theme ? { theme: next.theme } : {}),
-        }).catch(() => { /* offline — cache still holds it */ });
+          ...(next.resolvedTheme ? { theme: next.resolvedTheme } : {}),
+        }).catch(() => { /* offline */ });
       }
     } catch { /* ignore */ }
   };
 
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    applyToRoot(newTheme, accent);
-    persist({ theme: newTheme });
+  const setMode = (m: ThemeMode) => {
+    modeRef.current = m;
+    setModeState(m);
+    const r = resolve(m);
+    setThemeStateResolved(r);
+    applyToRoot(r, accent);
+    persist({ mode: m, resolvedTheme: r });
   };
-  const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+
+  const setTheme = (t: Theme) => setMode(t);
+  const toggleTheme = () => setMode(theme === 'light' ? 'dark' : 'light');
 
   const setAccent = (key: AccentKey) => {
     if (!isAccentKey(key)) return;
+    accentRef.current = key;
     setAccentState(key);
     applyToRoot(theme, key);
     persist({ accent: key });
   };
 
-  const value: ThemeContextType = { theme, setTheme, toggleTheme, accent, setAccent, presets: THEME_PRESETS };
+  const value: ThemeContextType = { theme, mode, setMode, setTheme, toggleTheme, accent, setAccent, presets: THEME_PRESETS };
 
-  // Prevent flash of unstyled / wrong-accent content.
   if (!mounted) return null;
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

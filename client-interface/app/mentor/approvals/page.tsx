@@ -102,17 +102,17 @@ export default function MentorApprovals() {
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
         </div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : queue.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
           <p className="text-slate-600">All caught up — nothing waiting on you.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+        <div className="bg-card rounded-2xl border border-slate-200 divide-y divide-slate-100">
           {queue.map((item) => (
             <div key={item.submissionId} className="flex items-center gap-4 px-5 py-4">
               {!item.isLate ? (

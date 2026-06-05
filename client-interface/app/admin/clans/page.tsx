@@ -43,12 +43,12 @@ function CreateClanDrawer({ programs, mentors, onClose, onCreated }: {
     finally { setSaving(false); }
   };
 
-  const field = 'w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500';
+  const field = 'w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500';
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-label="New clan" className="relative w-full max-w-md h-full bg-white shadow-xl flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label="New clan" className="relative w-full max-w-md h-full bg-card shadow-xl flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h3 className="text-slate-900 font-semibold">New clan</h3>
           <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -134,12 +134,12 @@ function ClanDrawer({ clanId, mentors, mentees, onClose, onChanged }: {
   };
 
   const members = clan?.memberships ?? [];
-  const field = 'border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500';
+  const field = 'border border-slate-300 rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500';
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-lg h-full bg-white shadow-xl flex flex-col">
+      <div className="relative w-full max-w-lg h-full bg-card shadow-xl flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <div className="min-w-0">
             <h2 className="font-semibold text-slate-900 truncate">{clan?.name || 'Clan'}</h2>
@@ -254,12 +254,12 @@ function AdminClansInner() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : clans.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <Users2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No clans yet — create one to start grouping mentees under mentors.</p>
         </div>
@@ -269,7 +269,7 @@ function AdminClansInner() {
             const n = counts(c);
             return (
               <button key={c.id} onClick={() => setOpenClan(c.id)}
-                className="text-left bg-white rounded-2xl border border-slate-200 p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+                className="text-left bg-card rounded-2xl border border-slate-200 p-5 hover:border-brand-300 hover:shadow-sm transition-all">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-medium text-slate-900 truncate">{c.name}</h3>
                   {c.levelLabel && <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs shrink-0">{c.levelLabel}</span>}

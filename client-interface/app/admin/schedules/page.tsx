@@ -46,7 +46,7 @@ export default function AdminSchedulesPage() {
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : templates.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 p-12 text-center">
           <CalendarClock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600 mb-1">No org templates yet</p>
           <p className="text-slate-500 text-sm">Create one to seed the shared library mentors can import.</p>
@@ -54,7 +54,7 @@ export default function AdminSchedulesPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {templates.map((t) => (
-            <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col">
+            <div key={t.id} className="bg-card rounded-2xl border border-slate-200 p-5 flex flex-col">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="text-slate-900 font-semibold truncate">{t.name}</h3>
@@ -116,7 +116,7 @@ function TemplateDrawer({ template, onClose, onSaved }: { template: OrgTemplate 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={template ? 'Edit template' : 'New template'} className="relative w-full max-w-lg h-full bg-white shadow-xl flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label={template ? 'Edit template' : 'New template'} className="relative w-full max-w-lg h-full bg-card shadow-xl flex flex-col">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900">{template ? 'Edit template' : 'New org template'}</h2>
           <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>

@@ -75,7 +75,7 @@ function ApplicationDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-lg h-full bg-white shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-lg h-full bg-card shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between px-6 py-4 border-b border-slate-200">
           <div>
             <h2 className="text-slate-900 font-medium">{fullName(app)}</h2>
@@ -235,12 +235,12 @@ export default function CohortReviewPage({ params }: { params: Promise<{ id: str
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : applications.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No applications here yet — import a CSV to bring applicants in.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-card">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500">
               <tr>

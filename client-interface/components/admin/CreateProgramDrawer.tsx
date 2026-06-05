@@ -55,7 +55,7 @@ export function CreateProgramDrawer({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onKeyDown={onKeyDown}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
-      <div ref={drawerRef} role="dialog" aria-modal="true" aria-labelledby="create-program-title" className="relative w-full max-w-lg h-full bg-white shadow-xl flex flex-col">
+      <div ref={drawerRef} role="dialog" aria-modal="true" aria-labelledby="create-program-title" className="relative w-full max-w-lg h-full bg-card shadow-xl flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h2 id="create-program-title" className="font-semibold text-slate-900">Create program</h2>

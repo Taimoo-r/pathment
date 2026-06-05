@@ -44,7 +44,7 @@ export function TabBar({
               {Icon && <Icon className="w-4 h-4" />}
               {tab.label}
               {tab.count !== undefined && (
-                <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${active ? 'bg-card/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                   {tab.count}
                 </span>
               )}

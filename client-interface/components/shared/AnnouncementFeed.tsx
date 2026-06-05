@@ -43,13 +43,13 @@ export function AnnouncementFeed({
 
   if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-600" /></div>;
   if (error) return (
-    <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+    <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
       <p className="text-slate-600 mb-3">{error}</p>
       <button onClick={onRefresh} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
     </div>
   );
   if (announcements.length === 0) return (
-    <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+    <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
       <Megaphone className="w-10 h-10 text-slate-300 mx-auto mb-3" />
       <p className="text-slate-600">{emptyHint}</p>
     </div>
@@ -60,7 +60,7 @@ export function AnnouncementFeed({
       {announcements.map((a) => {
         const manage = canManage || a.mine;
         return (
-          <div key={a.id} className={`bg-white rounded-2xl border p-5 ${a.pinned ? 'border-brand-200' : 'border-slate-200'}`}>
+          <div key={a.id} className={`bg-card rounded-2xl border p-5 ${a.pinned ? 'border-brand-200' : 'border-slate-200'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">

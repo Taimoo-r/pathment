@@ -51,14 +51,14 @@ export default function AdminAnnouncements() {
       </div>
 
       {/* Composer */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-3">
         <div className="flex items-center gap-2"><Send className="w-4 h-4 text-brand-500" /><h2 className="text-slate-900">New announcement</h2></div>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className={field} />
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="What do people need to know?" className={`${field} resize-none`} />
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm text-slate-600">To</label>
           <select value={audience} onChange={(e) => { setAudience(e.target.value as AnnouncementAudience); setTargetId(''); }}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500">
             <option value="all">Everyone</option>
             <option value="mentors">All mentors</option>
             <option value="mentees">All mentees</option>
@@ -67,7 +67,7 @@ export default function AdminAnnouncements() {
           </select>
           {needsTarget && (
             <select value={targetId} onChange={(e) => setTargetId(e.target.value)}
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500">
               <option value="">{`Select a ${audience}…`}</option>
               {targets.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>

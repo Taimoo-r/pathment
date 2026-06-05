@@ -97,7 +97,7 @@ Never share these codes with anyone.`;
     <Dialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
           <div className="p-8">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
@@ -129,7 +129,7 @@ Never share these codes with anyone.`;
                   {codes.map((code, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors group"
+                      className="flex items-center justify-between p-3 bg-card border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors group"
                     >
                       <code className="font-mono font-semibold text-slate-900">
                         {code}

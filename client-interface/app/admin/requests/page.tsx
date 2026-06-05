@@ -44,7 +44,7 @@ export default function AdminClanRequests() {
   };
 
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
-  const field = 'border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500';
+  const field = 'border border-slate-300 rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500';
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: 'requests', label: 'Change requests', count: pendingCount },
@@ -71,7 +71,7 @@ export default function AdminClanRequests() {
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
@@ -80,14 +80,14 @@ export default function AdminClanRequests() {
           {/* Change requests */}
           {tab === 'requests' && (
             requests.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+              <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
                 <GitPullRequest className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-600">No clan-change requests.</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {requests.map((r) => (
-                  <div key={r.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+                  <div key={r.id} className="bg-card rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-slate-900">{r.mentee}</p>
                       <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
@@ -114,7 +114,7 @@ export default function AdminClanRequests() {
           {/* Cross-clan */}
           {tab === 'cross' && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-end gap-2">
+              <div className="bg-card rounded-2xl border border-slate-200 p-4 flex flex-wrap items-end gap-2">
                 <div>
                   <label className="block text-xs text-slate-500 mb-1">Type</label>
                   <select value={ccKind} onChange={(e) => setCcKind(e.target.value)} className={field}>
@@ -131,7 +131,7 @@ export default function AdminClanRequests() {
               ) : (
                 <div className="space-y-2">
                   {crossClan.map((c) => (
-                    <div key={c.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+                    <div key={c.id} className="bg-card rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
                       <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs font-medium">{CROSS_KINDS.find((k) => k.key === c.kind)?.label ?? c.kind}</span>
                       <p className="text-sm text-slate-700 flex-1 min-w-0 truncate">{c.note || c.user || '—'}</p>
                       <button onClick={() => act(c.id, () => clanRequestsApi.removeCrossClan(c.id), 'Removed')} disabled={busy === c.id} className="text-slate-400 hover:text-red-500 shrink-0"><Trash2 className="w-4 h-4" /></button>
@@ -145,7 +145,7 @@ export default function AdminClanRequests() {
           {/* Policies */}
           {tab === 'policies' && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2">
+              <div className="bg-card rounded-2xl border border-slate-200 p-4 space-y-2">
                 <div className="flex gap-2">
                   <input value={pTitle} onChange={(e) => setPTitle(e.target.value)} placeholder="Policy title" className={`${field} flex-1`} />
                   <input value={pCategory} onChange={(e) => setPCategory(e.target.value)} placeholder="Category" className={`${field} w-40`} />
@@ -162,7 +162,7 @@ export default function AdminClanRequests() {
               ) : (
                 <div className="space-y-2">
                   {policies.map((p) => (
-                    <div key={p.id} className="bg-white rounded-2xl border border-slate-200 p-4">
+                    <div key={p.id} className="bg-card rounded-2xl border border-slate-200 p-4">
                       <div className="flex items-start gap-2">
                         <Shield className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
                         <div className="min-w-0 flex-1">

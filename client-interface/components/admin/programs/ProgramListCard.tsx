@@ -20,7 +20,7 @@ interface ProgramListCardProps {
 export function ProgramListCard({ programs = [] }: ProgramListCardProps) {
   return (
     <div className="lg:col-span-2">
-      <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="bg-card rounded-2xl border border-slate-200">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-slate-900 font-semibold">Recent Programs</h2>
           <Link href="/admin/programs/list" className="text-brand-600 hover:text-brand-700 text-sm">

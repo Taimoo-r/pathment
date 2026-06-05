@@ -85,7 +85,7 @@ export function FrictionPanel({ taskId }: { taskId: string }) {
   const field = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+    <div className="bg-card rounded-2xl border border-slate-200 p-6">
       <h2 className="text-lg font-semibold text-slate-900">What&apos;s getting in the way?</h2>
       <p className="text-sm text-slate-500 mt-1">
         Logging this helps your mentor support you — and real constraints count in your favour, not against you.

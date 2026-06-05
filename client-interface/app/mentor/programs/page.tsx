@@ -21,7 +21,7 @@ export default function MentorProgramsPage() {
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
         </div>
       ) : programs.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 p-12 text-center">
           <BookOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h3 className="text-slate-900 mb-2">No Programs Yet</h3>
           <p className="text-slate-600">You haven't been assigned to any programs yet.</p>
@@ -32,7 +32,7 @@ export default function MentorProgramsPage() {
             <Link
               key={program.id}
               href={`/mentor/programs/${program.id}`}
-              className="bg-white rounded-2xl border border-slate-200 p-6 hover:border-brand-300 hover:shadow-lg transition-all group flex flex-col"
+              className="bg-card rounded-2xl border border-slate-200 p-6 hover:border-brand-300 hover:shadow-lg transition-all group flex flex-col"
             >
               {/* Header */}
               <div className="flex items-start justify-between mb-3">

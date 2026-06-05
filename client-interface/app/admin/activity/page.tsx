@@ -99,7 +99,7 @@ export default function AdminActivityPage() {
                 color: 'text-orange-600 bg-orange-50',
               },
             ].map(({ icon: Icon, label, value, color }) => (
-              <div key={label} className="bg-white px-5 py-4 flex items-center gap-4">
+              <div key={label} className="bg-card px-5 py-4 flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
                   <Icon className="w-5 h-5" />
                 </div>
@@ -112,7 +112,7 @@ export default function AdminActivityPage() {
           </div>
 
           {/* Search + table */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="bg-card rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
       </div>
 
       {/* Reset Card */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
+      <div className="bg-card rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
 
         {/* Error banner */}
         {error && (

@@ -211,7 +211,7 @@ export default function MentorReports() {
           <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
             {(['week', 'month'] as const).map((p) => (
               <button key={p} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${period === p ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${period === p ? 'bg-card text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
                 {p}
               </button>
             ))}
@@ -222,12 +222,12 @@ export default function MentorReports() {
             {aiLoading ? 'Drafting…' : 'Draft with AI'}
           </button>
           <button onClick={printReport} disabled={!report}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-card px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
             title="Export as PDF (print → save as PDF)">
             <Printer className="w-4 h-4" />PDF
           </button>
           <button onClick={copy} disabled={!report}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-card px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors">
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}{copied ? 'Copied' : 'Copy'}
           </button>
         </div>
@@ -236,12 +236,12 @@ export default function MentorReports() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : !report ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600 font-medium">No cohort data to report on yet</p>
           <p className="text-slate-400 text-sm mt-1">Once you have active mentees, their summary shows up here.</p>
@@ -265,7 +265,7 @@ export default function MentorReports() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button onClick={draftWithAI} disabled={aiLoading}
-                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-white disabled:opacity-50 transition-colors">
+                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-card disabled:opacity-50 transition-colors">
                     {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}Regenerate
                   </button>
                   <button onClick={copyDraft}
@@ -317,7 +317,7 @@ export default function MentorReports() {
 
             {/* Distribution bar */}
             <div className="mt-5">
-              <div className="flex h-2.5 rounded-full overflow-hidden bg-white/60">
+              <div className="flex h-2.5 rounded-full overflow-hidden bg-card/60">
                 {report.onTrack.length > 0 && <div className="bg-emerald-500" style={{ width: `${(report.onTrack.length / report.size) * 100}%` }} />}
                 {report.watch.length > 0 && <div className="bg-amber-400" style={{ width: `${(report.watch.length / report.size) * 100}%` }} />}
                 {report.high.length > 0 && <div className="bg-red-500" style={{ width: `${(report.high.length / report.size) * 100}%` }} />}
@@ -331,7 +331,7 @@ export default function MentorReports() {
           </div>
 
           {/* Period-scoped throughput — driven by the week/month toggle */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <div className="flex items-center justify-between gap-2 mb-4">
               <h2 className="text-slate-900 flex items-center gap-2"><Activity className="w-4 h-4 text-brand-500" />This {period}</h2>
               <span className="text-xs text-slate-400">{activity ? `last ${activity.days} days` : ''}</span>
@@ -368,7 +368,7 @@ export default function MentorReports() {
                 { label: 'Work quality', value: report.avgRating ? `${report.avgRating}★` : '—', sub: report.avgRating ? 'avg task rating' : 'no ratings yet' },
                 { label: 'Needs attention', value: String(report.atRisk.length), sub: `of ${report.size} mentees` },
               ].map((c) => (
-                <div key={c.label} className="rounded-2xl bg-white border border-slate-200 px-4 py-4">
+                <div key={c.label} className="rounded-2xl bg-card border border-slate-200 px-4 py-4">
                   <div className="text-xs text-slate-500">{c.label}</div>
                   <div className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums">{c.value}</div>
                   <div className="text-xs text-slate-400 mt-0.5">{c.sub}</div>
@@ -379,7 +379,7 @@ export default function MentorReports() {
 
           {/* Momentum + Open work */}
           <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <div className="bg-card rounded-2xl border border-slate-200 p-6">
               <h2 className="text-slate-900 mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-brand-500" />Momentum</h2>
               <div className="space-y-3">
                 {[
@@ -398,7 +398,7 @@ export default function MentorReports() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <div className="bg-card rounded-2xl border border-slate-200 p-6">
               <h2 className="text-slate-900 mb-4">Open work</h2>
               <div className="space-y-3">
                 <Link href="/mentor/review" className="flex items-center gap-3 group">
@@ -424,7 +424,7 @@ export default function MentorReports() {
           </div>
 
           {/* Top performers */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <h2 className="text-slate-900 mb-4 flex items-center gap-2"><Star className="w-4 h-4 text-amber-500" />Top performers</h2>
             <div className="space-y-1">
               {report.highlights.map((m, i) => (
@@ -448,7 +448,7 @@ export default function MentorReports() {
           </div>
 
           {/* Needs attention */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <h2 className="text-slate-900 mb-4 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />Needs attention</h2>
             {report.atRisk.length === 0 ? (
               <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -486,7 +486,7 @@ export default function MentorReports() {
           </div>
 
           {/* Recommended actions */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <h2 className="text-slate-900 mb-3">Recommended actions</h2>
             <ol className="space-y-2.5">
               {report.actions.map((a, i) => (

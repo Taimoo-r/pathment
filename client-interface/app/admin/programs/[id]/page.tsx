@@ -84,7 +84,7 @@ function StatusSelector({
       </button>
 
       {open && transitions.length > 0 && (
-        <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+        <div className="absolute left-0 top-full mt-1.5 w-64 bg-card border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
           <div className="px-3 py-2 border-b border-slate-100">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Change Status</p>
           </div>
@@ -137,7 +137,7 @@ export default function ProgramDetails() {
 
   if (!program) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+      <div className="bg-card rounded-2xl border border-slate-200 p-12 text-center">
         <p className="text-slate-600 mb-4">Program not found</p>
         <Link
           href="/admin/programs/list"
@@ -203,14 +203,14 @@ export default function ProgramDetails() {
             <div className="relative" ref={shareRef}>
               <button
                 onClick={() => setShareOpen(!shareOpen)}
-                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-card hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors flex items-center gap-2"
               >
                 <Share2 className="w-4 h-4" />
                 Share
               </button>
 
               {shareOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-64 bg-card border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100">
                     <p className="text-sm font-medium text-slate-700">Share Program</p>
                     <p className="text-xs text-slate-500 mt-0.5">Copy a link to share this program</p>
@@ -241,7 +241,7 @@ export default function ProgramDetails() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200">
+        <div className="bg-card rounded-2xl p-6 border border-slate-200">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
               <Users className="w-5 h-5 text-brand-600" />
@@ -251,7 +251,7 @@ export default function ProgramDetails() {
           <div className="text-slate-900 text-2xl">{program._count?.enrollments ?? 0}</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200">
+        <div className="bg-card rounded-2xl p-6 border border-slate-200">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
               <UserCheck className="w-5 h-5 text-purple-600" />
@@ -261,7 +261,7 @@ export default function ProgramDetails() {
           <div className="text-slate-900 text-2xl">{program._count?.mentors ?? 0}</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200">
+        <div className="bg-card rounded-2xl p-6 border border-slate-200">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -271,7 +271,7 @@ export default function ProgramDetails() {
           <div className="text-slate-900 text-2xl">{program.completion || 0}%</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200">
+        <div className="bg-card rounded-2xl p-6 border border-slate-200">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
               <Clock className="w-5 h-5 text-blue-600" />
@@ -310,7 +310,7 @@ export default function ProgramDetails() {
       {activeTab === 'overview' && (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200">
+            <div className="bg-card rounded-2xl p-6 border border-slate-200">
               <h2 className="text-slate-900 mb-4">Program Information</h2>
               <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -334,7 +334,7 @@ export default function ProgramDetails() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-200">
+            <div className="bg-card rounded-2xl p-6 border border-slate-200">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-slate-900">Curriculum</h2>
                 <Link
@@ -353,7 +353,7 @@ export default function ProgramDetails() {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200">
+            <div className="bg-card rounded-2xl p-6 border border-slate-200">
               <h3 className="text-slate-900 mb-2">Enrollments</h3>
               <p className="text-slate-600 text-sm">
                 Review and approve mentee enrollment requests in the <span className="font-medium">Enrollments</span> tab.
@@ -370,7 +370,7 @@ export default function ProgramDetails() {
               <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
             </div>
           ) : enrollments.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+            <div className="bg-card rounded-2xl border border-slate-200 p-12 text-center">
               <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <h3 className="text-slate-900 mb-2">No Enrollments Yet</h3>
               <p className="text-slate-600">
@@ -381,7 +381,7 @@ export default function ProgramDetails() {
             <>
               {/* Pending Approvals */}
               {enrollments.filter((e: any) => e.status === 'pending_approval').length > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                <div className="bg-card rounded-2xl border border-slate-200 p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Clock className="w-5 h-5 text-amber-600" />
                     <h3 className="text-slate-900">Pending Approvals ({enrollments.filter((e: any) => e.status === 'pending_approval').length})</h3>
@@ -423,7 +423,7 @@ export default function ProgramDetails() {
               )}
 
               {/* All Enrollments */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <div className="bg-card rounded-2xl border border-slate-200 p-6">
                 <h3 className="text-slate-900 mb-4">All Enrollments ({enrollments.length})</h3>
                 <div className="space-y-2">
                   {enrollments.map((enrollment: any) => (

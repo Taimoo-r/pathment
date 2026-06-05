@@ -77,7 +77,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
       <PageHeader backHref="/mentee/tasks" backLabel="Back to Tasks" />
 
       {/* Task Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -170,7 +170,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
       </div>
 
       {/* Task Requirements */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-5">
         <h2 className="text-lg font-semibold text-slate-900">Task Requirements</h2>
 
         {taskDeliverable && (
@@ -219,7 +219,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
 
       {/* Submission(s) */}
       {task.submissions && task.submissions.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-5">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-brand-500" />
             Your Submission
@@ -283,7 +283,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
 
       {/* Mentor Feedback */}
       {feedback.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-4">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-brand-500" />
             Mentor Feedback

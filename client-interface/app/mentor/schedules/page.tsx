@@ -14,7 +14,7 @@ const DURATIONS = [15, 30, 45, 60];
 const SLOT_DAYS = ['everyday', 'weekdays', 'weekends'];
 const TASK_TYPES = ['reading', 'discussion', 'video', 'quiz', 'assignment', 'project'];
 const RECURRENCES = ['daily', 'weekly', 'once'];
-const field = 'border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500';
+const field = 'border border-slate-300 rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500';
 
 // ───────────────────────── Templates tab ─────────────────────────
 interface DraftBlock { label: string; time: string; days: string; bookable: boolean }
@@ -50,7 +50,7 @@ function TemplatesTab() {
       </div>
 
       {creating && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+        <div className="bg-card rounded-2xl border border-slate-200 p-5 space-y-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Template name (e.g. Org Standard Day)" className={`${field} w-full`} />
           <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Description (optional)" className={`${field} w-full`} />
           <div className="space-y-2">
@@ -76,7 +76,7 @@ function TemplatesTab() {
             {local.length === 0 ? <p className="text-sm text-slate-500">No templates yet.</p> : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {local.map((t) => (
-                  <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-4">
+                  <div key={t.id} className="bg-card rounded-2xl border border-slate-200 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="font-medium text-slate-900">{t.name}</h4>
                       <button onClick={async () => { setBusy(t.id); try { await scheduleApi.deleteTemplate(t.id); refetch(); } finally { setBusy(null); } }} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
@@ -95,7 +95,7 @@ function TemplatesTab() {
               <h3 className="text-slate-900 font-medium mb-3">From your organization</h3>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {org.map((t) => (
-                  <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-4">
+                  <div key={t.id} className="bg-card rounded-2xl border border-slate-200 p-4">
                     <h4 className="font-medium text-slate-900">{t.name}</h4>
                     <p className="text-xs text-slate-500 mt-0.5">{t.blocks.length} blocks</p>
                     <button onClick={async () => { setBusy(t.id); try { await scheduleApi.importTemplate(t.id); toast.success('Imported'); refetch(); } catch { toast.error('Failed'); } finally { setBusy(null); } }} disabled={busy === t.id}
@@ -193,7 +193,7 @@ function FillTab() {
         : (
           <div className="space-y-3">
             {slots.map((s) => (
-              <div key={s.id} className="bg-white rounded-2xl border border-slate-200 p-4">
+              <div key={s.id} className="bg-card rounded-2xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div><p className="font-medium text-slate-900">{s.label}</p><p className="text-xs text-slate-500">{s.time} · {s.days}</p></div>
                   <select value={s.kind} onChange={(e) => patchSlot(s.id, { kind: e.target.value as any })} className={field}>
@@ -275,11 +275,11 @@ function AvailabilityTab() {
   const upcoming = meetings.filter((m) => m.status === 'scheduled');
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-brand-600" /></div>;
-  if (error) return <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center"><p className="text-slate-600 mb-3">{error}</p><button onClick={refetch} className="text-brand-600 text-sm font-medium">Try again</button></div>;
+  if (error) return <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center"><p className="text-slate-600 mb-3">{error}</p><button onClick={refetch} className="text-brand-600 text-sm font-medium">Try again</button></div>;
 
   return (
     <div className="space-y-6">
-      <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+      <section className="bg-card rounded-2xl border border-slate-200 p-6 space-y-4">
         <h3 className="text-slate-900 font-medium flex items-center gap-2"><CalendarClock className="w-4 h-4 text-brand-500" />My 1:1 availability</h3>
         <div className="flex flex-wrap items-end gap-3">
           <div><label className="block text-xs text-slate-500 mb-1">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={field} /></div>
@@ -300,7 +300,7 @@ function AvailabilityTab() {
         )}
       </section>
 
-      <section className="bg-white rounded-2xl border border-slate-200">
+      <section className="bg-card rounded-2xl border border-slate-200">
         <div className="px-6 py-5 border-b border-slate-200"><h3 className="text-slate-900 font-medium">Upcoming 1:1s</h3></div>
         <div className="p-6">
           {upcoming.length === 0 ? <p className="text-sm text-slate-500">No upcoming 1:1s.</p> : (

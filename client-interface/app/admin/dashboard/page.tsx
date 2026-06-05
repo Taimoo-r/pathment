@@ -25,7 +25,7 @@ function ClanCard({ clan }: { clan: ClanHealthCard }) {
   return (
     <Link
       href={`/admin/clans?clan=${clan.id}`}
-      className={`group block rounded-2xl border border-slate-200 border-l-4 ${meta.border} bg-white p-5 hover:shadow-sm hover:border-brand-300 transition-all`}
+      className={`group block rounded-2xl border border-slate-200 border-l-4 ${meta.border} bg-card p-5 hover:shadow-sm hover:border-brand-300 transition-all`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -100,7 +100,7 @@ function ProgramGroup({ program }: { program: ProgramHealth }) {
       </div>
 
       {program.clans.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-8 text-center text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-card py-8 text-center text-sm text-slate-500">
           No clans in this program yet.
         </div>
       ) : (
@@ -143,7 +143,7 @@ export default function AdminDashboardPage() {
 
       {/* Org-wide at-risk rollup */}
       {atRiskMentees.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white">
+        <div className="rounded-2xl border border-slate-200 bg-card">
           <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-500" />
             <h2 className="text-slate-900 font-medium">Needs attention</h2>
@@ -177,12 +177,12 @@ export default function AdminDashboardPage() {
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
         </div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : programs.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <Users2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No clans yet — create a program and form clans to see their health here.</p>
           <Link href="/admin/clans" className="mt-3 inline-block text-brand-600 hover:text-brand-700 text-sm font-medium">

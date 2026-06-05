@@ -18,7 +18,7 @@ import { CreateProgramDrawer } from '@/components/admin/CreateProgramDrawer';
 
 function ProgramCardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse">
+    <div className="bg-card rounded-2xl border border-slate-200 p-6 animate-pulse">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-3">
@@ -210,7 +210,7 @@ export default function ProgramListPage() {
             {programs.map((program) => (
               <div
                 key={program.id}
-                className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow"
+                className="bg-card rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow"
               >
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   {/* Program Info */}
@@ -282,7 +282,7 @@ export default function ProgramListPage() {
                       <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                         <MoreVertical className="w-5 h-5 text-slate-500" />
                       </button>
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                         <Link
                           href={`/admin/programs/${program.id}`}
                           className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-slate-700 rounded-t-xl text-sm"
@@ -316,7 +316,7 @@ export default function ProgramListPage() {
           </div>
 
           {/* ── Pagination ── */}
-          <div className="mt-6 bg-white rounded-2xl border border-slate-200 px-4">
+          <div className="mt-6 bg-card rounded-2xl border border-slate-200 px-4">
             <TablePagination
               pagination={pagination}
               isLoading={isLoading}

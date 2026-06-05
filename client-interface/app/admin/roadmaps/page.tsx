@@ -113,7 +113,7 @@ export default function AdminRoadmapsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : roadmaps.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 p-12 text-center">
           <Route className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600 mb-1">No org roadmaps yet</p>
           <p className="text-slate-500 text-sm">Create one to seed the shared library mentors can import.</p>
@@ -121,7 +121,7 @@ export default function AdminRoadmapsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {roadmaps.map((r) => (
-            <div key={r.id} className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col">
+            <div key={r.id} className="bg-card rounded-2xl border border-slate-200 p-5 flex flex-col">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="text-slate-900 font-semibold truncate">{r.name}</h3>
@@ -324,7 +324,7 @@ function DrawerShell({ title, onClose, onSave, saving, saveLabel, children }: {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={title} className="relative w-full max-w-xl h-full bg-white shadow-xl flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label={title} className="relative w-full max-w-xl h-full bg-card shadow-xl flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900">{title}</h2>
           <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>

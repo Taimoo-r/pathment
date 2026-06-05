@@ -50,7 +50,7 @@ export default function MentorAnnouncements() {
       </div>
 
       {/* Composer — mentors announce to a clan they lead */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-3">
         <div className="flex items-center gap-2"><Send className="w-4 h-4 text-brand-500" /><h2 className="text-slate-900">New announcement</h2></div>
         {clans.length === 0 ? (
           <p className="text-sm text-slate-500">You don&apos;t lead any clan yet — once you do, you can announce to its mentees here.</p>
@@ -60,7 +60,7 @@ export default function MentorAnnouncements() {
             <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="What do your mentees need to know?" className={`${field} resize-none`} />
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-sm text-slate-600">To clan</label>
-              <select value={clanId} onChange={(e) => setClanId(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <select value={clanId} onChange={(e) => setClanId(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500">
                 {clans.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button onClick={post} disabled={posting} className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">

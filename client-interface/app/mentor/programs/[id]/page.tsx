@@ -17,7 +17,7 @@ const STATUS_CLASS: Record<string, string> = {
 
 function StatCard({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: number }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+    <div className="bg-card rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
       <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
         <Icon className="w-5 h-5 text-brand-600" />
       </div>
@@ -49,7 +49,7 @@ function PersonRow({ person }: { person: ProgramPerson }) {
 
 function ClanCard({ clan }: { clan: ProgramClanDetail }) {
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden" aria-label={`Clan ${clan.name}`}>
+    <section className="bg-card rounded-2xl border border-slate-200 overflow-hidden" aria-label={`Clan ${clan.name}`}>
       <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3 flex-wrap">
         <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0"><Users2 className="w-4.5 h-4.5 text-brand-600" /></div>
         <div className="min-w-0">
@@ -107,7 +107,7 @@ export default function MentorProgramDetail() {
 
   if (notFound || !program) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center max-w-xl mx-auto">
+      <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center max-w-xl mx-auto">
         <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
         <p className="text-slate-700 font-medium">This program isn&apos;t one you mentor in</p>
         <p className="text-slate-500 text-sm mt-1">You only see programs where you lead or co-mentor a clan.</p>
@@ -127,7 +127,7 @@ export default function MentorProgramDetail() {
       </Link>
 
       {/* Hero */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0"><BookOpen className="w-6 h-6 text-brand-600" /></div>
           <div className="min-w-0 flex-1">
@@ -156,7 +156,7 @@ export default function MentorProgramDetail() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {QUICK_ACTIONS.map((a) => (
           <Link key={a.href} href={a.href}
-            className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3 hover:border-brand-300 hover:shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+            className="bg-card rounded-2xl border border-slate-200 p-4 flex items-center gap-3 hover:border-brand-300 hover:shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
             <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0"><a.icon className="w-5 h-5 text-brand-600" /></div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-slate-900">{a.label}</p>
@@ -170,7 +170,7 @@ export default function MentorProgramDetail() {
       <div>
         <h2 className="text-slate-900 mb-3">Your clans in this program</h2>
         {clans.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+          <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
             <Users2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-600">You don&apos;t run any clans in this program yet.</p>
           </div>

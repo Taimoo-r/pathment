@@ -19,6 +19,10 @@
   --brand-950: #07193a;
   /* Warm off-white canvas the editorial layout sits on (cards stay white). */
   --canvas: #fafafa;
+  /* Neutral (slate) scale routed through vars so it can invert under .dark with
+     zero component edits. Light values = the exact Tailwind slate ramp. */
+  --s-50:#f8fafc; --s-100:#f1f5f9; --s-200:#e2e8f0; --s-300:#cbd5e1; --s-400:#94a3b8;
+  --s-500:#64748b; --s-600:#475569; --s-700:#334155; --s-800:#1e293b; --s-900:#0f172a; --s-950:#020617;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
@@ -93,7 +97,22 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
-  --canvas: oklch(0.205 0 0);
+  /* Dark mode: reversed slate ramp (bg-slate-50 → dark surface, text-slate-900
+     → light text) so the whole app inverts via the var remap, no edits. */
+  --s-50:#0f172a; --s-100:#1e293b; --s-200:#334155; --s-300:#475569; --s-400:#64748b;
+  --s-500:#94a3b8; --s-600:#cbd5e1; --s-700:#dde3ea; --s-800:#e2e8f0; --s-900:#f1f5f9; --s-950:#f8fafc;
+  /* Slate-based dark surfaces (cards lift above the canvas). */
+  --canvas:#0b1120;
+  --background:#0f172a;
+  --foreground:#f1f5f9;
+  --card:#1e293b;
+  --card-foreground:#f1f5f9;
+  --popover:#1e293b;
+  --popover-foreground:#f1f5f9;
+  --muted:#1e293b;
+  --muted-foreground:#94a3b8;
+  --border:#334155;
+  --input:#334155;
 }
 
 /* ── Per-user accent presets ("vibes") ───────────────────────────────────────
@@ -141,6 +160,18 @@ html[data-accent='graphite'] {
   --color-brand-800: var(--brand-800);
   --color-brand-900: var(--brand-900);
   --color-brand-950: var(--brand-950);
+  /* Neutral scale routed through vars so it inverts under .dark (see :root/.dark). */
+  --color-slate-50: var(--s-50);
+  --color-slate-100: var(--s-100);
+  --color-slate-200: var(--s-200);
+  --color-slate-300: var(--s-300);
+  --color-slate-400: var(--s-400);
+  --color-slate-500: var(--s-500);
+  --color-slate-600: var(--s-600);
+  --color-slate-700: var(--s-700);
+  --color-slate-800: var(--s-800);
+  --color-slate-900: var(--s-900);
+  --color-slate-950: var(--s-950);
   --color-canvas: var(--canvas);
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;

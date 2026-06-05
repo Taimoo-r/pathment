@@ -83,7 +83,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
       <PageHeader backHref="/mentor/tasks" backLabel="Back to Tasks" />
 
       {/* Task Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -200,7 +200,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
       </div>
 
       {/* Task Requirements */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-5">
         <h2 className="text-lg font-semibold text-slate-900">Task Requirements</h2>
 
         {taskDeliverable && (
@@ -249,7 +249,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
 
       {/* Submission */}
       {task.submissions && task.submissions.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-5">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-brand-500" />
             Mentee Submission
@@ -309,7 +309,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
 
       {/* Feedback given */}
       {feedback.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-4">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-brand-500" />
             Feedback Given
@@ -444,7 +444,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
                   </button>
                   <button
                     onClick={() => setExtensionDecision(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm hover:bg-white transition-colors"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm hover:bg-card transition-colors"
                   >
                     Back
                   </button>
@@ -469,7 +469,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
                   </button>
                   <button
                     onClick={() => setExtensionDecision(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm hover:bg-white transition-colors"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm hover:bg-card transition-colors"
                   >
                     Back
                   </button>
@@ -529,7 +529,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
             </button>
             <button
               onClick={() => { setCancellingTask(false); setCancelReason(''); }}
-              className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg transition-colors border border-slate-200 text-sm"
+              className="px-4 py-2 bg-card hover:bg-slate-50 text-slate-700 rounded-lg transition-colors border border-slate-200 text-sm"
             >
               Keep Task
             </button>

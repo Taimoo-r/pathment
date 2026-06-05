@@ -44,7 +44,7 @@ export function MentorFeedbackAdminPanel({ mentorId }: { mentorId: string }) {
   }, [mentorId]);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200">
+    <div className="bg-card rounded-2xl border border-slate-200">
       <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
           <MessageSquareHeart className="w-4 h-4 text-slate-400" />

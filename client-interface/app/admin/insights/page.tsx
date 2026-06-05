@@ -19,7 +19,7 @@ export default function AdminInsights() {
   }
   if (error || !insights) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+      <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
         <p className="text-slate-600 mb-3">{error || 'No insights available.'}</p>
         <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
       </div>
@@ -34,7 +34,7 @@ export default function AdminInsights() {
       <PageHeader title="Insights" subtitle="Outcomes, fairness and clan comparisons across the org" />
 
       {/* Fairness digest — the org's headline story */}
-      <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 flex flex-wrap items-start gap-3">
+      <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-card p-5 flex flex-wrap items-start gap-3">
         <span className="w-9 h-9 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
           <Scale className="w-5 h-5 text-brand-600" />
         </span>
@@ -58,7 +58,7 @@ export default function AdminInsights() {
           { label: 'Open blockers', value: String(kpis.totalOpenBlockers), accent: 'bg-red-500' },
           { label: 'Clans in red', value: String(kpis.clansRed), accent: 'bg-red-500' },
         ].map((s) => (
-          <div key={s.label} className="relative overflow-hidden rounded-2xl bg-white border border-slate-200 p-5">
+          <div key={s.label} className="relative overflow-hidden rounded-2xl bg-card border border-slate-200 p-5">
             <span className={`absolute left-0 top-0 h-full w-1 ${s.accent}`} />
             <div className="text-xs text-slate-500">{s.label}</div>
             <div className="mt-1.5 text-2xl font-semibold text-slate-900 tabular-nums">{s.value}</div>
@@ -67,7 +67,7 @@ export default function AdminInsights() {
       </div>
 
       {/* Clan comparison — worst first */}
-      <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="bg-card rounded-2xl border border-slate-200">
         <div className="px-6 py-5 border-b border-slate-100">
           <h2 className="text-slate-900">Clan comparison</h2>
           <p className="text-xs text-slate-400 mt-0.5">All {clans.length} clans, worst first.</p>
@@ -114,7 +114,7 @@ export default function AdminInsights() {
 
       {/* Absolute vs relative — the fairness distribution */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 lg:col-span-1">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 lg:col-span-1">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Org cohort average</p>
           <div className="mt-4 space-y-4">
             <div>
@@ -132,7 +132,7 @@ export default function AdminInsights() {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 lg:col-span-2">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 lg:col-span-2">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-3">By mentee — widest fairness gap first</p>
           {distribution.length === 0 ? (
             <p className="text-sm text-slate-400">No mentees to show.</p>
@@ -163,17 +163,17 @@ export default function AdminInsights() {
 
       {/* Trend summary */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className="bg-card rounded-2xl border border-slate-200 p-5">
           <div className="flex items-center gap-2"><CalendarClock className="w-4 h-4 text-amber-500" /><span className="text-xs text-slate-500">Extensions granted</span></div>
           <div className="mt-2 text-2xl font-semibold text-slate-900 tabular-nums">{kpis.totalExtensions}</div>
           <p className="mt-1 text-xs text-slate-400">Accepted delays across all clans.</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className="bg-card rounded-2xl border border-slate-200 p-5">
           <div className="flex items-center gap-2"><Flag className="w-4 h-4 text-red-500" /><span className="text-xs text-slate-500">Open blockers</span></div>
           <div className="mt-2 text-2xl font-semibold text-slate-900 tabular-nums">{kpis.totalOpenBlockers}</div>
           <p className="mt-1 text-xs text-slate-400">{clans.length ? `Densest in ${[...clans].sort((a, b) => b.openBlockers - a.openBlockers)[0].name}.` : '—'}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className="bg-card rounded-2xl border border-slate-200 p-5">
           <div className="flex items-center gap-2"><TrendingDown className="w-4 h-4 text-red-500" /><span className="text-xs text-slate-500">Clans in red</span></div>
           <div className="mt-2 text-2xl font-semibold text-slate-900 tabular-nums">{kpis.clansRed}</div>
           <p className="mt-1 text-xs text-slate-400">{redClans.length ? redClans.join(', ') : 'No clan in the red.'}</p>

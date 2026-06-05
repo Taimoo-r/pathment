@@ -36,7 +36,7 @@ function DailyBars({ sessions }: { sessions: DailySession[] }) {
           <div key={s.date} className="flex flex-col items-center gap-1 flex-1 group">
             <div className="relative w-full flex justify-center">
               {/* Tooltip */}
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#1e293b] text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
                 {fmt(s.activeMinutes || 0)}
               </span>
               <div
@@ -109,7 +109,7 @@ export function ActivityCard({
   }, [loading]);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
+    <div className="bg-card rounded-2xl border border-slate-200 p-5 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

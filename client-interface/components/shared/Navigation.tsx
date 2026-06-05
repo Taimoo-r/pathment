@@ -129,7 +129,7 @@ export default function Navigation({ role }: NavigationProps) {
             onClick={() => switchRole(r)}
             className={`flex-1 text-xs font-medium capitalize px-2 py-1.5 rounded-lg transition-all duration-150 ${
               r === role
-                ? 'bg-white text-brand-700 shadow-sm'
+                ? 'bg-card text-brand-700 shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -268,7 +268,7 @@ export default function Navigation({ role }: NavigationProps) {
   return (
     <>
       {/* ── Desktop Sidebar ── */}
-      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-slate-100">
+      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-card border-r border-slate-100">
         <div className="flex flex-col flex-1 overflow-y-auto">
 
           {/* Logo + quick actions (notifications & settings, always visible) */}
@@ -319,7 +319,7 @@ export default function Navigation({ role }: NavigationProps) {
       </div>
 
       {/* ── Mobile Header ── */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-100 z-60">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-card border-b border-slate-100 z-60">
         <div className="flex items-center justify-between px-4 py-3.5">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-xl shadow-sm shadow-brand-200">
@@ -354,7 +354,7 @@ export default function Navigation({ role }: NavigationProps) {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-slate-100 bg-white">
+          <div className="border-t border-slate-100 bg-card">
             <nav className="px-3 py-3 space-y-0.5">
               {availableRoles && availableRoles.length > 1 && (
                 <div className="pb-2">{renderRoleSwitcher()}</div>

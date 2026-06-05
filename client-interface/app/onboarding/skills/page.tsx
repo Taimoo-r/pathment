@@ -127,7 +127,7 @@ export default function SkillsOnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-card to-brand-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -145,7 +145,7 @@ export default function SkillsOnboardingPage() {
 
         {/* Initial Loading State */}
         {initialLoading && (
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-12 text-center">
+          <div className="bg-card rounded-2xl shadow-lg border border-slate-100 p-12 text-center">
             <Loader2 className="w-12 h-12 text-brand-600 animate-spin mx-auto mb-4" />
             <p className="text-slate-600">Loading skills...</p>
           </div>
@@ -153,7 +153,7 @@ export default function SkillsOnboardingPage() {
 
         {/* Error State */}
         {!initialLoading && error && (
-          <div className="bg-white rounded-2xl shadow-lg border border-red-200 p-8">
+          <div className="bg-card rounded-2xl shadow-lg border border-red-200 p-8">
             <div className="text-center mb-6">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
                 <span className="text-3xl">⚠️</span>
@@ -170,7 +170,7 @@ export default function SkillsOnboardingPage() {
               </button>
               <button
                 onClick={handleSkip}
-                className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+                className="px-6 py-3 bg-card border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 Skip for Now
               </button>
@@ -180,7 +180,7 @@ export default function SkillsOnboardingPage() {
 
         {/* Empty Skills State */}
         {!initialLoading && !error && skills.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-lg border border-amber-200 p-8">
+          <div className="bg-card rounded-2xl shadow-lg border border-amber-200 p-8">
             <div className="text-center mb-6">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-full mb-4">
                 <span className="text-3xl">📚</span>
@@ -205,7 +205,7 @@ export default function SkillsOnboardingPage() {
           <>
         {/* Selected Skills Summary */}
         {selectedSkills.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 mb-6">
+          <div className="bg-card rounded-2xl shadow-lg border border-slate-100 p-6 mb-6">
             <h3 className="font-semibold text-slate-900 mb-4">Selected Skills ({selectedSkills.length})</h3>
             <div className="space-y-3">
               {selectedSkills.map((userSkill) => (
@@ -252,7 +252,7 @@ export default function SkillsOnboardingPage() {
         )}
 
         {/* Skills Selection */}
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+        <div className="bg-card rounded-2xl shadow-lg border border-slate-100 p-6">
           {/* Search & Filter */}
           <div className="flex gap-4 mb-6">
             <div className="flex-1 relative">
@@ -315,7 +315,7 @@ export default function SkillsOnboardingPage() {
         <div className="flex gap-4 mt-8">
           <button
             onClick={handleSkip}
-            className="flex-1 bg-white border-2 border-slate-200 text-slate-700 py-4 rounded-xl hover:bg-slate-50 transition-colors"
+            className="flex-1 bg-card border-2 border-slate-200 text-slate-700 py-4 rounded-xl hover:bg-slate-50 transition-colors"
           >
             Skip for Now
           </button>

@@ -122,7 +122,7 @@ export default function NotificationsPage({ role }: NotificationsPageProps) {
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <div className="bg-card border border-slate-200 rounded-2xl overflow-hidden">
         {isLoading ? (
           <div className="h-64 flex items-center justify-center text-slate-500 gap-2">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -140,7 +140,7 @@ export default function NotificationsPage({ role }: NotificationsPageProps) {
                 <div
                   key={notification.id}
                   className={`px-4 py-3 transition-colors ${
-                    notification.status === 'unread' ? 'bg-brand-50' : 'bg-white'
+                    notification.status === 'unread' ? 'bg-brand-50' : 'bg-card'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">

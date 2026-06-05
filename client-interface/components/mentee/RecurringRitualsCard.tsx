@@ -28,7 +28,7 @@ export function RecurringRitualsCard() {
   if (loading || slots.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200">
+    <div className="bg-card rounded-2xl border border-slate-200">
       <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
         <Repeat className="w-4 h-4 text-brand-600" />
         <h2 className="text-slate-900">Your rituals</h2>

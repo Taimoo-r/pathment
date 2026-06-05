@@ -79,7 +79,7 @@ export default function AdminMentorSpecPage() {
 
 function Section({ title, onAdd, children }: { title: string; onAdd?: () => void; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+    <div className="bg-card rounded-2xl border border-slate-200 p-5">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-slate-900 font-semibold text-sm">{title}</h2>
         {onAdd && <button onClick={onAdd} className="text-xs font-medium text-brand-600 hover:text-brand-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add</button>}

@@ -51,7 +51,7 @@ function RiskCard({ m, onNudge, onOpen, nudging }: {
 }) {
   const router = useRouter();
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+    <div className="bg-card rounded-2xl border border-slate-200 p-5">
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 bg-brand-100 rounded-full flex items-center justify-center shrink-0">
           <span className="text-brand-700 font-medium text-sm">{m.avatar}</span>
@@ -141,12 +141,12 @@ export default function MentorAtRisk() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : totalAtRisk === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600">Nobody&apos;s at risk right now — the whole cohort is on track.</p>
         </div>
       ) : (
@@ -155,7 +155,7 @@ export default function MentorAtRisk() {
           if (!members.length) return null;
           const meta = GROUPS[key];
           return (
-            <section key={key} className={`rounded-2xl border ${meta.ring} bg-white/60 p-5`}>
+            <section key={key} className={`rounded-2xl border ${meta.ring} bg-card/60 p-5`}>
               <div className="mb-4">
                 <h2 className={`font-semibold ${meta.accent}`}>{meta.title} <span className="text-slate-400 font-normal">· {members.length}</span></h2>
                 <p className="text-sm text-slate-500 mt-1">{meta.blurb}</p>

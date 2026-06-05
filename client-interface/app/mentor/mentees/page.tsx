@@ -79,7 +79,7 @@ export default function MentorMentees() {
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
           {FILTERS.map((f) => (
             <button key={f.key} onClick={() => setFilter(f.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === f.key ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === f.key ? 'bg-card text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               {f.label}
             </button>
           ))}
@@ -91,12 +91,12 @@ export default function MentorMentees() {
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 text-xs text-slate-400"><Users2 className="w-3.5 h-3.5" />Clan:</span>
           <button onClick={() => setClan('all')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${clan === 'all' ? 'bg-brand-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${clan === 'all' ? 'bg-brand-600 text-white' : 'bg-card border border-slate-200 text-slate-600 hover:border-slate-300'}`}>
             All clans
           </button>
           {clans.map((c) => (
             <button key={c.id} onClick={() => setClan(c.id)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${clan === c.id ? 'bg-brand-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${clan === c.id ? 'bg-brand-600 text-white' : 'bg-card border border-slate-200 text-slate-600 hover:border-slate-300'}`}>
               {c.name}
             </button>
           ))}
@@ -106,18 +106,18 @@ export default function MentorMentees() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : cohort.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600 font-medium">No mentees yet</p>
           <p className="text-slate-400 text-sm mt-1">Once mentees are placed in your clans, they show up here.</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
           <p className="text-slate-500 text-sm">No mentees match your filters.</p>
         </div>
       ) : (
@@ -127,7 +127,7 @@ export default function MentorMentees() {
             const fair = Math.round(m.relativeProgress);
             return (
               <button key={m.id} onClick={() => router.push(`/mentor/mentees/${m.id}`)}
-                className="group text-left bg-white rounded-2xl border border-slate-200 p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+                className="group text-left bg-card rounded-2xl border border-slate-200 p-5 hover:border-brand-300 hover:shadow-sm transition-all">
                 <div className="flex items-start gap-3">
                   <Avatar m={m} />
                   <div className="min-w-0 flex-1">

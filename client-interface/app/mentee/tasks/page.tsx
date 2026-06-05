@@ -77,7 +77,7 @@ export default function MenteeTasks() {
 
       {/* Program Selector */}
       {enrollments.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+        <div className="bg-card rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-3">
             <GraduationCap className="w-4 h-4 text-slate-500" />
             <span className="text-sm font-medium text-slate-600">Program</span>
@@ -92,7 +92,7 @@ export default function MenteeTasks() {
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
                     isSelected
                       ? 'bg-brand-600 text-white border-brand-600'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600'
+                      : 'bg-card text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600'
                   }`}
                 >
                   {enrollment.program?.name || 'Program'}
@@ -108,7 +108,7 @@ export default function MenteeTasks() {
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
                   selectedEnrollmentId === null
                     ? 'bg-brand-600 text-white border-brand-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600'
+                    : 'bg-card text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600'
                 }`}
               >
                 All Programs
@@ -150,7 +150,7 @@ export default function MenteeTasks() {
       />
 
       {/* Tasks List */}
-      <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="bg-card rounded-2xl border border-slate-200">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-brand-600" />

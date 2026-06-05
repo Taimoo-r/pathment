@@ -323,7 +323,7 @@ export default function NotificationDrawer({
           />
 
           <aside
-            className="fixed right-0 top-0 z-80 h-dvh w-full max-w-md bg-white shadow-2xl border-l border-slate-200 flex flex-col"
+            className="fixed right-0 top-0 z-80 h-dvh w-full max-w-md bg-card shadow-2xl border-l border-slate-200 flex flex-col"
             role="dialog"
             aria-labelledby="notif-title"
             aria-modal="true"
@@ -365,7 +365,7 @@ export default function NotificationDrawer({
                       className={`group px-4 py-3 cursor-pointer transition-colors ${
                         notification.status === 'unread'
                           ? 'bg-brand-50 hover:bg-brand-100'
-                          : 'bg-white hover:bg-slate-50'
+                          : 'bg-card hover:bg-slate-50'
                       }`}
                       onClick={() => handleNotificationClick(notification)}
                       role="button"
@@ -428,7 +428,7 @@ export default function NotificationDrawer({
               )}
             </div>
 
-            <div className="p-3 border-t border-slate-200 bg-white">
+            <div className="p-3 border-t border-slate-200 bg-card">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={handleMarkAllRead}

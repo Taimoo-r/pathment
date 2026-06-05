@@ -145,12 +145,12 @@ export default function MentorPromotions() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : candidates.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <TrendingUp className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No candidates yet — nominate a mentee who&apos;s ready to give back.</p>
         </div>
@@ -161,7 +161,7 @@ export default function MentorPromotions() {
             const next = NEXT_STAGE[c.stage];
             const ctaLabel = c.stage === 'nominated' ? 'Interview' : c.stage === 'interview' ? 'Mark approved' : c.stage === 'approved' ? 'Promote' : null;
             return (
-              <div key={c.id} className="bg-white rounded-2xl border border-slate-200 p-5">
+              <div key={c.id} className="bg-card rounded-2xl border border-slate-200 p-5">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center shrink-0">
                     <span className="text-brand-700 text-xs font-medium">{c.avatar}</span>
@@ -219,7 +219,7 @@ export default function MentorPromotions() {
           <>
             <label className="block text-sm font-medium text-slate-700 mb-1">Mentee</label>
             <select value={pickMentee} onChange={(e) => setPickMentee(e.target.value)}
-              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500">
               <option value="">Select a mentee</option>
               {eligible.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>

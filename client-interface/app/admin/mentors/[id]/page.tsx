@@ -97,7 +97,7 @@ export default function AdminMentorProfilePage() {
         <div className="lg:col-span-1 space-y-5">
 
           {/* Identity card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6">
             <div className="flex flex-col items-center text-center mb-5">
               <div className="w-20 h-20 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-2xl font-bold mb-4">
                 {initials}
@@ -146,7 +146,7 @@ export default function AdminMentorProfilePage() {
           </div>
 
           {/* Capacity */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5">
             <h3 className="text-sm font-semibold text-slate-700 mb-4">Mentee Capacity</h3>
             <div className="flex items-end justify-between mb-2">
               <span className="text-2xl font-bold text-slate-900">{mp?.currentMenteeCount ?? 0}</span>
@@ -162,7 +162,7 @@ export default function AdminMentorProfilePage() {
           </div>
 
           {/* Meta */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5 space-y-3">
             {mp?.yearsOfExperience != null && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-500 flex items-center gap-2"><Briefcase className="w-4 h-4" />Experience</span>
@@ -209,7 +209,7 @@ export default function AdminMentorProfilePage() {
 
           {/* Specializations */}
           {specializations.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <div className="bg-card rounded-2xl border border-slate-200 p-6">
               <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-slate-400" />
                 Specializations
@@ -224,7 +224,7 @@ export default function AdminMentorProfilePage() {
 
           {/* Skills */}
           {mentor.skills && mentor.skills.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <div className="bg-card rounded-2xl border border-slate-200 p-6">
               <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-slate-400" />
                 Skills
@@ -244,7 +244,7 @@ export default function AdminMentorProfilePage() {
           )}
 
           {/* Active mentees */}
-          <div className="bg-white rounded-2xl border border-slate-200">
+          <div className="bg-card rounded-2xl border border-slate-200">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-slate-400" />

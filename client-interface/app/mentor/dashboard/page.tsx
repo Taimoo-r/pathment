@@ -51,7 +51,7 @@ function MenteeCard({ m, onOpen }: { m: CohortMentee; onOpen: () => void }) {
   return (
     <button
       onClick={onOpen}
-      className="group text-left bg-white rounded-2xl border border-slate-200 p-5 hover:border-brand-300 hover:shadow-sm transition-all"
+      className="group text-left bg-card rounded-2xl border border-slate-200 p-5 hover:border-brand-300 hover:shadow-sm transition-all"
     >
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 bg-brand-100 rounded-full flex items-center justify-center shrink-0">
@@ -144,7 +144,7 @@ export default function MentorCockpit() {
           <button
             onClick={() => setBulkAssign(true)}
             disabled={cohort.length === 0}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-card px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             Assign task
@@ -205,12 +205,12 @@ export default function MentorCockpit() {
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
         </div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : list.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">
             {cohort.length === 0

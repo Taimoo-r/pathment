@@ -196,7 +196,7 @@ export default function AdminInvitesPage() {
       </div>
 
       {/* Single invite form */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-slate-200 rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2 text-slate-900">
           <UserPlus className="w-5 h-5 text-brand-600" />
           <h2>Create Invite</h2>
@@ -293,7 +293,7 @@ export default function AdminInvitesPage() {
               <input
                 readOnly
                 value={createdInviteUrl}
-                className="w-full px-3 py-2 bg-white border border-brand-200 rounded-lg text-sm text-slate-700"
+                className="w-full px-3 py-2 bg-card border border-brand-200 rounded-lg text-sm text-slate-700"
               />
               <button
                 type="button"
@@ -309,7 +309,7 @@ export default function AdminInvitesPage() {
       </div>
 
       {/* Bulk CSV upload */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-slate-200 rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between gap-2 text-slate-900">
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-brand-600" />
@@ -370,7 +370,7 @@ export default function AdminInvitesPage() {
                       type="button"
                       onClick={() => setCsvFilter(f)}
                       className={`px-3 py-1.5 text-sm rounded-md capitalize transition-colors ${csvFilter === f
-                        ? 'bg-white text-slate-900 shadow-sm font-medium'
+                        ? 'bg-card text-slate-900 shadow-sm font-medium'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
                     >
@@ -478,7 +478,7 @@ export default function AdminInvitesPage() {
       </div>
 
       {/* Invite inventory */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-slate-200 rounded-2xl p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h2 className="text-slate-900">Invite Inventory</h2>

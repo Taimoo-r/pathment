@@ -71,7 +71,7 @@ export default function MenteeMeetings() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
@@ -79,7 +79,7 @@ export default function MenteeMeetings() {
         <>
           {/* Next 1:1 — the one thing that matters most */}
           {next && (
-            <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5">
+            <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-card p-5">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-brand-600 flex flex-col items-center justify-center text-white shrink-0">
                   <CalendarClock className="w-5 h-5" />
@@ -97,7 +97,7 @@ export default function MenteeMeetings() {
                   )}
                 </div>
                 <button onClick={() => setCancelFor(next)} disabled={busyId === next.id}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-white hover:text-red-600 transition-colors shrink-0 disabled:opacity-50">
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-card hover:text-red-600 transition-colors shrink-0 disabled:opacity-50">
                   {busyId === next.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}Cancel
                 </button>
               </div>
@@ -105,7 +105,7 @@ export default function MenteeMeetings() {
           )}
 
           {/* Book a 1:1 — mentor card with slots grouped by day */}
-          <section className="bg-white rounded-2xl border border-slate-200">
+          <section className="bg-card rounded-2xl border border-slate-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-slate-900 flex items-center gap-2"><CalendarPlus className="w-4 h-4 text-brand-500" />Book a 1:1</h2>
               {totalOpenSlots > 0 && <span className="text-xs text-slate-400">{totalOpenSlots} open time{totalOpenSlots === 1 ? '' : 's'}</span>}
@@ -165,7 +165,7 @@ export default function MenteeMeetings() {
 
           {/* More upcoming */}
           {laterUpcoming.length > 0 && (
-            <section className="bg-white rounded-2xl border border-slate-200">
+            <section className="bg-card rounded-2xl border border-slate-200">
               <div className="px-6 py-4 border-b border-slate-100"><h2 className="text-slate-900">More upcoming</h2></div>
               <div className="divide-y divide-slate-100">
                 {laterUpcoming.map((m) => (
@@ -187,7 +187,7 @@ export default function MenteeMeetings() {
 
           {/* Past */}
           {past.length > 0 && (
-            <section className="bg-white rounded-2xl border border-slate-200">
+            <section className="bg-card rounded-2xl border border-slate-200">
               <div className="px-6 py-4 border-b border-slate-100"><h2 className="text-slate-900">Past 1:1s</h2></div>
               <div className="divide-y divide-slate-100">
                 {past.map((m) => {

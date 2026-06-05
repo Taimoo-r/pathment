@@ -188,7 +188,7 @@ export default function CohortReview() {
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>;
   if (!cohort.length) return (
-    <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center max-w-2xl">
+    <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center max-w-2xl">
       <p className="text-slate-600">No mentees to review yet.</p>
     </div>
   );
@@ -228,7 +228,7 @@ export default function CohortReview() {
           {[...deferred].map((id) => {
             const m = cohort.find((x) => x.id === id);
             if (!m) return null;
-            return <button key={id} onClick={() => setIdx(cohort.indexOf(m))} className="px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-700 text-xs">{m.name.split(' ')[0]}</button>;
+            return <button key={id} onClick={() => setIdx(cohort.indexOf(m))} className="px-2 py-0.5 rounded-full bg-card border border-amber-300 text-amber-700 text-xs">{m.name.split(' ')[0]}</button>;
           })}
         </div>
       )}
@@ -237,7 +237,7 @@ export default function CohortReview() {
         {/* Main */}
         <div className="lg:col-span-2 space-y-5">
           {/* Mentee card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5">
             <div className="flex items-start gap-3">
               <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center shrink-0"><span className="text-brand-700 font-semibold">{mentee!.avatar}</span></div>
               <div className="min-w-0 flex-1">
@@ -255,7 +255,7 @@ export default function CohortReview() {
           </div>
 
           {/* Assigned work — everything currently on this mentee's plate */}
-          <div className="bg-white rounded-2xl border border-slate-200">
+          <div className="bg-card rounded-2xl border border-slate-200">
             <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
               <ListTodo className="w-4 h-4 text-brand-500" />
               <h3 className="text-slate-900 font-medium">Assigned work</h3>
@@ -304,7 +304,7 @@ export default function CohortReview() {
           </div>
 
           {/* Submissions to review */}
-          <div className="bg-white rounded-2xl border border-slate-200">
+          <div className="bg-card rounded-2xl border border-slate-200">
             <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
               <ClipboardCheck className="w-4 h-4 text-brand-500" />
               <h3 className="text-slate-900 font-medium">To review</h3>
@@ -344,7 +344,7 @@ export default function CohortReview() {
         {/* Side rail */}
         <div className="space-y-4">
           {/* Attendance */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5">
             <h3 className="font-semibold text-slate-900 mb-3">Attendance</h3>
             <div className="flex gap-2">
               {(['present', 'absent', 'excused'] as Attendance[]).map((s) => (
@@ -357,7 +357,7 @@ export default function CohortReview() {
           </div>
 
           {/* Quick note */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5">
             <h3 className="font-semibold text-slate-900 mb-2">Quick note</h3>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="A coaching note…"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500" />
@@ -367,7 +367,7 @@ export default function CohortReview() {
           </div>
 
           {/* Blockers */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-900 flex items-center gap-2"><Flag className="w-4 h-4 text-red-500" />Open blockers</h3>
               <button onClick={() => setShowAddBlocker(true)} title="Log a blocker" className="p-1 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-slate-100"><Plus className="w-4 h-4" /></button>
@@ -392,14 +392,14 @@ export default function CohortReview() {
           </div>
 
           {/* Progress / finish */}
-          <div className="bg-slate-900 rounded-2xl p-5 text-white">
+          <div className="bg-[#0f172a] rounded-2xl p-5 text-white">
             <div className="text-sm space-y-1">
               <div className="flex justify-between"><span className="text-slate-300">Seen</span><span>{seen.size}/{cohort.length}</span></div>
               <div className="flex justify-between"><span className="text-slate-300">Attendance marked</span><span>{Object.keys(attendance).length}</span></div>
               <div className="flex justify-between"><span className="text-slate-300">Deferred</span><span>{deferred.size}</span></div>
             </div>
             <button onClick={() => router.push('/mentor/dashboard')}
-              className={`mt-4 w-full px-3 py-2 rounded-xl text-sm font-medium ${allSeen ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/70'}`}>
+              className={`mt-4 w-full px-3 py-2 rounded-xl text-sm font-medium ${allSeen ? 'bg-card text-slate-900 hover:bg-slate-100' : 'bg-card/10 text-white/70'}`}>
               {allSeen ? 'Finish review' : 'Finish (some unseen)'}
             </button>
           </div>
@@ -454,7 +454,7 @@ export default function CohortReview() {
 
       {showHelp && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowHelp(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-card rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-slate-900 mb-3">Keyboard shortcuts</h3>
             <div className="space-y-1.5 text-sm text-slate-600">
               {[['← / →', 'Prev / next mentee'], ['S', 'Skip (defer)'], ['J / K', 'Focus next / prev submission'], ['A', 'Approve focused'], ['C', 'Request changes'], ['R', 'Open full review'], ['T', 'Assign a task'], ['P / X / E', 'Present / absent / excused'], ['?', 'Toggle this help']].map(([k, d]) => (

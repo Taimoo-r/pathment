@@ -43,10 +43,10 @@ export function InsightsPanel({
     finally { setSaving(false); }
   };
 
-  const field = 'border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white capitalize focus:outline-none focus:ring-2 focus:ring-brand-500';
+  const field = 'border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-card capitalize focus:outline-none focus:ring-2 focus:ring-brand-500';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200">
+    <div className="bg-card rounded-2xl border border-slate-200">
       <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-2">
         <Lightbulb className="w-4 h-4 text-amber-500" />
         <h2 className="text-slate-900">Insights</h2>

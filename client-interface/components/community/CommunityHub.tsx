@@ -29,7 +29,7 @@ function MentionPicker({ people, value, onChange }: { people: CommunityPerson[];
         {open && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-            <div className="absolute left-0 mt-1 w-60 bg-white border border-slate-200 rounded-xl shadow-lg z-20 p-2">
+            <div className="absolute left-0 mt-1 w-60 bg-card border border-slate-200 rounded-xl shadow-lg z-20 p-2">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people…" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
               <div className="max-h-44 overflow-y-auto space-y-0.5">
                 {filtered.length === 0 && <p className="text-xs text-slate-400 px-1 py-2">No one to mention.</p>}
@@ -182,7 +182,7 @@ function PostCard({ post, canModerate, hub }: { post: CommunityPost; canModerate
   const meta = TYPE_META[post.type] ?? TYPE_META.discussion;
 
   return (
-    <div className={`bg-white rounded-2xl border p-5 ${post.pinned ? 'border-brand-200 ring-1 ring-brand-100' : 'border-slate-200'}`}>
+    <div className={`bg-card rounded-2xl border p-5 ${post.pinned ? 'border-brand-200 ring-1 ring-brand-100' : 'border-slate-200'}`}>
       {post.pinned && <div className="flex items-center gap-1 text-xs font-medium text-brand-600 mb-2"><Pin className="w-3.5 h-3.5" />Pinned</div>}
       <div className="flex items-center gap-2.5">
         <Avatar text={post.author.avatar} />
@@ -201,7 +201,7 @@ function PostCard({ post, canModerate, hub }: { post: CommunityPost; canModerate
           {menu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
-              <div className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-20 text-sm">
+              <div className="absolute right-0 mt-1 w-40 bg-card border border-slate-200 rounded-xl shadow-lg py-1 z-20 text-sm">
                 {canModerate && (
                   <button onClick={() => { hub.pin(post.id, !post.pinned); setMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-slate-700 hover:bg-slate-50">
                     <Pin className="w-3.5 h-3.5" />{post.pinned ? 'Unpin' : 'Pin'}
@@ -330,7 +330,7 @@ function Composer({ hub }: { hub: ReturnType<typeof useCommunityHub> }) {
   const field = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+    <div className="bg-card rounded-2xl border border-slate-200 p-5 space-y-3">
       <div className="flex flex-wrap gap-2">
         {COMPOSER_TYPES.map((t) => {
           const m = TYPE_META[t];
@@ -391,7 +391,7 @@ const SPACE_ICON: Record<string, typeof Users> = { clan: Users, cohort: Messages
 
 function SpaceSwitcher({ hub }: { hub: ReturnType<typeof useCommunityHub> }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-3">
+    <div className="bg-card rounded-2xl border border-slate-200 p-3">
       <p className="px-2 pt-1 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Spaces</p>
       <div className="space-y-1">
         {hub.spaces.map((s) => {
@@ -439,7 +439,7 @@ export default function CommunityHub() {
         <div className="space-y-4 order-3 lg:order-2">
           {/* Filters */}
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 flex-1 min-w-[180px]">
+            <div className="flex items-center gap-1.5 bg-card border border-slate-200 rounded-lg px-2.5 flex-1 min-w-[180px]">
               <Search className="w-4 h-4 text-slate-400 shrink-0" />
               <input value={hub.query} onChange={(e) => hub.setQuery(e.target.value)} placeholder={`Search ${hub.active?.name ?? ''}…`} className="w-full py-2 text-sm focus:outline-none" />
             </div>
@@ -463,12 +463,12 @@ export default function CommunityHub() {
           {hub.loadingFeed ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-600" /></div>
           ) : hub.error ? (
-            <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+            <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
               <p className="text-slate-600 mb-3">{hub.error}</p>
               <button onClick={hub.refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
             </div>
           ) : hub.feed.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+            <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
               <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-600">Nothing here yet — be the first to post in {hub.active?.name}.</p>
             </div>
@@ -480,7 +480,7 @@ export default function CommunityHub() {
         {/* Right — context */}
         <div className="space-y-4 order-2 lg:order-3">
           {hub.shoutouts.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="bg-card rounded-2xl border border-slate-200 p-5">
               <h3 className="font-semibold text-slate-900 mb-3">Motivation for you</h3>
               <div className="space-y-2">
                 {hub.shoutouts.map((s) => (
@@ -494,7 +494,7 @@ export default function CommunityHub() {
           )}
 
           {hub.stats && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="bg-card rounded-2xl border border-slate-200 p-5">
               <h3 className="font-semibold text-slate-900 mb-3">This space</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-slate-500">Posts</span><span className="font-semibold text-slate-900">{hub.stats.posts}</span></div>
@@ -506,7 +506,7 @@ export default function CommunityHub() {
           )}
 
           {/* Top contributors — recognition right where it's earned */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-900 flex items-center gap-1.5"><Trophy className="w-4 h-4 text-amber-500" />Top contributors</h3>
               <div className="flex gap-1 text-xs">
@@ -542,7 +542,7 @@ export default function CommunityHub() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="bg-card rounded-2xl border border-slate-200 p-5">
             <button onClick={() => setShowMembers((s) => !s)} className="w-full flex items-center justify-between">
               <h3 className="font-semibold text-slate-900">Members ({hub.members.length})</h3>
               {showMembers ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}

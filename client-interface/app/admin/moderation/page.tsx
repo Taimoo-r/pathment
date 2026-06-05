@@ -30,7 +30,7 @@ export default function AdminModerationPage() {
           </h1>
           <p className="text-slate-600">Review content members flagged across community spaces.</p>
         </div>
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1">
+        <div className="flex gap-1 bg-card border border-slate-200 rounded-xl p-1">
           {STATUS_TABS.map((t) => (
             <button key={t.key} onClick={() => setStatus(t.key)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium ${status === t.key ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'}`}>
@@ -43,14 +43,14 @@ export default function AdminModerationPage() {
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-500" /></div>
       ) : reports.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <ShieldAlert className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No {status} reports.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {reports.map((r) => (
-            <div key={r.id} className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div key={r.id} className="bg-card rounded-2xl border border-slate-200 p-5">
               <div className="flex items-center gap-2 text-xs">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 capitalize">
                   {r.targetType === 'post' ? <FileText className="w-3 h-3" /> : <MessageCircle className="w-3 h-3" />}{r.targetType}

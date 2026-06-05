@@ -124,7 +124,7 @@ function MenteeDashboardInner() {
 
       {/* This week's tasks */}
       {weekTasks.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200">
+        <div className="bg-card rounded-2xl border border-slate-200">
           <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-slate-900">This week</h2>
             <Link href="/mentee/tasks" className="text-brand-600 hover:text-brand-700 text-sm flex items-center gap-1">
@@ -288,7 +288,7 @@ function MenteeDashboardInner() {
               </h2>
               <div className="grid gap-6 lg:grid-cols-2">
                 {currentProgramEnrollments.map((enrollment) => (
-                  <div key={enrollment.id} className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <div key={enrollment.id} className="bg-card rounded-2xl border border-slate-200 p-6">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0 mr-3">
                         <h3 className="text-slate-900 truncate mb-1">{enrollment.program?.name || 'Unknown Program'}</h3>
@@ -356,7 +356,7 @@ function MenteeDashboardInner() {
                   return (
                     <div
                       key={e.id}
-                      className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start justify-between gap-4"
+                      className="bg-card rounded-2xl border border-slate-200 p-5 flex items-start justify-between gap-4"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -391,7 +391,7 @@ function MenteeDashboardInner() {
 
           {/* All Enrollments */}
           {enrollments.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <div className="bg-card rounded-2xl border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-slate-900">My Enrollments</h2>
               </div>

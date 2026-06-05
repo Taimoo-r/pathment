@@ -305,7 +305,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-[70vh] xl:h-[calc(100dvh-10rem)]">
-        <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col xl:h-full min-h-0">
+        <div className="xl:col-span-4 bg-card border border-slate-200 rounded-2xl overflow-hidden flex flex-col xl:h-full min-h-0">
           <div className="p-4 border-b border-slate-200">
             <h2 className="text-slate-900">Conversations</h2>
           </div>
@@ -348,7 +348,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
           </div>
         </div>
 
-        <div className="xl:col-span-8 bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden xl:h-full min-h-0">
+        <div className="xl:col-span-8 bg-card border border-slate-200 rounded-2xl flex flex-col overflow-hidden xl:h-full min-h-0">
           <div className="p-4 border-b border-slate-200 flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-brand-600" />
             <h2 className="text-slate-900 truncate">{selectedTitle}</h2>
@@ -373,7 +373,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
                       className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                         mine
                           ? 'ml-auto bg-brand-600 text-white'
-                          : 'bg-white border border-slate-200 text-slate-800'
+                          : 'bg-card border border-slate-200 text-slate-800'
                       }`}
                     >
                       <p className="text-xs opacity-75 mb-1">
@@ -393,7 +393,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
             )}
           </div>
 
-          <div className="p-4 border-t border-slate-200 bg-white">
+          <div className="p-4 border-t border-slate-200 bg-card">
             <div className="flex items-center gap-2">
               <textarea
                 value={composer}

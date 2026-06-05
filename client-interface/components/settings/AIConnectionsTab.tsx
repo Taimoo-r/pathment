@@ -62,7 +62,7 @@ export default function AIConnectionsTab() {
             {connections.map((c) => {
               const sm = STATUS_META[c.status];
               return (
-                <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white">
+                <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-card">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-slate-900">{c.label}</span>

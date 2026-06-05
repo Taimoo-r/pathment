@@ -45,24 +45,24 @@ export default function MentorScores() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <p className="text-slate-600 mb-3">{error}</p>
           <button onClick={refetch} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
         </div>
       ) : ranked.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
           <Gauge className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No mentees to score yet.</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex items-center gap-3">
+          <div className="bg-card rounded-2xl border border-slate-200 px-5 py-4 flex items-center gap-3">
             <Gauge className="w-5 h-5 text-brand-500" />
             <span className="text-sm text-slate-600">Cohort average</span>
             <span className="ml-auto text-lg font-semibold text-slate-900 tabular-nums">{avg}</span>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+          <div className="bg-card rounded-2xl border border-slate-200 divide-y divide-slate-100">
             {ranked.map((r, i) => (
               <button key={r.m.id} onClick={() => router.push(`/mentor/mentees/${r.m.id}`)}
                 className="w-full text-left flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors group">

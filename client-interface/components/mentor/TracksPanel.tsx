@@ -35,7 +35,7 @@ export function TracksPanel({ menteeId }: { menteeId: string }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+    <div className="bg-card rounded-2xl border border-slate-200 p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-brand-600" />
