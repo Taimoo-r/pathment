@@ -19,9 +19,19 @@ exports.autoAssignWeekTasks = catchAsync(async (req, res) => {
  */
 exports.createCustomTask = catchAsync(async (req, res) => {
   const mentorId = req.user.id;
-  
+
   const task = await taskService.createCustomTask(req.body, mentorId);
   res.status(201).json(successResponse('Custom task created successfully', { task }, 201));
+});
+
+/**
+ * Assign one custom task to many mentees (bulk)
+ * POST /api/tasks/custom/bulk
+ */
+exports.bulkCreateCustomTasks = catchAsync(async (req, res) => {
+  const mentorId = req.user.id;
+  const result = await taskService.bulkCreateCustomTasks(req.body, mentorId);
+  res.status(201).json(successResponse(`Assigned to ${result.assigned} mentee(s)`, result, 201));
 });
 
 /**
@@ -175,14 +185,14 @@ exports.cancelTask = catchAsync(async (req, res) => {
 });
 
 /**
- * Get roadmap tasks for a program level
- * GET /api/tasks/roadmap/program/:programId/level/:levelId?menteeId=xxx
+ * Get roadmap tasks for a program
+ * GET /api/tasks/roadmap/program/:programId?menteeId=xxx
  */
 exports.getRoadmapTasks = catchAsync(async (req, res) => {
-  const { programId, levelId } = req.params;
+  const { programId } = req.params;
   const { menteeId } = req.query; // Optional menteeId to check assignment status
-  
-  const roadmap = await taskService.getRoadmapTasks(programId, levelId, menteeId);
+
+  const roadmap = await taskService.getRoadmapTasks(programId, menteeId);
   res.status(200).json(successResponse('Roadmap retrieved', { roadmap }));
 });
 

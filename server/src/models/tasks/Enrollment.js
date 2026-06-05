@@ -15,9 +15,12 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       field: 'program_id'
     },
-    currentLevelId: {
+    // Intake batch this enrollment came from (stamped at registration when the
+    // invite carried a cohort). Nullable for direct/admin enrollments.
+    cohortId: {
       type: DataTypes.UUID,
-      field: 'current_level_id'
+      allowNull: true,
+      field: 'cohort_id'
     },
     status: {
       type: DataTypes.STRING(25),
@@ -115,8 +118,7 @@ module.exports = (sequelize, DataTypes) => {
       { unique: true, fields: ['mentee_id', 'program_id'] },
       { fields: ['mentee_id'] },
       { fields: ['program_id'] },
-      { fields: ['status'] },
-      { fields: ['current_level_id'] }
+      { fields: ['status'] }
     ],
     hooks: {
       afterCreate: async (enrollment, options) => {
@@ -140,7 +142,7 @@ module.exports = (sequelize, DataTypes) => {
   Enrollment.associate = (models) => {
     Enrollment.belongsTo(models.User, { foreignKey: 'mentee_id', as: 'mentee' });
     Enrollment.belongsTo(models.Program, { foreignKey: 'program_id', as: 'program' });
-    Enrollment.belongsTo(models.ProgramLevel, { foreignKey: 'current_level_id', as: 'currentLevel' });
+    Enrollment.belongsTo(models.Cohort, { foreignKey: 'cohort_id', as: 'cohort' });
     Enrollment.hasMany(models.MentorMenteeMatch, { foreignKey: 'enrollment_id', as: 'matches' });
   };
 

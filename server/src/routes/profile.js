@@ -49,6 +49,28 @@ router.post('/add-skills', profileController.addUserSkills);
 router.post('/skip-skills', profileController.skipSkills);
 
 /**
+ * @route   GET/PATCH /api/profile/appearance
+ * @desc    Read / update per-user appearance (accent color + light/dark)
+ * @access  Private
+ */
+router.get('/appearance', profileController.getAppearance);
+router.patch('/appearance', profileController.updateAppearance);
+
+/**
+ * @route   PATCH /api/profile/preferences
+ * @desc    Merge a group of settings toggles (notifications, learning, etc.)
+ * @access  Private
+ */
+router.patch('/preferences', profileController.updatePreferences);
+
+/**
+ * @route   PATCH /api/profile/notifications
+ * @desc    Update notification channel prefs the orchestrator actually reads
+ * @access  Private
+ */
+router.patch('/notifications', profileController.updateNotificationPreferences);
+
+/**
  * @route   PATCH /api/profile/mentor/availability
  * @desc    Update mentor availability settings (isAcceptingMentees, maxMentees)
  * @access  Private (Mentor only)

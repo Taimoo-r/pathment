@@ -12,13 +12,12 @@ export default function MentorAssignment() {
   // ── per-enrollment manual override state ────────────────────────────────
   const [overrides, setOverrides] = useState<Record<string, {
     open: boolean;
-    levelId: string;
     mentorId: string;
   }>>({});
 
-  const patchOverride = (enrollmentId: string, patch: Partial<{ open: boolean; levelId: string; mentorId: string }>) => {
+  const patchOverride = (enrollmentId: string, patch: Partial<{ open: boolean; mentorId: string }>) => {
     setOverrides(prev => {
-      const existing = prev[enrollmentId] ?? { open: false, levelId: '', mentorId: '' };
+      const existing = prev[enrollmentId] ?? { open: false, mentorId: '' };
       return { ...prev, [enrollmentId]: { ...existing, ...patch } };
     });
   };
@@ -27,7 +26,6 @@ export default function MentorAssignment() {
     programs,
     selectedProgram,
     setSelectedProgram,
-    programLevels,
     enrollments,
     suggestions,
     loading,
@@ -43,14 +41,12 @@ export default function MentorAssignment() {
     autoMatching,
     handleCreateMatch,
     handleAutoMatch,
-    overrideLevelMentors,
-    fetchOverrideLevelMentors,
   } = useMentorAssignment();
 
   if (loading && programs.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -65,23 +61,41 @@ export default function MentorAssignment() {
         backLabel="Back to Dashboard"
       />
 
+      {/* Clan-based placement banner — the preferred path */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 dark:bg-brand-500/10 px-5 py-4">
+        <div className="flex items-start gap-3 flex-1">
+          <div className="w-9 h-9 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
+            <Users className="w-4 h-4 text-brand-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-900">Placement is now clan-based</p>
+            <p className="text-sm text-slate-600">
+              Place a mentee into a clan and they inherit that clan&apos;s mentor(s). The 1:1 matching below still works for direct assignments.
+            </p>
+          </div>
+        </div>
+        <Link href="/admin/clans" className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+          Manage clans <ChevronRight className="w-4 h-4" />
+        </Link>
+      </div>
+
       {/* AI Matching Banner */}
       {showAISuggestions && (
-        <div className="bg-linear-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-6 mb-8">
+        <div className="bg-linear-to-r from-brand-50 dark:from-brand-500/10 to-brand-50 dark:to-transparent border border-brand-200 rounded-2xl p-6 mb-8">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 bg-brand-600 rounded-xl flex items-center justify-center shrink-0">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h2 className="text-indigo-900 mb-2">AI Matching Enabled</h2>
-              <p className="text-indigo-700 text-sm mb-4">
+              <h2 className="text-brand-900 mb-2">AI Matching Enabled</h2>
+              <p className="text-brand-700 text-sm mb-4">
                 Our AI analyzes mentee backgrounds, skills, and learning goals to suggest the best mentor matches
                 based on expertise, availability, and teaching style compatibility.
               </p>
               <button
                 onClick={handleAutoMatch}
                 disabled={autoMatching || enrollments.length === 0}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-colors flex items-center gap-2"
               >
                 {autoMatching ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Matching…</>
@@ -90,7 +104,7 @@ export default function MentorAssignment() {
                 )}
               </button>
             </div>
-            <button onClick={() => setShowAISuggestions(false)} className="text-indigo-600 hover:text-indigo-700">
+            <button onClick={() => setShowAISuggestions(false)} className="text-brand-600 hover:text-brand-700">
               ✕
             </button>
           </div>
@@ -98,12 +112,12 @@ export default function MentorAssignment() {
       )}
 
       {/* Program Filter */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 mb-6">
         <label className="block text-slate-900 mb-3">Filter by Program</label>
         <select
           value={selectedProgram}
           onChange={(e) => setSelectedProgram(e.target.value)}
-          className="w-full md:w-96 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full md:w-96 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           disabled={loading}
         >
           {programs.map((program) => (
@@ -116,10 +130,10 @@ export default function MentorAssignment() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
         </div>
       ) : enrollments.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+        <div className="bg-card rounded-2xl border border-slate-200 p-12 text-center">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Users className="w-8 h-8 text-slate-400" />
           </div>
@@ -130,7 +144,7 @@ export default function MentorAssignment() {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* ── Pending Matches ───────────────────────────────────────────── */}
           <div>
-            <div className="bg-white rounded-2xl border border-slate-200">
+            <div className="bg-card rounded-2xl border border-slate-200">
               <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
                 <h2 className="text-slate-900">Pending Matches</h2>
                 <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-sm">
@@ -141,7 +155,6 @@ export default function MentorAssignment() {
                 {enrollments.map((enrollment) => {
                   const mentee       = enrollment.mentee;
                   const profile      = mentee?.menteeProfile;
-                  const currentLevel = enrollment.currentLevel;
                   const topSuggestion = (suggestions[enrollment.id] || [])[0];
 
                   return (
@@ -157,13 +170,10 @@ export default function MentorAssignment() {
                           <p className="text-slate-600 text-sm mb-2">
                             {profile?.priorExperience || profile?.currentEducation || 'No background available'}
                           </p>
-                          <div className="flex items-center gap-2 text-slate-500 text-xs mb-3">
-                            <span>Level: {currentLevel?.name || 'N/A'}</span>
-                          </div>
                           {((profile?.learningGoals?.length > 0) || (profile?.interests?.length > 0)) && (
                             <div className="flex flex-wrap gap-2">
                               {profile?.learningGoals?.map((goal: string, idx: number) => (
-                                <span key={`goal-${idx}`} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs">{goal}</span>
+                                <span key={`goal-${idx}`} className="px-2 py-1 bg-brand-50 text-brand-700 rounded text-xs">{goal}</span>
                               ))}
                               {profile?.interests?.map((interest: string, idx: number) => (
                                 <span key={`interest-${idx}`} className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">{interest}</span>
@@ -174,17 +184,17 @@ export default function MentorAssignment() {
                       </div>
 
                       {topSuggestion ? (
-                        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                        <div className="p-4 bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 rounded-xl">
                           <div className="flex items-center gap-2 mb-3">
-                            <Sparkles className="w-4 h-4 text-indigo-600" />
-                            <span className="text-indigo-900 text-sm">
-                              AI Recommended Match for {topSuggestion.level?.name || currentLevel?.name || 'Current Level'}
+                            <Sparkles className="w-4 h-4 text-brand-600" />
+                            <span className="text-brand-900 text-sm">
+                              AI Recommended Match
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center">
-                                <span className="text-indigo-700 text-sm">
+                              <div className="w-10 h-10 bg-brand-200 rounded-full flex items-center justify-center">
+                                <span className="text-brand-700 text-sm">
                                   {topSuggestion.mentor?.firstName?.[0]}{topSuggestion.mentor?.lastName?.[0]}
                                 </span>
                               </div>
@@ -196,9 +206,9 @@ export default function MentorAssignment() {
                               </div>
                             </div>
                             <button
-                              onClick={() => handleCreateMatch(enrollment.id, topSuggestion.mentor.id, currentLevel.id)}
+                              onClick={() => handleCreateMatch(enrollment.id, topSuggestion.mentor.id)}
                               disabled={matching === enrollment.id}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                              className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                               {matching === enrollment.id ? (
                                 <><Loader2 className="w-4 h-4 animate-spin" /> Assigning…</>
@@ -219,52 +229,27 @@ export default function MentorAssignment() {
                       <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
                         <button
                           type="button"
-                          onClick={() => {
-                            const opening = !overrides[enrollment.id]?.open;
-                            patchOverride(enrollment.id, { open: opening });
-                            // Pre-load mentors for the current level when opening
-                            if (opening && currentLevel?.id) fetchOverrideLevelMentors(currentLevel.id);
-                          }}
+                          onClick={() => patchOverride(enrollment.id, { open: !overrides[enrollment.id]?.open })}
                           className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm transition-colors"
                         >
-                          <span>Assign manually (override level or mentor)</span>
+                          <span>Assign manually (pick any mentor)</span>
                           {overrides[enrollment.id]?.open
                             ? <ChevronUp className="w-4 h-4 text-slate-500" />
                             : <ChevronDown className="w-4 h-4 text-slate-500" />}
                         </button>
 
                         {overrides[enrollment.id]?.open && (
-                          <div className="p-4 bg-white border-t border-slate-200 space-y-3">
-                            {/* Level picker */}
-                            <div>
-                              <label className="block text-slate-600 text-xs mb-1.5">Level</label>
-                              <select
-                                value={overrides[enrollment.id]?.levelId || currentLevel?.id || ''}
-                                onChange={(e) => {
-                                  const lvl = e.target.value;
-                                  patchOverride(enrollment.id, { levelId: lvl, mentorId: '' });
-                                  fetchOverrideLevelMentors(lvl);
-                                }}
-                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                              >
-                                <option value="">Select level…</option>
-                                {programLevels.map((lvl: any) => (
-                                  <option key={lvl.id} value={lvl.id}>{lvl.name}</option>
-                                ))}
-                              </select>
-                            </div>
-
+                          <div className="p-4 bg-card border-t border-slate-200 space-y-3">
                             {/* Mentor picker */}
                             <div>
                               <label className="block text-slate-600 text-xs mb-1.5">Mentor</label>
                               <select
                                 value={overrides[enrollment.id]?.mentorId || ''}
                                 onChange={(e) => patchOverride(enrollment.id, { mentorId: e.target.value })}
-                                disabled={!overrides[enrollment.id]?.levelId && !currentLevel?.id}
-                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-card"
                               >
                                 <option value="">Select mentor…</option>
-                                {(overrideLevelMentors[overrides[enrollment.id]?.levelId || currentLevel?.id || ''] || []).map((m: any) => (
+                                {allMentors.map((m: any) => (
                                   <option key={m.id} value={m.id}>
                                     {m.firstName} {m.lastName}{m.mentorProfile?.title ? ` — ${m.mentorProfile.title}` : ''}
                                   </option>
@@ -276,15 +261,13 @@ export default function MentorAssignment() {
                               type="button"
                               disabled={
                                 matching === enrollment.id ||
-                                !overrides[enrollment.id]?.mentorId ||
-                                !(overrides[enrollment.id]?.levelId || currentLevel?.id)
+                                !overrides[enrollment.id]?.mentorId
                               }
                               onClick={() => {
-                                const lvl = overrides[enrollment.id]?.levelId || currentLevel?.id || '';
                                 const mntr = overrides[enrollment.id]?.mentorId;
-                                if (lvl && mntr) handleCreateMatch(enrollment.id, mntr, lvl);
+                                if (mntr) handleCreateMatch(enrollment.id, mntr);
                               }}
-                              className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              className="w-full px-4 py-2 bg-[#1e293b] hover:bg-[#0f172a] text-white rounded-lg text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                               {matching === enrollment.id
                                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Assigning…</>
@@ -302,7 +285,7 @@ export default function MentorAssignment() {
 
           {/* ── Available Mentors ─────────────────────────────────────────── */}
           <div>
-            <div className="bg-white rounded-2xl border border-slate-200">
+            <div className="bg-card rounded-2xl border border-slate-200">
               <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
                 <div>
                   <h2 className="text-slate-900">Available Mentors</h2>
@@ -315,7 +298,7 @@ export default function MentorAssignment() {
                     value={mentorSearch}
                     onChange={(e) => setMentorSearch(e.target.value)}
                     placeholder="Search by name or email…"
-                    className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-56"
+                    className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent w-56"
                   />
                 </div>
               </div>
@@ -323,7 +306,7 @@ export default function MentorAssignment() {
               <div className="divide-y divide-slate-200">
                 {mentorsLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                    <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
                   </div>
                 ) : allMentors.length === 0 ? (
                   <div className="p-12 text-center">

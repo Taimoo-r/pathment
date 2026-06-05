@@ -28,6 +28,12 @@ class ProfileController {
           model: models.Skill,
           as: 'skills',
           through: { attributes: ['proficiencyLevel', 'yearsOfExperience'] }
+        },
+        {
+          model: models.UserSettings,
+          as: 'settings',
+          required: false,
+          attributes: ['timezone', 'language', 'theme', 'colorTheme', 'preferences']
         }
       ]
     });
@@ -247,7 +253,7 @@ await user.update({
    */
   updateProfile = catchAsync(async (req, res) => {
     const userId = req.user.id;
-    const { firstName, lastName, bio, phone, profilePictureUrl } = req.body;
+    const { firstName, lastName, bio, phone, profilePictureUrl, city, country, languages, timezone } = req.body;
 
     const user = await models.User.findByPk(userId);
     if (!user) {
@@ -259,10 +265,90 @@ await user.update({
       lastName: lastName || user.lastName,
       bio: bio !== undefined ? bio : user.bio,
       phone: phone !== undefined ? phone : user.phone,
-      profilePictureUrl: profilePictureUrl !== undefined ? profilePictureUrl : user.profilePictureUrl
+      profilePictureUrl: profilePictureUrl !== undefined ? profilePictureUrl : user.profilePictureUrl,
+      city: city !== undefined ? city : user.city,
+      country: country !== undefined ? country : user.country,
+      languages: Array.isArray(languages)
+        ? languages.map((l) => String(l).trim()).filter(Boolean)
+        : user.languages
     });
 
+    // Timezone lives on user_settings — upsert it so the location form saves in one go.
+    if (timezone !== undefined && timezone !== null && String(timezone).trim()) {
+      const [settings] = await models.UserSettings.findOrCreate({ where: { userId }, defaults: { userId } });
+      await settings.update({ timezone: String(timezone).trim() });
+    }
+
     res.json(successResponse(PROFILE_MESSAGES.PROFILE_UPDATED, user));
+  });
+
+  /**
+   * Get the user's appearance prefs (accent + light/dark) for cross-device sync.
+   * GET /api/profile/appearance
+   */
+  getAppearance = catchAsync(async (req, res) => {
+    const settings = await models.UserSettings.findOne({ where: { userId: req.user.id }, attributes: ['theme', 'colorTheme'] });
+    res.json(successResponse('Appearance retrieved', {
+      theme: settings?.theme || 'light',
+      colorTheme: settings?.colorTheme || 'ocean',
+    }));
+  });
+
+  /**
+   * Update the user's appearance prefs.
+   * PATCH /api/profile/appearance  { colorTheme?, theme? }
+   */
+  updateAppearance = catchAsync(async (req, res) => {
+    const { colorTheme, theme } = req.body;
+    const [settings] = await models.UserSettings.findOrCreate({ where: { userId: req.user.id }, defaults: { userId: req.user.id } });
+    const patch = {};
+    if (typeof colorTheme === 'string' && colorTheme.trim()) patch.colorTheme = colorTheme.trim().slice(0, 20);
+    if (theme === 'light' || theme === 'dark') patch.theme = theme;
+    if (Object.keys(patch).length) await settings.update(patch);
+    res.json(successResponse('Appearance updated', { theme: settings.theme, colorTheme: settings.colorTheme }));
+  });
+
+  /**
+   * Merge a group of preference toggles into user_settings.preferences.
+   * PATCH /api/profile/preferences  { group: 'notifications'|'learning'|'system'|'userManagement', values: {...} }
+   * Stored namespaced by group so different settings tabs don't clobber each other.
+   */
+  updatePreferences = catchAsync(async (req, res) => {
+    const { group, values } = req.body || {};
+    if (!group || typeof group !== 'string' || values == null || typeof values !== 'object') {
+      throw new ValidationError('group and values are required');
+    }
+    const [settings] = await models.UserSettings.findOrCreate({ where: { userId: req.user.id }, defaults: { userId: req.user.id } });
+    const current = settings.preferences && typeof settings.preferences === 'object' ? settings.preferences : {};
+    const next = { ...current, [group]: { ...(current[group] || {}), ...values } };
+    await settings.update({ preferences: next });
+    res.json(successResponse('Preferences saved', { preferences: next }));
+  });
+
+  /**
+   * Update the notification channel preferences that ACTUALLY gate delivery.
+   * PATCH /api/profile/notifications { emailNotifications?: {...}, pushNotifications?: {...} }
+   * Merges into the user_settings columns the notification orchestrator reads,
+   * so toggling a category here genuinely turns its emails on/off.
+   */
+  updateNotificationPreferences = catchAsync(async (req, res) => {
+    const { emailNotifications, pushNotifications } = req.body || {};
+    const [settings] = await models.UserSettings.findOrCreate({ where: { userId: req.user.id }, defaults: { userId: req.user.id } });
+
+    const patch = {};
+    if (emailNotifications && typeof emailNotifications === 'object') {
+      const current = settings.emailNotifications && typeof settings.emailNotifications === 'object' ? settings.emailNotifications : {};
+      patch.emailNotifications = { ...current, ...emailNotifications };
+    }
+    if (pushNotifications && typeof pushNotifications === 'object') {
+      const current = settings.pushNotifications && typeof settings.pushNotifications === 'object' ? settings.pushNotifications : {};
+      patch.pushNotifications = { ...current, ...pushNotifications };
+    }
+    if (Object.keys(patch).length) await settings.update(patch);
+    res.json(successResponse('Notification preferences saved', {
+      emailNotifications: settings.emailNotifications,
+      pushNotifications: settings.pushNotifications
+    }));
   });
 
   /**

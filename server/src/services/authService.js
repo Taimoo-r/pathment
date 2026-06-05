@@ -16,6 +16,7 @@ const {
   hashToken
 } = require('../utils/jwt');
 const notificationOrchestrator = require('./notificationOrchestrator');
+const { mapResponsesToProfile } = require('../config/intakeProfileFields');
 
 class AuthService {
   async getActiveInviteByToken(inviteToken, transaction) {
@@ -51,11 +52,24 @@ class AuthService {
 
     const invite = await this.getActiveInviteByToken(inviteToken);
 
+    // Surface the placement so the registration page can show (read-only)
+    // which program/clan the person is joining.
+    const [program, clan, application] = await Promise.all([
+      invite.programId ? models.Program.findByPk(invite.programId, { attributes: ['id', 'name'] }) : null,
+      invite.clanId ? models.Clan.findByPk(invite.clanId, { attributes: ['id', 'name'] }) : null,
+      // If this invite came from an application, prefill the registrant's name
+      // so they don't re-type what they already gave at intake.
+      models.Application.findOne({ where: { inviteId: invite.id }, attributes: ['firstName', 'lastName'] })
+    ]);
+
     return {
       id: invite.id,
       email: invite.email,
       role: invite.role,
-      expiresAt: invite.expiresAt
+      expiresAt: invite.expiresAt,
+      program: program ? { id: program.id, name: program.name } : null,
+      clan: clan ? { id: clan.id, name: clan.name } : null,
+      applicant: application ? { firstName: application.firstName || '', lastName: application.lastName || '' } : null
     };
   }
 
@@ -96,14 +110,29 @@ class AuthService {
         throw new ConflictError(AUTH_MESSAGES.EMAIL_ALREADY_EXISTS);
       }
 
+      // Carry forward whatever the applicant already gave at intake — so they
+      // never re-type it. Map the linked application's answers onto the user +
+      // mentee profile, and skip the onboarding steps they've effectively done.
+      const application = await models.Application.findOne({ where: { inviteId: invite.id }, transaction });
+      const { userPatch, profilePatch } = application
+        ? mapResponsesToProfile(application.responses)
+        : { userPatch: {}, profilePatch: {} };
+      // The mentee-profile step is satisfied once we have any of the core fields.
+      const coreProfileKnown = ['currentEducation', 'currentOccupation', 'learningGoals', 'interests']
+        .some((k) => profilePatch[k] != null && (!Array.isArray(profilePatch[k]) || profilePatch[k].length));
+
       const user = await models.User.create({
-        firstName,
-        lastName,
+        firstName: firstName || application?.firstName || null,
+        lastName: lastName || application?.lastName || null,
         email: normalizedEmail,
         passwordHash: hashedPassword,
         role,
         phoneNumber,
         dateOfBirth,
+        // Pre-fill location/contact collected at intake (explicit form input wins).
+        ...userPatch,
+        // Skip the profile step of onboarding when intake already captured it.
+        onboardingStep: role === 'mentee' && coreProfileKnown ? 1 : 0,
         // Email is already proven valid — invite was sent to this exact address
         emailVerified: true,
         emailVerifiedAt: new Date(),
@@ -121,18 +150,81 @@ class AuthService {
       } else {
         await models.MenteeProfile.create({
           userId: user.id,
-            interests: [],                 
-  currentEducation: null,        
-  currentOccupation: null,       
-  priorExperience: null,         
-  preferredLearningStyle: 'visual', 
+          interests: [],
+          currentEducation: null,
+          currentOccupation: null,
+          priorExperience: null,
+          preferredLearningStyle: 'visual',
           learningGoals: [],
           currentLevel: 1,
-          totalPoints: 0
+          totalPoints: 0,
+          // Overlay anything the applicant already provided at intake.
+          ...profilePatch
         }, { transaction });
       }
 
       await models.UserSettings.create({ userId: user.id }, { transaction });
+
+      // The invite is the placement — enroll/place strictly from the token,
+      // never from anything the registrant sent. Stale placement (program/clan
+      // deleted after the invite was issued) degrades gracefully.
+      if (role === 'mentee' && invite.programId) {
+        const program = await models.Program.findByPk(invite.programId, { transaction });
+        if (program) {
+          await models.Enrollment.create({
+            menteeId: user.id,
+            programId: invite.programId,
+            // Trace the enrollment back to its intake cohort, when present.
+            cohortId: invite.cohortId || null,
+            // Placed into a clan on the same invite ⇒ already matched.
+            status: invite.clanId ? 'active' : 'pending_match',
+            enrolledAt: new Date()
+          }, { transaction });
+        }
+      }
+
+      if (invite.clanId) {
+        const clan = await models.Clan.findByPk(invite.clanId, { transaction });
+        if (clan) {
+          let membershipRole = 'mentee';
+          if (role === 'mentor') {
+            // First mentor on the clan becomes its lead; later ones co-mentor.
+            if (!clan.leadMentorId) {
+              membershipRole = 'lead_mentor';
+              clan.leadMentorId = user.id;
+              await clan.save({ transaction });
+            } else {
+              membershipRole = 'co_mentor';
+            }
+          }
+          await models.ClanMembership.create({
+            clanId: clan.id,
+            userId: user.id,
+            role: membershipRole,
+            status: 'active'
+          }, { transaction });
+        }
+      }
+
+      // Apply any pre-assigned role grants carried on the invite (e.g. an
+      // "invite with access" that makes the new account a program_admin).
+      const pendingGrants = Array.isArray(invite.metadata?.pendingGrants) ? invite.metadata.pendingGrants : [];
+      for (const g of pendingGrants) {
+        if (!g || !g.role) continue;
+        await models.RoleAssignment.create({
+          userId: user.id,
+          role: g.role,
+          scopeType: g.scopeType || 'org',
+          scopeId: g.scopeId || null,
+          grantedBy: invite.invitedBy
+        }, { transaction }).catch(() => {});
+      }
+
+      // Link the originating application (if this invite came from intake).
+      await models.Application.update(
+        { userId: user.id },
+        { where: { inviteId: invite.id }, transaction }
+      );
 
       invite.usedAt = new Date();
       invite.usedBy = user.id;
@@ -467,7 +559,14 @@ class AuthService {
       include: [
         { model: models.MentorProfile, as: 'mentorProfile' },
         { model: models.MenteeProfile, as: 'menteeProfile' },
-        { model: models.AdminProfile, as: 'adminProfile' }
+        { model: models.AdminProfile, as: 'adminProfile' },
+        {
+          model: models.ClanMembership,
+          as: 'clanMemberships',
+          required: false,
+          where: { status: 'active' },
+          include: [{ model: models.Clan, as: 'clan', attributes: ['id', 'name', 'programId', 'status'] }]
+        }
       ]
     });
 

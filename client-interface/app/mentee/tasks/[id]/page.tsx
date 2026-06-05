@@ -1,7 +1,6 @@
 'use client';
 
-import { use, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { use, useEffect, useState } from 'react';
 import {
   CheckCircle2,
   Calendar,
@@ -22,6 +21,8 @@ import {
 import { useTaskDetail } from '@/lib/hooks/mentee';
 import { PageHeader, StatusBadge } from '@/components/admin/ui';
 import { useActivityTracker } from '@/lib/hooks/shared/useActivityTracker';
+import { FrictionPanel } from '@/components/mentee/FrictionPanel';
+import { SubmitTaskDrawer } from '@/components/mentee/SubmitTaskDrawer';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -29,9 +30,9 @@ interface PageProps {
 
 export default function TaskDetailsPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const router = useRouter();
-  const { task, loading, error } = useTaskDetail(resolvedParams.id);
+  const { task, loading, error, refetch } = useTaskDetail(resolvedParams.id);
   const { trackEvent } = useActivityTracker();
+  const [submitOpen, setSubmitOpen] = useState(false);
 
   useEffect(() => {
     if (task?.id) {
@@ -46,7 +47,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <Loader2 className="w-10 h-10 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -76,7 +77,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
       <PageHeader backHref="/mentee/tasks" backLabel="Back to Tasks" />
 
       {/* Task Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -86,7 +87,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
                   <Sparkles className="w-3 h-3" /> Custom
                 </span>
               ) : (
-                <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium flex items-center gap-1">
+                <span className="px-2 py-1 bg-brand-100 text-brand-700 rounded text-xs font-medium flex items-center gap-1">
                   <BookOpen className="w-3 h-3" /> Roadmap
                 </span>
               )}
@@ -125,15 +126,6 @@ export default function TaskDetailsPage({ params }: PageProps) {
               </p>
             </div>
           )}
-          {task.roadmapTask?.week && (
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Week</p>
-              <p className="text-sm text-slate-900 flex items-center gap-1">
-                <BookOpen className="w-4 h-4 text-slate-400" />
-                Week {task.roadmapTask.week.weekNumber}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Rating & Points (completed tasks) */}
@@ -158,8 +150,8 @@ export default function TaskDetailsPage({ params }: PageProps) {
             )}
             {task.pointsAwarded != null && (
               <div className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-indigo-500" />
-                <span className="text-sm font-semibold text-indigo-700">{task.pointsAwarded} points earned</span>
+                <Award className="w-5 h-5 text-brand-500" />
+                <span className="text-sm font-semibold text-brand-700">{task.pointsAwarded} points earned</span>
               </div>
             )}
           </div>
@@ -178,7 +170,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
       </div>
 
       {/* Task Requirements */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-5">
         <h2 className="text-lg font-semibold text-slate-900">Task Requirements</h2>
 
         {taskDeliverable && (
@@ -212,7 +204,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
                     href={resource.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-2"
+                    className="text-sm text-brand-600 hover:text-brand-800 hover:underline flex items-center gap-2"
                   >
                     <LinkIcon className="w-4 h-4" />
                     {resource.title}
@@ -227,9 +219,9 @@ export default function TaskDetailsPage({ params }: PageProps) {
 
       {/* Submission(s) */}
       {task.submissions && task.submissions.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-5">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-500" />
+            <FileText className="w-5 h-5 text-brand-500" />
             Your Submission
             {task.submissions.length > 1 && (
               <span className="text-xs text-slate-500 font-normal ml-1">(v{latestSubmission?.version})</span>
@@ -265,7 +257,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
                           href={url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-indigo-600 hover:underline flex items-center gap-2"
+                          className="text-sm text-brand-600 hover:underline flex items-center gap-2"
                         >
                           <ExternalLink className="w-4 h-4" />
                           {url}
@@ -291,17 +283,17 @@ export default function TaskDetailsPage({ params }: PageProps) {
 
       {/* Mentor Feedback */}
       {feedback.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-4">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-indigo-500" />
+            <MessageSquare className="w-5 h-5 text-brand-500" />
             Mentor Feedback
           </h2>
           {feedback.map((fb: any, index: number) => (
-            <div key={fb.id || index} className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg space-y-3">
+            <div key={fb.id || index} className="p-4 bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 rounded-lg space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-indigo-500" />
-                  <span className="text-sm font-medium text-indigo-900">
+                  <User className="w-4 h-4 text-brand-500" />
+                  <span className="text-sm font-medium text-brand-900">
                     {task.mentor?.firstName} {task.mentor?.lastName}
                   </span>
                 </div>
@@ -321,7 +313,7 @@ export default function TaskDetailsPage({ params }: PageProps) {
                 )}
               </div>
               {fb.comments && (
-                <p className="text-sm text-indigo-800">{fb.comments}</p>
+                <p className="text-sm text-brand-800">{fb.comments}</p>
               )}
               {fb.strengths && (
                 <div>
@@ -345,17 +337,29 @@ export default function TaskDetailsPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Action: go to submit page if task still needs work */}
+      {/* What's getting in the way — log blocker / delay / request extension */}
+      {!['completed', 'cancelled'].includes(task.status) && (
+        <FrictionPanel taskId={task.id} />
+      )}
+
+      {/* Action: open the in-context submission drawer if the task needs work */}
       {canSubmit && (
         <div className="flex justify-end">
           <button
-            onClick={() => router.push(`/mentee/tasks/${task.id}/submit`)}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
+            onClick={() => setSubmitOpen(true)}
+            className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors"
           >
             {task.status === 'revision_needed' ? 'Re-submit Work' : 'Submit Work'}
           </button>
         </div>
       )}
+
+      <SubmitTaskDrawer
+        open={submitOpen}
+        task={{ id: task.id, title: taskTitle, status: task.status, deliverable: taskDeliverable, acceptanceCriteria }}
+        onClose={() => setSubmitOpen(false)}
+        onSubmitted={refetch}
+      />
     </div>
   );
 }

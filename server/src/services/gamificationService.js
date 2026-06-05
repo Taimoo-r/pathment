@@ -328,59 +328,47 @@ class GamificationService {
     });
   }
 
+  /**
+   * Leaderboard ranked by points EARNED IN THE PERIOD — computed live from the
+   * PointsHistory ledger so daily/weekly/monthly are actually different from
+   * all-time (they previously all showed the same all-time rank).
+   */
   async getLeaderboard(programId = null, periodType = 'all_time', limit = 50) {
     const now = new Date();
-    let periodStart = '2000-01-01';
+    let since = null; // 'YYYY-MM-DD' window start; null = all-time
+    if (periodType === 'daily') since = now.toISOString().split('T')[0];
+    else if (periodType === 'weekly') since = this.getWeekStart(now);
+    else if (periodType === 'monthly') since = this.getMonthStart(now);
 
-    if (periodType === 'daily') periodStart = now.toISOString().split('T')[0];
-    if (periodType === 'weekly') periodStart = this.getWeekStart(now);
-    if (periodType === 'monthly') periodStart = this.getMonthStart(now);
+    const where = {};
+    if (since) where.createdAt = { [Sequelize.Op.gte]: since };
 
-    const entries = await models.LeaderboardEntry.findAll({
-      where: {
-        programId,
-        periodType,
-        periodStart,
-        isVisible: true
-      },
-      include: [{
-        model: models.User,
-        as: 'user',
-        attributes: ['id', 'firstName', 'lastName', 'email']
-      }],
-      order: [['rank', 'ASC']],
+    const rows = await models.PointsHistory.findAll({
+      attributes: ['userId', [Sequelize.fn('SUM', Sequelize.col('points_change')), 'pts']],
+      where,
+      group: ['userId'],
+      order: [[Sequelize.fn('SUM', Sequelize.col('points_change')), 'DESC']],
       limit,
-      subQuery: false
+      raw: true
     });
 
-    if (entries.length > 0) {
-      return entries;
-    }
+    const positive = rows.filter((r) => Number(r.pts) > 0);
+    if (!positive.length) return [];
 
-    // Fallback: derive ranking from profile points when leaderboard rows are missing.
-    const profiles = await models.MenteeProfile.findAll({
-      where: {
-        totalPoints: { [Sequelize.Op.gt]: 0 }
-      },
-      include: [{
-        model: models.User,
-        as: 'user',
-        attributes: ['id', 'firstName', 'lastName', 'email']
-      }],
-      order: [['totalPoints', 'DESC']],
-      limit
+    const userIds = positive.map((r) => r.userId);
+    const users = await models.User.findAll({
+      where: { id: userIds },
+      attributes: ['id', 'firstName', 'lastName', 'email']
     });
+    const byId = new Map(users.map((u) => [u.id, u]));
 
-    return profiles.map((profile, index) => ({
-      id: `derived-${profile.userId}-${periodType}`,
-      userId: profile.userId,
+    return positive.map((r, index) => ({
+      id: `lb-${r.userId}-${periodType}`,
+      userId: r.userId,
       rank: index + 1,
-      points: Number(profile.totalPoints || 0),
+      points: Number(r.pts) || 0,
       periodType,
-      periodStart,
-      periodEnd: now.toISOString().split('T')[0],
-      isVisible: true,
-      user: profile.user
+      user: byId.get(r.userId) || null
     }));
   }
 

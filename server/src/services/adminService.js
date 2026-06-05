@@ -7,7 +7,58 @@ const { generateRandomToken, hashToken } = require('../utils/jwt');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const inviteEmailQueue = require('../queues/inviteEmailQueue');
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 class AdminService {
+  /**
+   * Resolve an invite's program/clan placement from ids OR names (CSV passes
+   * names, the UI passes ids). The invite is the single source of truth for
+   * where a registrant lands, so this validates strictly per role:
+   *   - mentee → program required; clan optional (must belong to the program)
+   *   - mentor → clan required; program is derived from the clan
+   * Returns { programId, clanId, programName, clanName }.
+   */
+  async _resolveInvitePlacement({ role, program, clan }) {
+    const lookup = async (model, value, label) => {
+      const key = value == null ? '' : String(value).trim();
+      if (!key) return null;
+      const row = UUID_RE.test(key)
+        ? await model.findByPk(key)
+        : await model.findOne({ where: { name: key } });
+      if (!row) throw new ValidationError(`${label} not found: ${key}`);
+      return row;
+    };
+
+    const clanRow = await lookup(models.Clan, clan, 'Clan');
+    const programRow = await lookup(models.Program, program, 'Program');
+
+    if (role === 'mentee') {
+      if (!programRow) throw new ValidationError('A program is required when inviting a mentee');
+      if (clanRow && clanRow.programId !== programRow.id) {
+        throw new ValidationError('The selected clan does not belong to the selected program');
+      }
+      return {
+        programId: programRow.id,
+        clanId: clanRow ? clanRow.id : null,
+        programName: programRow.name,
+        clanName: clanRow ? clanRow.name : null
+      };
+    }
+
+    // mentor — placement is the clan they'll lead; program comes from the clan.
+    if (!clanRow) throw new ValidationError('A clan is required when inviting a mentor');
+    if (programRow && programRow.id !== clanRow.programId) {
+      throw new ValidationError("The selected program does not match the clan's program");
+    }
+    const clanProgram = programRow || await models.Program.findByPk(clanRow.programId);
+    return {
+      programId: clanRow.programId,
+      clanId: clanRow.id,
+      programName: clanProgram ? clanProgram.name : null,
+      clanName: clanRow.name
+    };
+  }
+
   /**
    * Create one-time registration invite
    */
@@ -37,6 +88,12 @@ class AdminService {
       throw new ConflictError('An active invite already exists for this email and role');
     }
 
+    const placement = await this._resolveInvitePlacement({
+      role,
+      program: inviteData.programId ?? inviteData.program,
+      clan: inviteData.clanId ?? inviteData.clan
+    });
+
     const rawToken = generateRandomToken();
     const tokenHash = hashToken(rawToken);
 
@@ -45,7 +102,11 @@ class AdminService {
       email: normalizedEmail,
       role,
       invitedBy: createdBy,
-      expiresAt
+      expiresAt,
+      programId: placement.programId,
+      clanId: placement.clanId,
+      // Set when the invite is issued from an accepted application.
+      cohortId: inviteData.cohortId || null
     });
 
     await models.AuditLog.create({
@@ -56,7 +117,9 @@ class AdminService {
       newValues: {
         email: invite.email,
         role: invite.role,
-        expiresAt: invite.expiresAt
+        expiresAt: invite.expiresAt,
+        programId: invite.programId,
+        clanId: invite.clanId
       }
     });
 
@@ -79,6 +142,10 @@ class AdminService {
       role: invite.role,
       expiresAt: invite.expiresAt,
       createdAt: invite.createdAt,
+      programId: invite.programId,
+      clanId: invite.clanId,
+      programName: placement.programName,
+      clanName: placement.clanName,
       inviteUrl,
       emailDelivery: {
         sent: Boolean(emailDelivery?.sent),
@@ -117,7 +184,9 @@ class AdminService {
       where,
       include: [
         { model: models.User, as: 'inviter', attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: models.User, as: 'usedByUser', attributes: ['id', 'firstName', 'lastName', 'email'] }
+        { model: models.User, as: 'usedByUser', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: models.Program, as: 'program', attributes: ['id', 'name'] },
+        { model: models.Clan, as: 'clan', attributes: ['id', 'name'] }
       ],
       order: [['createdAt', 'DESC']],
       limit: parsedLimit,
@@ -354,13 +423,15 @@ class AdminService {
    */
   async #enrichProgramWithStats(program, excludedStatuses) {
     const [mentorCount, avgResult] = await Promise.all([
-      models.LevelMentorAssignment.count({
+      // Distinct mentors with an active match in this program (level-mentor
+      // assignment was removed; mentor↔program is via matches now).
+      models.MentorMenteeMatch.count({
         distinct: true,
         col: 'mentor_id',
-        where: { isActive: true },
+        where: { status: 'active' },
         include: [{
-          model: models.ProgramLevel,
-          as: 'level',
+          model: models.Enrollment,
+          as: 'enrollment',
           where: { programId: program.id },
           attributes: [],
           required: true
@@ -528,13 +599,8 @@ class AdminService {
       }
     }
 
-    // For mentors: deactivate any active level assignments
+    // For mentors: cancel their active matches (mentees revert to pending_match).
     if (user.role === 'mentor') {
-      await models.LevelMentorAssignment.update(
-        { isActive: false },
-        { where: { mentorId: targetUserId, isActive: true } }
-      );
-      // Cancel their active matches (mentees revert to pending_match)
       const activeMatches = await models.MentorMenteeMatch.findAll({
         where: { mentorId: targetUserId, status: 'active' },
         attributes: ['enrollmentId'],
@@ -570,8 +636,20 @@ class AdminService {
 
     const normalized = inviteRows.map(row => ({
       email: row.email.trim().toLowerCase(),
-      role: row.role.trim().toLowerCase()
+      role: row.role.trim().toLowerCase(),
+      program: row.programId ?? row.program ?? null,
+      clan: row.clanId ?? row.clan ?? null
     }));
+
+    // Memoize placement resolution — CSVs repeat the same program/clan often.
+    const placementCache = new Map();
+    const resolvePlacement = async ({ role, program, clan }) => {
+      const key = `${role}|${program || ''}|${clan || ''}`;
+      if (placementCache.has(key)) return placementCache.get(key);
+      const result = await this._resolveInvitePlacement({ role, program, clan });
+      placementCache.set(key, result);
+      return result;
+    };
 
     const allEmails = [...new Set(normalized.map(r => r.email))];
 
@@ -619,7 +697,16 @@ class AdminService {
         continue;
       }
 
-      successfulInvites.push(row);
+      // The invite is the placement — resolve/validate program+clan per role.
+      let placement;
+      try {
+        placement = await resolvePlacement({ role: row.role, program: row.program, clan: row.clan });
+      } catch (e) {
+        skippedInvites.push({ ...row, reason: e.message });
+        continue;
+      }
+
+      successfulInvites.push({ ...row, programId: placement.programId, clanId: placement.clanId });
     }
 
     const createdRecords = [];
@@ -636,7 +723,9 @@ class AdminService {
           email: row.email,
           role: row.role,
           invitedBy: createdBy,
-          expiresAt
+          expiresAt,
+          programId: row.programId,
+          clanId: row.clanId
         };
       });
 

@@ -27,7 +27,7 @@ export function GenerateConfirmModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="bg-card rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div className="flex items-center gap-3">
@@ -55,14 +55,14 @@ export function GenerateConfirmModal({
           <button
             onClick={onCancel}
             disabled={isLoading}
-            className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-card hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className="px-4 py-2 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-indigo-400 disabled:to-purple-400 text-white rounded-lg text-sm transition-colors flex items-center gap-2 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-linear-to-r from-brand-600 to-brand-600 hover:from-brand-700 hover:to-brand-700 disabled:from-brand-400 disabled:to-brand-400 text-white rounded-lg text-sm transition-colors flex items-center gap-2 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <>

@@ -5,8 +5,36 @@ const {
   ForbiddenError,
   ValidationError
 } = require('../utils/errors/errorTypes');
+const schedulingService = require('./schedulingService');
 
 class MessagingService {
+  /**
+   * Who a user is allowed to message. Returns `null` for privileged users
+   * (admin/mentor) meaning "unrestricted". For a mentee-only user, returns the
+   * set of allowed recipient ids = their mentor(s) (matches + clan leads/co) +
+   * co-members of every clan they belong to.
+   */
+  async getAllowedRecipientIds(userId) {
+    const user = await models.User.findByPk(userId, { attributes: ['id', 'role', 'capabilities'] });
+    if (!user) return [];
+    const caps = Array.isArray(user.capabilities) && user.capabilities.length ? user.capabilities : [user.role];
+    if (caps.includes('admin') || caps.includes('mentor')) return null; // unrestricted
+
+    const allowed = new Set();
+    const mentorIds = await schedulingService.getMenteeMentorIds(userId); // matches + clan lead/co mentors
+    mentorIds.forEach((id) => allowed.add(id));
+
+    const myClans = await models.ClanMembership.findAll({ where: { userId, status: 'active' }, attributes: ['clanId'] });
+    const clanIds = myClans.map((c) => c.clanId);
+    if (clanIds.length) {
+      const members = await models.ClanMembership.findAll({
+        where: { clanId: { [Op.in]: clanIds }, status: 'active' }, attributes: ['userId']
+      });
+      members.forEach((m) => allowed.add(m.userId));
+    }
+    allowed.delete(userId);
+    return [...allowed];
+  }
   async findDirectConversationsByKey(directKey, transaction = null) {
     return models.Conversation.findAll({
       where: {
@@ -48,6 +76,12 @@ class MessagingService {
 
     if (!participant || participant.status !== 'active') {
       throw new NotFoundError('Participant not found');
+    }
+
+    // A mentee may only start conversations with their mentor(s) + clan members.
+    const allowed = await this.getAllowedRecipientIds(userId);
+    if (allowed !== null && !allowed.includes(participantId)) {
+      throw new ForbiddenError('You can only message your mentor or members of your clan');
     }
 
     const directKey = [userId, participantId].sort().join(':');
@@ -252,6 +286,11 @@ class MessagingService {
         {
           model: models.MessageAttachment,
           as: 'attachments'
+        },
+        {
+          model: models.MessageReaction,
+          as: 'reactions',
+          attributes: ['id', 'userId', 'emoji']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -292,6 +331,13 @@ class MessagingService {
         throw new ValidationError('Conversation has no recipient');
       }
 
+      // Defense in depth: a mentee can't message into a conversation with someone
+      // outside their allowed set (e.g. after a clan/match was removed).
+      const allowed = await this.getAllowedRecipientIds(senderId);
+      if (allowed !== null && recipientIds.some((id) => !allowed.includes(id))) {
+        throw new ForbiddenError('You can only message your mentor or members of your clan');
+      }
+
       const recipientId = recipientIds[0];
       const recipientUsers = await models.User.findAll({
         where: {
@@ -308,6 +354,15 @@ class MessagingService {
         return acc;
       }, {});
 
+      // If the recipient already has a live socket, the message is delivered the
+      // moment it's created (drives the double-gray tick). Otherwise it's marked
+      // delivered when they next connect (see socket connect handler).
+      let deliveredAt = null;
+      try {
+        const { isUserOnline } = require('../socket');
+        if (recipientIds.some((id) => isUserOnline(id))) deliveredAt = new Date();
+      } catch { /* socket not ready */ }
+
       const message = await models.Message.create({
         senderId,
         recipientId,
@@ -315,6 +370,7 @@ class MessagingService {
         parentMessageId: parentMessageId || null,
         subject: subject || null,
         messageText,
+        deliveredAt,
         relatedTaskId: relatedTaskId || conversation.relatedTaskId || null,
         relatedEnrollmentId: relatedEnrollmentId || conversation.relatedEnrollmentId || null
       }, { transaction });
@@ -414,6 +470,53 @@ class MessagingService {
 
       return { updatedCount };
     });
+  }
+
+  /**
+   * Mark every message addressed to this user (across all conversations) as
+   * delivered — called when the user connects. Returns the affected messages
+   * grouped by sender so the socket layer can flip the senders' ticks live.
+   */
+  async markDelivered(userId) {
+    const pending = await models.Message.findAll({
+      where: { recipientId: userId, deliveredAt: null },
+      attributes: ['id', 'senderId', 'threadId']
+    });
+    if (!pending.length) return [];
+    const now = new Date();
+    await models.Message.update({ deliveredAt: now }, { where: { id: pending.map((m) => m.id) } });
+    return pending.map((m) => ({ id: m.id, senderId: m.senderId, conversationId: m.threadId, deliveredAt: now }));
+  }
+
+  /**
+   * Toggle a user's emoji reaction on a message (one per user — re-acting with a
+   * different emoji replaces it; re-acting with the same one removes it). Returns
+   * the message's full reaction set + the conversation id for the socket emit.
+   */
+  async toggleReaction(userId, messageId, emoji) {
+    const message = await models.Message.findByPk(messageId, { attributes: ['id', 'threadId'] });
+    if (!message) throw new NotFoundError('Message not found');
+    await this.assertUserInConversation(userId, message.threadId);
+
+    const clean = String(emoji || '').trim().slice(0, 16);
+    if (!clean) throw new ValidationError('An emoji is required');
+
+    const existing = await models.MessageReaction.findOne({ where: { messageId, userId } });
+    if (existing) {
+      if (existing.emoji === clean) {
+        await existing.destroy(); // same emoji → toggle off
+      } else {
+        await existing.update({ emoji: clean }); // different → replace
+      }
+    } else {
+      await models.MessageReaction.create({ messageId, userId, emoji: clean });
+    }
+
+    const reactions = await models.MessageReaction.findAll({
+      where: { messageId },
+      attributes: ['id', 'userId', 'emoji']
+    });
+    return { conversationId: message.threadId, messageId, reactions };
   }
 
   async listNotifications(userId, options = {}) {
@@ -561,6 +664,13 @@ class MessagingService {
 
     if (roleFilter && ['admin', 'mentor', 'mentee'].includes(roleFilter)) {
       where.role = roleFilter;
+    }
+
+    // Restrict a mentee's recipient picker to their mentor(s) + clan members.
+    const allowed = await this.getAllowedRecipientIds(currentUserId);
+    if (allowed !== null) {
+      if (!allowed.length) return [];
+      where.id = { [Op.ne]: currentUserId, [Op.in]: allowed };
     }
 
     if (query.trim()) {

@@ -1,6 +1,15 @@
 export { useMenteeDashboard } from './useMenteeDashboard';
 export type { UseMenteeDashboardReturn } from './useMenteeDashboard';
 
+export { useMenteeMeetings } from './useMenteeMeetings';
+export type { UseMenteeMeetingsReturn, BookableMentor, OpenSlot, MenteeMeeting } from './useMenteeMeetings';
+
+export { useMyProgress } from './useMyProgress';
+export type { UseMyProgressReturn } from './useMyProgress';
+
+export { useDailyLog } from './useDailyLog';
+export type { UseDailyLogReturn, DailyLogEntry } from './useDailyLog';
+
 export { useMyActivity } from './useMyActivity';
 export type { UseMyActivityReturn } from './useMyActivity';
 

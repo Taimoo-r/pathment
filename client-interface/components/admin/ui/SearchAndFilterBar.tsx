@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
+import { SelectMenu } from '@/components/shared/SelectMenu';
 
 export interface FilterConfig {
   value: string;
@@ -36,7 +37,7 @@ export function SearchAndFilterBar({
   const hasChips = activeChips.length > 0;
 
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200 p-5 mb-6 ${className}`}>
+    <div className={`bg-card rounded-2xl border border-slate-200 p-5 mb-6 ${className}`}>
       <div className={`grid gap-3 ${filters.length > 0 ? `sm:grid-cols-${Math.min(filters.length + 1, 4)}` : ''}`}>
         {/* Search */}
         <div className="relative sm:col-span-2">
@@ -46,7 +47,7 @@ export function SearchAndFilterBar({
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder={placeholder}
-            className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-slate-400"
+            className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent placeholder:text-slate-400"
           />
           {search && (
             <button
@@ -58,18 +59,17 @@ export function SearchAndFilterBar({
           )}
         </div>
 
-        {/* Dynamic filter selects */}
+        {/* Dynamic filter dropdowns — consistent, always anchored to the trigger. */}
         {filters.map((filter, i) => (
-          <select
+          <SelectMenu
             key={i}
             value={filter.value}
-            onChange={(e) => filter.onChange(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-700 appearance-none bg-white"
-          >
-            {filter.options.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+            onChange={filter.onChange}
+            options={filter.options}
+            placeholder={filter.placeholder}
+            ariaLabel={filter.placeholder || 'Filter'}
+            className="w-full"
+          />
         ))}
       </div>
 
@@ -80,7 +80,7 @@ export function SearchAndFilterBar({
           {activeChips.map((chip, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium"
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-medium"
             >
               {chip.label}
               <button onClick={chip.onRemove}><X className="w-3 h-3" /></button>

@@ -20,8 +20,10 @@ import {
   type LeaderboardEntry,
   type PointsHistoryEntry
 } from '@/lib/services/gamification-api';
+import { communityApi } from '@/lib/services/community-api';
 
 type LeaderboardPeriod = 'daily' | 'weekly' | 'monthly' | 'all_time';
+interface CommunityStanding { rank: number | null; points: number; tier: string }
 
 export default function MenteeGamificationPage() {
   const { user } = useAuth();
@@ -30,6 +32,7 @@ export default function MenteeGamificationPage() {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [history, setHistory] = useState<PointsHistoryEntry[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [community, setCommunity] = useState<CommunityStanding | null>(null);
   const [period, setPeriod] = useState<LeaderboardPeriod>('all_time');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,11 +47,12 @@ export default function MenteeGamificationPage() {
         setLoading(true);
         setError(null);
 
-        const [statsRes, badgesRes, historyRes, leaderboardRes] = await Promise.all([
+        const [statsRes, badgesRes, historyRes, leaderboardRes, communityRes] = await Promise.all([
           gamificationApi.getUserStats(user.id),
           gamificationApi.getUserBadges(user.id),
           gamificationApi.getUserPointsHistory(user.id, 12),
-          gamificationApi.getLeaderboard(period, 10)
+          gamificationApi.getLeaderboard(period, 10),
+          communityApi.leaderboard('global', null, 'all').catch(() => null)
         ]);
 
         if (!mounted) return;
@@ -56,6 +60,7 @@ export default function MenteeGamificationPage() {
         setBadges(badgesRes);
         setHistory(historyRes);
         setLeaderboard(leaderboardRes);
+        setCommunity((communityRes as { data?: { me?: CommunityStanding } } | null)?.data?.me ?? null);
       } catch (e: unknown) {
         if (!mounted) return;
 
@@ -98,7 +103,7 @@ export default function MenteeGamificationPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -113,16 +118,26 @@ export default function MenteeGamificationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-indigo-200 bg-linear-to-r from-indigo-50 to-cyan-50 p-6">
+      <div className="rounded-2xl border border-brand-200 bg-linear-to-r from-brand-50 dark:from-brand-500/10 to-cyan-50 dark:to-transparent p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-slate-900 mb-2">Your Progress Arena</h1>
             <p className="text-slate-600">Track points, climb levels, and unlock badges.</p>
           </div>
-          <div className="rounded-xl bg-white px-4 py-3 border border-indigo-200">
-            <div className="text-xs text-slate-500">Global Rank</div>
-            <div className="text-2xl font-semibold text-indigo-700">
-              {stats.leaderboardRank ? `#${stats.leaderboardRank}` : 'Unranked'}
+          <div className="flex gap-3">
+            <div className="rounded-xl bg-card px-4 py-3 border border-brand-200 min-w-[110px]">
+              <div className="text-xs text-slate-500">Learning rank</div>
+              <div className="text-2xl font-semibold text-brand-700">
+                {stats.leaderboardRank ? `#${stats.leaderboardRank}` : 'Unranked'}
+              </div>
+              <div className="text-[11px] text-slate-400">your XP journey</div>
+            </div>
+            <div className="rounded-xl bg-card px-4 py-3 border border-brand-200 min-w-[120px]">
+              <div className="text-xs text-slate-500">Community standing</div>
+              <div className="text-lg font-semibold text-slate-900">{community ? community.tier : 'Newcomer'}</div>
+              <div className="text-[11px] text-slate-400">
+                {community && community.points > 0 ? `${community.points} pts${community.rank ? ` · #${community.rank}` : ''}` : 'helping others'}
+              </div>
             </div>
           </div>
         </div>
@@ -132,9 +147,9 @@ export default function MenteeGamificationPage() {
             <span>Level {stats.currentLevel}</span>
             <span>{levelProgress.pointsToNext} pts to next level</span>
           </div>
-          <div className="h-3 w-full rounded-full bg-white/80 border border-indigo-100 overflow-hidden">
+          <div className="h-3 w-full rounded-full bg-card/80 border border-brand-100 overflow-hidden">
             <div
-              className="h-full bg-linear-to-r from-indigo-600 to-cyan-500 transition-all"
+              className="h-full bg-linear-to-r from-brand-600 to-cyan-500 transition-all"
               style={{ width: `${levelProgress.percent}%` }}
             />
           </div>
@@ -145,11 +160,11 @@ export default function MenteeGamificationPage() {
         <StatCard icon={Trophy} label="Total Points" value={stats.totalPoints} accent="text-amber-600" />
         <StatCard icon={Flame} label="Current Streak" value={`${stats.currentStreak} days`} accent="text-orange-600" />
         <StatCard icon={Target} label="Tasks Completed" value={stats.totalTasksCompleted} accent="text-emerald-600" />
-        <StatCard icon={Star} label="Average Rating" value={Number(stats.avgTaskRating || 0).toFixed(2)} accent="text-indigo-600" />
+        <StatCard icon={Star} label="Average Rating" value={Number(stats.avgTaskRating || 0).toFixed(2)} accent="text-brand-600" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-slate-900">Top Leaderboard</h2>
             <div className="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-50">
@@ -158,7 +173,7 @@ export default function MenteeGamificationPage() {
                   key={option}
                   onClick={() => setPeriod(option)}
                   className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    period === option ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200'
+                    period === option ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   {option === 'all_time' ? 'All Time' : option[0].toUpperCase() + option.slice(1)}
@@ -181,7 +196,7 @@ export default function MenteeGamificationPage() {
                 <div
                   key={entry.id}
                   className={`flex items-center justify-between rounded-xl border p-3 ${
-                    isCurrentUser ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200'
+                    isCurrentUser ? 'border-brand-300 bg-brand-50 dark:bg-brand-500/10' : 'border-slate-200'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -190,7 +205,7 @@ export default function MenteeGamificationPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-slate-900 truncate">{name}</p>
-                      {isCurrentUser && <p className="text-indigo-700 text-xs">You</p>}
+                      {isCurrentUser && <p className="text-brand-700 text-xs">You</p>}
                     </div>
                   </div>
                   <div className="text-slate-700 font-medium">{entry.points} pts</div>
@@ -200,9 +215,9 @@ export default function MenteeGamificationPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-slate-200 bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Award className="w-5 h-5 text-indigo-600" />
+            <Award className="w-5 h-5 text-brand-600" />
             <h2 className="text-slate-900">Recent Badges</h2>
           </div>
 
@@ -229,9 +244,9 @@ export default function MenteeGamificationPage() {
         </section>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-slate-200 bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Users className="w-5 h-5 text-indigo-600" />
+          <Users className="w-5 h-5 text-brand-600" />
           <h2 className="text-slate-900">Points History</h2>
         </div>
 
@@ -269,7 +284,7 @@ function StatCard({
   accent: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-card p-4">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-slate-500 text-sm">{label}</p>

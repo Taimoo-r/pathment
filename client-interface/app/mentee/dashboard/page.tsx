@@ -1,43 +1,55 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   BookOpen,
   CheckCircle2,
   Clock,
   ListTodo,
   Loader2,
-  Plus,
   TrendingUp,
-  Send,
-  Star,
+  MessageSquareHeart,
+  ArrowRight,
+  Flag,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
-import { useMenteeDashboard, useMyActivity } from '@/lib/hooks/mentee';
+import { useMenteeDashboard, useMyActivity, useMenteeTasks } from '@/lib/hooks/mentee';
 import { ProgressBar, StatusBadge } from '@/components/admin/ui';
-import { RateMentorModal } from '@/components/mentee/dashboard';
+import { MentorFeedbackDrawer } from '@/components/mentee/MentorFeedbackDrawer';
 import { ActivityCard } from '@/components/shared/ActivityCard';
+import { RecurringRitualsCard } from '@/components/mentee/RecurringRitualsCard';
+import { AnnouncementsCard } from '@/components/shared/AnnouncementsCard';
 
-export default function MenteeDashboard() {
+function MenteeDashboardInner() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const {
     enrollments,
     loading,
-    completionLoading,
     currentProgramEnrollments,
     pendingEnrollments,
     approvedEnrollments,
     pendingCompletionEnrollments,
     levelCompletedEnrollments,
     completedEnrollments,
-    WORKING_STATUSES,
-    handleRequestCompletion,
-    handleSubmitRating,
-    ratingTarget,
-    openRatingModal,
-    closeRatingModal,
-    ratedEnrollmentIds,
+    feedbackTarget,
+    openFeedback,
+    closeFeedback,
+    reviewedEnrollmentIds,
+    markReviewed,
   } = useMenteeDashboard();
+
+  // Deep link from the "Leave feedback" notification: ?review=<enrollmentId>
+  useEffect(() => {
+    const reviewId = searchParams.get('review');
+    if (!reviewId || loading) return;
+    const target = enrollments.find((e) => e.id === reviewId);
+    if (target && target.status === 'program_completed') {
+      openFeedback(reviewId, target.program?.name || 'your program');
+    }
+  }, [searchParams, enrollments, loading, openFeedback]);
 
   const {
     summary: actSummary,
@@ -49,13 +61,95 @@ export default function MenteeDashboard() {
     refetch: refetchActivity,
   } = useMyActivity();
 
+  const { tasks: allTasks } = useMenteeTasks();
+
+  // This Week: surface the single most important next action.
+  const now = Date.now();
+  const taskTitle = (t: any) => t?.roadmapTask?.title || t?.title || 'Task';
+  const isLate = (t: any) =>
+    t.dueDate && new Date(t.dueDate).getTime() < now && !['completed', 'cancelled'].includes(t.status);
+  const activeTasks = (allTasks || []).filter((t: any) => !['completed', 'cancelled'].includes(t.status));
+  const heroTask =
+    activeTasks.find(isLate) ||
+    activeTasks.find((t: any) => t.status === 'in_progress') ||
+    activeTasks.find((t: any) => t.status === 'revision_needed') ||
+    activeTasks[0] ||
+    null;
+  const weekTasks = [...activeTasks]
+    .sort((a: any, b: any) => {
+      if (isLate(a) !== isLate(b)) return isLate(a) ? -1 : 1;
+      return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
+    })
+    .slice(0, 8);
+  const firstName = user?.profile?.firstName || user?.firstName || '';
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-slate-900 mb-2">Welcome back{user?.profile?.firstName ? `, ${user.profile.firstName}` : ''}!</h1>
-        <p className="text-slate-600">Keep up the great work on your learning journey</p>
+        <h1 className="text-slate-900 mb-2">This week{firstName ? `, ${firstName}` : ''}</h1>
+        <p className="text-slate-600">Here&apos;s the one thing worth doing next.</p>
       </div>
+
+      {/* Hero: the single most important next action */}
+      {heroTask && (
+        <Link
+          href={`/mentee/tasks/${heroTask.id}`}
+          className="block rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 dark:from-brand-500/10 to-brand-50 dark:to-transparent p-6 hover:border-brand-400 transition-colors"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-medium text-brand-600 uppercase tracking-wide">Next up</span>
+            {isLate(heroTask) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">
+                <Clock className="w-3 h-3" />overdue
+              </span>
+            )}
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900">{taskTitle(heroTask)}</h2>
+          <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
+            {heroTask.roadmapTask?.type && <span className="capitalize">{heroTask.roadmapTask.type}</span>}
+            {heroTask.dueDate && (<><span className="text-slate-300">·</span><span>Due {new Date(heroTask.dueDate).toLocaleDateString()}</span></>)}
+          </div>
+          <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700">
+            Open task <ArrowRight className="w-4 h-4" />
+          </span>
+        </Link>
+      )}
+
+      {/* Recurring rituals (from your schedule) */}
+      <RecurringRitualsCard />
+
+      {/* Latest announcements */}
+      <AnnouncementsCard href="/mentee/announcements" />
+
+      {/* This week's tasks */}
+      {weekTasks.length > 0 && (
+        <div className="bg-card rounded-2xl border border-slate-200">
+          <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="text-slate-900">This week</h2>
+            <Link href="/mentee/tasks" className="text-brand-600 hover:text-brand-700 text-sm flex items-center gap-1">
+              All tasks <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {weekTasks.map((t: any) => (
+              <Link key={t.id} href={`/mentee/tasks/${t.id}`}
+                className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50 transition-colors">
+                {t.status === 'revision_needed'
+                  ? <Flag className="w-4 h-4 text-orange-500 shrink-0" />
+                  : <Clock className={`w-4 h-4 shrink-0 ${isLate(t) ? 'text-red-500' : 'text-slate-300'}`} />}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-900 truncate">{taskTitle(t)}</p>
+                  {t.roadmapTask?.type && <p className="text-xs text-slate-500 capitalize">{t.roadmapTask.type}</p>}
+                </div>
+                <span className="text-xs text-slate-400 shrink-0">
+                  {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : ''}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Activity self-view */}
       <ActivityCard
@@ -70,27 +164,21 @@ export default function MenteeDashboard() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
         </div>
       ) : (
         <>
-          {/* Quick Actions if no enrollments */}
+          {/* No enrollment yet — placement is admin/invite-driven now */}
           {enrollments.length === 0 && (
-            <div className="bg-linear-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="bg-linear-to-br from-brand-50 dark:from-brand-500/10 to-brand-50 dark:to-transparent border border-brand-200 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-indigo-900 mb-3">Start Your Learning Journey</h2>
-              <p className="text-indigo-700 mb-6">
-                Browse available programs and request enrollment to get matched with a mentor
+              <h2 className="text-2xl font-bold text-brand-900 mb-3">You're all set up</h2>
+              <p className="text-brand-700">
+                You haven't been placed in a program yet. Your program team will enroll you and
+                connect you with a mentor — this page will fill in as soon as that happens.
               </p>
-              <Link
-                href="/mentee/programs"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Browse Programs
-              </Link>
             </div>
           )}
 
@@ -102,16 +190,17 @@ export default function MenteeDashboard() {
                   <Clock className="w-5 h-5 text-orange-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-orange-900 mb-1">Completion Request{pendingCompletionEnrollments.length > 1 ? 's' : ''} Pending</h3>
+                  <h3 className="text-orange-900 mb-1">Ready to complete 🎯</h3>
                   <div className="space-y-2">
                     {pendingCompletionEnrollments.map((e) => (
                       <div key={e.id}>
                         <p className="text-orange-700 text-sm">
-                          <strong>{e.program?.name}</strong> — awaiting your mentor&apos;s approval.
+                          You&apos;ve finished everything in <strong>{e.program?.name}</strong> — your mentor
+                          will review and confirm completion. Nothing more to do here.
                         </p>
                         {e.completionRejectionReason && (
                           <div className="mt-1 p-2 bg-orange-100 rounded-lg text-orange-800 text-xs">
-                            <strong>Last rejection reason:</strong> {e.completionRejectionReason}
+                            <strong>Mentor note:</strong> {e.completionRejectionReason}
                           </div>
                         )}
                       </div>
@@ -199,14 +288,12 @@ export default function MenteeDashboard() {
               </h2>
               <div className="grid gap-6 lg:grid-cols-2">
                 {currentProgramEnrollments.map((enrollment) => (
-                  <div key={enrollment.id} className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <div key={enrollment.id} className="bg-card rounded-2xl border border-slate-200 p-6">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0 mr-3">
                         <h3 className="text-slate-900 truncate mb-1">{enrollment.program?.name || 'Unknown Program'}</h3>
                         <p className="text-slate-600 text-sm">
-                          {enrollment.currentLevel?.name
-                            ? `Level: ${enrollment.currentLevel.name} · Week ${enrollment.currentWeek || 1}`
-                            : `Week ${enrollment.currentWeek || 1}`}
+                          Week {enrollment.currentWeek || 1}
                         </p>
                       </div>
                       <StatusBadge status={enrollment.status} noIcon />
@@ -234,7 +321,7 @@ export default function MenteeDashboard() {
                             {total > 0 && (
                               <>
                                 <span className="flex items-center gap-1.5">
-                                  <ListTodo className="w-4 h-4 text-indigo-600" />
+                                  <ListTodo className="w-4 h-4 text-brand-600" />
                                   {total} program tasks
                                 </span>
                               </>
@@ -244,27 +331,15 @@ export default function MenteeDashboard() {
                       );
                     })()}
 
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href="/mentee/tasks"
-                        className="flex-1 text-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm transition-colors"
-                      >
-                        View Tasks
-                      </Link>
-                      {WORKING_STATUSES.includes(enrollment.status) && (
-                        <button
-                          onClick={() => handleRequestCompletion(enrollment.id)}
-                          disabled={completionLoading === enrollment.id}
-                          className="flex-1 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 text-green-700 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                          title="Ask your mentor to review and close this level"
-                        >
-                          {completionLoading === enrollment.id
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <Send className="w-4 h-4" />}
-                          Request Completion
-                        </button>
-                      )}
-                    </div>
+                    <Link
+                      href="/mentee/tasks"
+                      className="block w-full text-center px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm transition-colors"
+                    >
+                      View Tasks
+                    </Link>
+                    <p className="mt-3 text-xs text-slate-500 text-center">
+                      Finish every task and your mentor will confirm completion — no request needed.
+                    </p>
                   </div>
                 ))}
               </div>
@@ -277,11 +352,11 @@ export default function MenteeDashboard() {
               <h2 className="text-slate-900 mb-4">Completed Programs 🎓</h2>
               <div className="grid gap-4 lg:grid-cols-2">
                 {completedEnrollments.map((e) => {
-                  const alreadyRated = ratedEnrollmentIds.has(e.id);
+                  const reviewed = reviewedEnrollmentIds.has(e.id);
                   return (
                     <div
                       key={e.id}
-                      className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start justify-between gap-4"
+                      className="bg-card rounded-2xl border border-slate-200 p-5 flex items-start justify-between gap-4"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -293,18 +368,18 @@ export default function MenteeDashboard() {
                         </p>
                       </div>
 
-                      {alreadyRated ? (
-                        <div className="flex items-center gap-1.5 text-amber-500 text-sm font-medium shrink-0">
-                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                          Rated
+                      {reviewed ? (
+                        <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-medium shrink-0">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Feedback sent
                         </div>
                       ) : (
                         <button
-                          onClick={() => openRatingModal(e.id, e.program?.name || 'this program')}
-                          className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-sm transition-colors"
+                          onClick={() => openFeedback(e.id, e.program?.name || 'this program')}
+                          className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-700 rounded-xl text-sm transition-colors"
                         >
-                          <Star className="w-4 h-4" />
-                          Rate Mentor
+                          <MessageSquareHeart className="w-4 h-4" />
+                          Leave feedback
                         </button>
                       )}
                     </div>
@@ -316,16 +391,9 @@ export default function MenteeDashboard() {
 
           {/* All Enrollments */}
           {enrollments.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <div className="bg-card rounded-2xl border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-slate-900">My Enrollments</h2>
-                <Link
-                  href="/mentee/programs"
-                  className="text-indigo-600 hover:text-indigo-700 text-sm flex items-center gap-1"
-                >
-                  <Plus className="w-4 h-4" />
-                  Browse More Programs
-                </Link>
               </div>
               <div className="space-y-3">
                 {enrollments.map((enrollment) => (
@@ -339,7 +407,7 @@ export default function MenteeDashboard() {
                             enrollment.status === 'approved'           ? 'bg-blue-100 text-blue-700' :
                             enrollment.status === 'pending_match'      ? 'bg-purple-100 text-purple-700' :
                             enrollment.status === 'matched'            ? 'bg-green-100 text-green-700' :
-                            enrollment.status === 'active'             ? 'bg-indigo-100 text-indigo-700' :
+                            enrollment.status === 'active'             ? 'bg-brand-100 text-brand-700' :
                             enrollment.status === 'pending_completion' ? 'bg-orange-100 text-orange-700' :
                             enrollment.status === 'level_completed'    ? 'bg-teal-100 text-teal-700' :
                             enrollment.status === 'program_completed'  ? 'bg-green-100 text-green-700' :
@@ -362,15 +430,22 @@ export default function MenteeDashboard() {
         </>
       )}
 
-      {/* Rate Mentor Modal */}
-      {ratingTarget && (
-        <RateMentorModal
-          mentorName={ratingTarget.mentorName}
-          programName={ratingTarget.programName}
-          onSubmit={(rating) => handleSubmitRating(ratingTarget.enrollmentId, rating)}
-          onClose={closeRatingModal}
-        />
-      )}
+      {/* Anonymous mentor feedback drawer */}
+      <MentorFeedbackDrawer
+        open={Boolean(feedbackTarget)}
+        enrollmentId={feedbackTarget?.enrollmentId ?? null}
+        programName={feedbackTarget?.programName ?? ''}
+        onClose={closeFeedback}
+        onSubmitted={markReviewed}
+      />
     </div>
+  );
+}
+
+export default function MenteeDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>}>
+      <MenteeDashboardInner />
+    </Suspense>
   );
 }

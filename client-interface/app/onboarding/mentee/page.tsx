@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { apiClient } from '@/lib/services/api-client';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { ArrowRight, Loader2, GraduationCap, Briefcase, Target, Lightbulb } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,59 +69,36 @@ export default function MenteeOnboardingPage() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please log in again');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/complete-mentee`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to complete profile');
-      }
-
-      toast.success('Profile completed! Let\'s add your skills.');
-      // Update user context with new onboarding step
-      if (updateUser) {
-        updateUser({ ...user, onboardingStep: 1 });
-      }
+      await apiClient.post('/profile/complete-mentee', formData);
+      toast.success('Profile saved — let\'s add your skills.');
+      if (updateUser) updateUser({ ...user, onboardingStep: 1 });
       router.push('/onboarding/skills');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to complete profile');
+    } catch (error: unknown) {
+      toast.error(extractApiErrorMessage(error, 'Failed to complete profile'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 dark:from-brand-500/10 via-card to-brand-50 dark:to-transparent py-12 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Complete Your Mentee Profile</h1>
+          <h1 className="text-3xl font-bold text-brand-900 mb-2">Complete Your Mentee Profile</h1>
           <p className="text-slate-600">Help us match you with the perfect mentor</p>
           <div className="flex items-center justify-center gap-2 mt-4">
-            <div className="w-8 h-2 bg-indigo-600 rounded-full"></div>
+            <div className="w-8 h-2 bg-brand-600 rounded-full"></div>
             <div className="w-8 h-2 bg-slate-200 rounded-full"></div>
             <div className="w-8 h-2 bg-slate-200 rounded-full"></div>
           </div>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
+        <div className="bg-card rounded-2xl shadow-xl border border-slate-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Current Education */}
             <div>
@@ -131,7 +110,7 @@ export default function MenteeOnboardingPage() {
                 type="text"
                 value={formData.currentEducation}
                 onChange={(e) => setFormData({ ...formData, currentEducation: e.target.value })}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="e.g., Bachelor's in Computer Science"
               />
             </div>
@@ -146,7 +125,7 @@ export default function MenteeOnboardingPage() {
                 type="text"
                 value={formData.currentOccupation}
                 onChange={(e) => setFormData({ ...formData, currentOccupation: e.target.value })}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="e.g., Junior Developer, Student, Career Changer"
               />
             </div>
@@ -163,13 +142,13 @@ export default function MenteeOnboardingPage() {
                   value={goalInput}
                   onChange={(e) => setGoalInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addGoal())}
-                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="e.g., Master React development"
                 />
                 <button
                   type="button"
                   onClick={addGoal}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+                  className="px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700"
                 >
                   Add
                 </button>
@@ -178,13 +157,13 @@ export default function MenteeOnboardingPage() {
                 {formData.learningGoals.map((goal) => (
                   <span
                     key={goal}
-                    className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg"
+                    className="inline-flex items-center gap-2 px-3 py-1 bg-brand-50 text-brand-700 rounded-lg"
                   >
                     {goal}
                     <button
                       type="button"
                       onClick={() => removeGoal(goal)}
-                      className="text-indigo-500 hover:text-indigo-700"
+                      className="text-brand-500 hover:text-brand-700"
                     >
                       ×
                     </button>
@@ -205,13 +184,13 @@ export default function MenteeOnboardingPage() {
                   value={interestInput}
                   onChange={(e) => setInterestInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addInterest())}
-                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="e.g., Web Development, AI, Mobile Apps"
                 />
                 <button
                   type="button"
                   onClick={addInterest}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+                  className="px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700"
                 >
                   Add
                 </button>
@@ -244,7 +223,7 @@ export default function MenteeOnboardingPage() {
                 value={formData.priorExperience}
                 onChange={(e) => setFormData({ ...formData, priorExperience: e.target.value })}
                 rows={4}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="Tell us about any relevant experience, projects, or courses you've completed..."
               />
             </div>
@@ -262,7 +241,7 @@ export default function MenteeOnboardingPage() {
                     onClick={() => setFormData({ ...formData, preferredLearningStyle: style.value })}
                     className={`p-4 rounded-xl border-2 text-left transition-all ${
                       formData.preferredLearningStyle === style.value
-                        ? 'border-indigo-600 bg-indigo-50'
+                        ? 'border-brand-600 bg-brand-50 dark:bg-brand-500/10'
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
@@ -277,7 +256,7 @@ export default function MenteeOnboardingPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-4 rounded-xl transition-colors flex items-center justify-center gap-2 group"
+              className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white py-4 rounded-xl transition-colors flex items-center justify-center gap-2 group"
             >
               {loading ? (
                 <>

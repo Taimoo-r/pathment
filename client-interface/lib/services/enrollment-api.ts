@@ -76,7 +76,7 @@ export const enrollmentApi = {
 
 export const matchingApi = {
   // Create mentor-mentee match
-  createMatch: (data: { enrollmentId: string; mentorId: string; levelId: string }) => {
+  createMatch: (data: { enrollmentId: string; mentorId: string }) => {
     return apiClient.post(apiConfig.endpoints.matches, data);
   },
 
@@ -88,11 +88,6 @@ export const matchingApi = {
   // Get AI match suggestions
   getSuggestions: (enrollmentId: string) => {
     return apiClient.get(apiConfig.endpoints.matchSuggestions(enrollmentId));
-  },
-
-  // Get mentors assigned to a level
-  getLevelMentors: (levelId: string) => {
-    return apiClient.get(apiConfig.endpoints.levelMentors(levelId));
   },
 
   // Get all matches with filters
@@ -112,7 +107,7 @@ export const matchingApi = {
     return apiClient.patch(apiConfig.endpoints.matchStatus(id), { status });
   },
 
-  // Get all programs+levels this mentor is assigned to teach (via LevelMentorAssignment)
+  // Programs this mentor is working in (derived from their active matches).
   getMentorAssignedLevels: () => {
     return apiClient.get(`${apiConfig.endpoints.matches}/mentor-levels`);
   },

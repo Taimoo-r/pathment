@@ -48,9 +48,6 @@ const convertToCSV = (data: Enrollment[]): string => {
     'Program Name',
     'Program Type',
     'Program Status',
-    'Current Level ID',
-    'Current Level Name',
-    'Level Duration (Weeks)',
     'Enrollment Status',
     'Current Week',
     'Tasks Completed',
@@ -100,9 +97,6 @@ const convertToCSV = (data: Enrollment[]): string => {
       enrollment.program?.name || 'N/A',
       enrollment.program?.type || 'N/A',
       enrollment.program?.status || 'N/A',
-      enrollment.currentLevelId || '',
-      enrollment.currentLevel?.name || 'N/A',
-      enrollment.currentLevel?.durationWeeks?.toString() || 'N/A',
       enrollment.status || 'N/A',
       enrollment.currentWeek?.toString() || '0',
       enrollment.tasksCompleted?.toString() || '0',
@@ -179,10 +173,16 @@ const columns: DataTableColumn<Enrollment>[] = [
     render: (_, row) => (
       <div className="min-w-0">
         <p className="text-sm text-slate-900 truncate max-w-[180px]">{row.program?.name ?? '—'}</p>
-        {row.currentLevel && (
-          <p className="text-xs text-slate-500 mt-0.5">Level: {row.currentLevel.name}</p>
-        )}
       </div>
+    ),
+  },
+  {
+    key: 'clan',
+    label: 'Clan',
+    render: (_, row) => (
+      row.clan?.name
+        ? <span className="text-sm text-slate-900 truncate max-w-[160px]">{row.clan.name}</span>
+        : <span className="text-slate-400 text-sm">—</span>
     ),
   },
   {
@@ -354,7 +354,7 @@ export default function EnrollmentOverviewPage() {
             <button
               onClick={() => handlePromoteToNextLevel(id)}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
             >
               {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
               Promote
@@ -380,7 +380,7 @@ export default function EnrollmentOverviewPage() {
   const tableColumns = [...columns, actionColumn];
 
   const statCards = [
-    { label: 'Total Enrollments', value: pagination.total,      icon: Users,     color: 'text-indigo-600 bg-indigo-50' },
+    { label: 'Total Enrollments', value: pagination.total,      icon: Users,     color: 'text-brand-600 bg-brand-50' },
     { label: 'Active / Matched',      value: stats.active,            icon: UserCheck, color: 'text-green-600 bg-green-50'   },
     { label: 'Pending Completion',     value: stats.pendingCompletion, icon: Hourglass, color: 'text-amber-600 bg-amber-50'   },
     { label: 'Pending Match',          value: stats.pendingMatch,      icon: Clock,     color: 'text-blue-600 bg-blue-50'     },
@@ -398,7 +398,7 @@ export default function EnrollmentOverviewPage() {
           <button 
             onClick={handleExportCSV}
             disabled={exportLoading || isLoading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-card hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {exportLoading ? (
               <>
@@ -450,7 +450,7 @@ export default function EnrollmentOverviewPage() {
       />
 
       {/* ── Table ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-card rounded-2xl border border-slate-200 overflow-hidden">
         <DataTable<Enrollment>
           columns={tableColumns}
           data={enrollments}

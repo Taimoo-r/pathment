@@ -97,7 +97,7 @@ Never share these codes with anyone.`;
     <Dialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
           <div className="p-8">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
@@ -129,7 +129,7 @@ Never share these codes with anyone.`;
                   {codes.map((code, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors group"
+                      className="flex items-center justify-between p-3 bg-card border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors group"
                     >
                       <code className="font-mono font-semibold text-slate-900">
                         {code}
@@ -160,7 +160,7 @@ Never share these codes with anyone.`;
                   </button>
                   <button
                     onClick={handleDownloadCodes}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors"
                   >
                     <Download className="w-4 h-4" />
                     Download
@@ -186,7 +186,7 @@ Never share these codes with anyone.`;
               </div>
             ) : loading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
               </div>
             ) : (
               <div className="space-y-4">
@@ -196,7 +196,7 @@ Never share these codes with anyone.`;
                 <button
                   onClick={handleRegenerateBackupCodes}
                   disabled={regenerating}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:bg-indigo-400"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors disabled:bg-brand-400"
                 >
                   {regenerating ? (
                     <>

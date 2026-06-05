@@ -8,7 +8,8 @@ import {
   CheckCircle2,
   Calendar,
   Clock,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 import RichTextEditor from '@/components/shared/RichTextEditor';
 import FileUploader from '@/components/shared/FileUploader';
@@ -139,7 +140,7 @@ export default function TaskSubmission({ params }: PageProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
       </div>
     );
   }
@@ -171,7 +172,7 @@ export default function TaskSubmission({ params }: PageProps) {
 
       {/* Success Message */}
       {showSuccess && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
+        <div role="status" className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-green-900">
@@ -186,14 +187,14 @@ export default function TaskSubmission({ params }: PageProps) {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+        <div role="alert" className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <p className="text-red-900">{error}</p>
         </div>
       )}
 
       {/* Task Details */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -211,8 +212,8 @@ export default function TaskSubmission({ params }: PageProps) {
             </div>
             <p className="text-slate-600">{taskDescription}</p>
             {taskDeliverable && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-900"><strong>Deliverable:</strong> {taskDeliverable}</p>
+              <div className="mt-3 p-3 bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 rounded-lg">
+                <p className="text-sm text-brand-900"><strong>Deliverable:</strong> {taskDeliverable}</p>
               </div>
             )}
           </div>
@@ -221,7 +222,7 @@ export default function TaskSubmission({ params }: PageProps) {
               ? 'bg-red-100 text-red-700'
               : daysUntilDue <= 2
               ? 'bg-orange-100 text-orange-700'
-              : 'bg-blue-100 text-blue-700'
+              : 'bg-brand-100 text-brand-700'
           }`}>
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
@@ -230,31 +231,47 @@ export default function TaskSubmission({ params }: PageProps) {
           </div>
         </div>
 
-        {acceptanceCriteria.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-sm font-medium text-slate-900 mb-3">Acceptance Criteria</h3>
-            <ul className="space-y-2">
-              {acceptanceCriteria.map((criterion, index) => (
-                <li key={index} className="flex items-start gap-2 text-slate-700">
-                  <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
-                  <span className="text-sm">{criterion}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {acceptanceCriteria.length > 0 && (() => {
+          const reqCount = Math.ceil(acceptanceCriteria.length * 0.6);
+          const required = acceptanceCriteria.slice(0, reqCount);
+          const optional = acceptanceCriteria.slice(reqCount);
+          return (
+            <div className="mt-6">
+              <h3 className="text-sm font-medium text-slate-900 mb-1 flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-brand-500" />What your mentor checks</h3>
+              <p className="text-xs text-slate-500 mb-3">Required items must be met to pass — the rest make your work stronger.</p>
+              <ul className="space-y-2">
+                {required.map((criterion: string, index: number) => (
+                  <li key={`r-${index}`} className="flex items-start gap-2 text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="text-sm">{criterion}<span className="ml-1.5 text-[10px] uppercase tracking-wide text-rose-500 font-semibold">required</span></span>
+                  </li>
+                ))}
+              </ul>
+              {optional.length > 0 && (
+                <ul className="space-y-2 mt-2">
+                  {optional.map((criterion: string, index: number) => (
+                    <li key={`o-${index}`} className="flex items-start gap-2 text-slate-500">
+                      <CheckCircle2 className="w-4 h-4 text-slate-300 shrink-0 mt-0.5" />
+                      <span className="text-sm">{criterion}<span className="ml-1.5 text-[10px] uppercase tracking-wide text-slate-400 font-medium">nice to have</span></span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })()}
 
         {resources.length > 0 && (
           <div className="mt-6">
             <h3 className="text-sm font-medium text-slate-900 mb-3">Learning Resources</h3>
             <ul className="space-y-2">
-              {resources.map((resource) => (
+              {resources.map((resource: { id: string; url: string; title?: string; type?: string }) => (
                 <li key={resource.id}>
                   <a 
                     href={resource.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline flex items-center gap-2"
+                    className="text-sm text-brand-600 hover:underline flex items-center gap-2"
                   >
                     <LinkIcon className="w-4 h-4" />
                     {resource.title}
@@ -269,7 +286,7 @@ export default function TaskSubmission({ params }: PageProps) {
       {!showExtensionForm ? (
         <>
           {/* Submission Form */}
-          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="bg-card rounded-2xl border border-slate-200 p-6 space-y-6">
             <div>
               <h2 className="text-xl text-slate-900 mb-4">Submit Your Work</h2>
               
@@ -304,7 +321,7 @@ export default function TaskSubmission({ params }: PageProps) {
                           value={link}
                           onChange={(e) => updateLink(index, e.target.value)}
                           placeholder="https://github.com/username/project"
-                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                         />
                       </div>
                       {links.length > 1 && (
@@ -321,7 +338,7 @@ export default function TaskSubmission({ params }: PageProps) {
                   <button
                     type="button"
                     onClick={addLink}
-                    className="text-sm text-blue-600 hover:text-blue-700"
+                    className="text-sm text-brand-600 hover:text-brand-700"
                   >
                     + Add another link
                   </button>
@@ -345,7 +362,7 @@ export default function TaskSubmission({ params }: PageProps) {
                       value={timeSpentHours}
                       onChange={(e) => setTimeSpentHours(e.target.value)}
                       placeholder="e.g. 3"
-                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                     />
                   </div>
                   <span className="text-sm text-slate-500">hours</span>
@@ -380,7 +397,7 @@ export default function TaskSubmission({ params }: PageProps) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>
@@ -400,7 +417,7 @@ export default function TaskSubmission({ params }: PageProps) {
       ) : (
         <>
           {/* Extension Request Form */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+          <div className="bg-card rounded-2xl border border-slate-200 p-6 space-y-6">
             <h2 className="text-xl text-slate-900">Request Extension</h2>
             
             <div>
@@ -410,7 +427,7 @@ export default function TaskSubmission({ params }: PageProps) {
               <select
                 value={extensionDays}
                 onChange={(e) => setExtensionDays(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value={1}>1 day</option>
                 <option value={2}>2 days</option>
@@ -428,7 +445,7 @@ export default function TaskSubmission({ params }: PageProps) {
                 value={extensionReason}
                 onChange={(e) => setExtensionReason(e.target.value)}
                 placeholder="Explain why you need more time..."
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 min-h-[120px]"
               />
             </div>
 
@@ -444,7 +461,7 @@ export default function TaskSubmission({ params }: PageProps) {
                 type="button"
                 onClick={handleExtensionRequest}
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Requesting...' : 'Request Extension'}
               </button>

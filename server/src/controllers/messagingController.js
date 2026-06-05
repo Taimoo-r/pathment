@@ -95,6 +95,20 @@ exports.markConversationRead = catchAsync(async (req, res) => {
   res.status(200).json(successResponse('Conversation marked as read', result));
 });
 
+exports.toggleReaction = catchAsync(async (req, res) => {
+  const { messageId } = req.params;
+  const { emoji } = req.body;
+  const result = await messagingService.toggleReaction(req.user.id, messageId, emoji);
+
+  emitToConversation(result.conversationId, 'message:reaction', {
+    conversationId: result.conversationId,
+    messageId: result.messageId,
+    reactions: result.reactions
+  });
+
+  res.status(200).json(successResponse('Reaction updated', { messageId: result.messageId, reactions: result.reactions }));
+});
+
 exports.getNotifications = catchAsync(async (req, res) => {
   const notifications = await messagingService.listNotifications(req.user.id, req.query);
   const unreadCount = await messagingService.getUnreadNotificationCount(req.user.id);

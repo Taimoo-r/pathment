@@ -65,11 +65,6 @@ class EnrollmentService {
           attributes: ['id', 'name', 'type', 'status']
         },
         {
-          model: models.ProgramLevel,
-          as: 'currentLevel',
-          attributes: ['id', 'name', 'durationWeeks']
-        },
-        {
           model: models.MentorMenteeMatch,
           as: 'matches',
           where: { status: 'active' },
@@ -91,6 +86,21 @@ class EnrollmentService {
       distinct: true,
       subQuery: false,
     });
+
+    // Attach each mentee's clan (program-aware) without a JOIN fan-out: batch
+    // their active mentee memberships and map back onto the page's rows.
+    const menteeIds = [...new Set(rows.map((r) => r.menteeId))];
+    if (menteeIds.length) {
+      const memberships = await models.ClanMembership.findAll({
+        where: { userId: { [Op.in]: menteeIds }, role: 'mentee', status: 'active' },
+        include: [{ model: models.Clan, as: 'clan', attributes: ['id', 'name', 'programId'] }]
+      });
+      rows.forEach((r) => {
+        const forUser = memberships.filter((m) => m.userId === r.menteeId && m.clan);
+        const clan = forUser.find((m) => m.clan.programId === r.programId)?.clan || forUser[0]?.clan || null;
+        r.setDataValue('clan', clan ? { id: clan.id, name: clan.name } : null);
+      });
+    }
 
     return {
       enrollments: rows,
@@ -117,17 +127,7 @@ class EnrollmentService {
         },
         {
           model: models.Program,
-          as: 'program',
-          include: [{
-            model: models.ProgramLevel,
-            as: 'levels',
-            separate: true,
-            order: [['levelOrder', 'ASC']]
-          }]
-        },
-        {
-          model: models.ProgramLevel,
-          as: 'currentLevel'
+          as: 'program'
         }
       ]
     });
@@ -139,27 +139,22 @@ class EnrollmentService {
     return enrollment;
   }
 
-  async _determineBestLevel(levels, menteeProfile, menteeSkills) {
-    return groqService.determineBestLevel(levels, menteeProfile, menteeSkills);
-  }
-
   async createEnrollment(programId, menteeId) {
     // Check if program exists and is active
-    const program = await models.Program.findByPk(programId, {
-      include: [{
-        model: models.ProgramLevel,
-        as: 'levels',
-        separate: true,
-        order: [['levelOrder', 'ASC']]
-      }]
-    });
+    const program = await models.Program.findByPk(programId);
 
     if (!program) {
       throw new NotFoundError('Program not found');
     }
 
-    if (program.status !== 'published') {
-      throw new ValidationError('Program is not available for enrollment');
+    // Programs are private/invite-driven now; admins may enroll into any
+    // program that isn't closed out. Only archived/completed are off-limits.
+    if (['archived', 'completed'].includes(program.status)) {
+      throw new ValidationError('Program is not open for enrollment');
+    }
+
+    if (!menteeId) {
+      throw new ValidationError('A mentee is required to create an enrollment');
     }
 
     // Check if already enrolled
@@ -171,34 +166,10 @@ class EnrollmentService {
       throw new ConflictError('Already enrolled in this program');
     }
 
-    // Fetch mentee's profile and skills to determine the best starting level
-    const mentee = await models.User.findByPk(menteeId, {
-      include: [
-        {
-          model: models.MenteeProfile,
-          as: 'menteeProfile',
-          attributes: ['priorExperience', 'currentEducation', 'currentOccupation', 'interests', 'learningGoals']
-        },
-        {
-          model: models.Skill,
-          as: 'skills',
-          attributes: ['id', 'name'],
-          through: { attributes: ['proficiencyLevel'] }
-        }
-      ]
-    });
-
-    const startingLevel = await this._determineBestLevel(
-      program.levels,
-      mentee?.menteeProfile,
-      mentee?.skills
-    );
-
-    // Create enrollment
+    // Create enrollment (enrollment is to a program; levels were removed).
     const enrollment = await models.Enrollment.create({
       menteeId,
       programId,
-      currentLevelId: startingLevel?.id,
       status: 'pending_match',
       enrolledAt: new Date()
     });
@@ -272,6 +243,29 @@ class EnrollmentService {
    * Mentee or Mentor requests completion of the current level/program.
    * Sets status to pending_completion and records who requested it.
    */
+  /**
+   * Is this mentor responsible for this enrollment's mentee? True via a legacy
+   * active 1:1 match OR (the current model) a shared clan where the user is a
+   * lead/co/core mentor and the mentee is an active member. Keeps completion
+   * flows working now that placement is clan-based, not match-based.
+   */
+  async _mentorAuthorizedForMentee(mentorId, menteeId, enrollmentId) {
+    const match = await models.MentorMenteeMatch.findOne({
+      where: { enrollmentId, mentorId, status: 'active' }
+    });
+    if (match) return true;
+    const mentorClans = await models.ClanMembership.findAll({
+      where: { userId: mentorId, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor', 'core_team'] } },
+      attributes: ['clanId']
+    });
+    const clanIds = mentorClans.map((c) => c.clanId);
+    if (!clanIds.length) return false;
+    const menteeMembership = await models.ClanMembership.findOne({
+      where: { userId: menteeId, status: 'active', role: 'mentee', clanId: { [Op.in]: clanIds } }
+    });
+    return Boolean(menteeMembership);
+  }
+
   async requestCompletion(enrollmentId, requestedById, requestedByRole) {
     const enrollment = await models.Enrollment.findByPk(enrollmentId);
     if (!enrollment) throw new NotFoundError('Enrollment not found');
@@ -282,11 +276,8 @@ class EnrollmentService {
     }
 
     if (requestedByRole === 'mentor') {
-      // Verify this mentor is actively paired with this enrollment
-      const match = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId, mentorId: requestedById, status: 'active' }
-      });
-      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+      const authorized = await this._mentorAuthorizedForMentee(requestedById, enrollment.menteeId, enrollmentId);
+      if (!authorized) throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
     if (!['active', 'matched'].includes(enrollment.status)) {
@@ -305,23 +296,11 @@ class EnrollmentService {
   }
 
   /**
-   * Mentor or Admin approves the completion request.
-   * Moves enrollment to level_completed or program_completed based on whether a next level exists.
+   * Mentor or Admin approves the completion request → the program is complete.
+   * (Levels were removed, so there is no intermediate level-by-level promotion.)
    */
   async approveCompletion(enrollmentId, approverId, approverRole) {
-    const enrollment = await models.Enrollment.findByPk(enrollmentId, {
-      include: [
-        {
-          model: models.Program,
-          as: 'program',
-          include: [{
-            model: models.ProgramLevel,
-            as: 'levels',
-            order: [['level_order', 'ASC']]
-          }]
-        }
-      ]
-    });
+    const enrollment = await models.Enrollment.findByPk(enrollmentId);
     if (!enrollment) throw new NotFoundError('Enrollment not found');
 
     if (!['pending_completion', 'matched', 'active'].includes(enrollment.status)) {
@@ -329,67 +308,54 @@ class EnrollmentService {
     }
 
     if (approverRole === 'mentor') {
-      const match = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId, mentorId: approverId, status: 'active' }
-      });
-      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+      const authorized = await this._mentorAuthorizedForMentee(approverId, enrollment.menteeId, enrollmentId);
+      if (!authorized) throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
-    // Determine if there is a next level
-    const levels = enrollment.program?.levels || [];
-    const currentIdx = levels.findIndex(l => l.id === enrollment.currentLevelId);
-    const hasNextLevel = currentIdx !== -1 && currentIdx < levels.length - 1;
-
-    const newStatus = hasNextLevel ? 'level_completed' : 'program_completed';
-
     await enrollment.update({
-      status: newStatus,
+      status: 'program_completed',
       completionApprovedAt: new Date(),
       completionApprovedBy: approverId,
       completionApprovedByRole: approverRole,
-      completedAt: newStatus === 'program_completed' ? new Date() : enrollment.completedAt
+      completedAt: new Date()
     });
 
-    // Auto-promote: if there is a next level, immediately advance without admin manual step
-    if (hasNextLevel) {
-      const nextLevel = levels[currentIdx + 1];
+    // Congratulate the mentee, then invite anonymous structured feedback on the mentor.
+    const program = await models.Program.findByPk(enrollment.programId, { attributes: ['name'] });
+    const programName = program?.name || 'your program';
+    await notificationOrchestrator.dispatch({
+      eventKey: NOTIFICATION_EVENTS.PROGRAM_COMPLETED,
+      recipients: [{ userId: enrollment.menteeId }],
+      payload: {
+        title: 'Program completed 🎉',
+        message: `Congratulations — you've completed "${programName}"!`,
+        actionUrl: `/mentee/programs`,
+        actionLabel: 'View programs',
+        relatedEntityType: 'enrollment',
+        relatedEntityId: enrollment.id,
+        emailSubject: 'Pathment: you completed your program 🎉'
+      },
+      dedupe: { relatedEntityType: 'program_completed', relatedEntityId: enrollment.id }
+    }).catch((e) => console.error('[Completion] mentee congrats failed:', e.message));
 
-      // End the current active mentor-mentee match
-      await models.MentorMenteeMatch.update(
-        { status: 'completed', endedAt: new Date() },
-        { where: { enrollmentId, status: 'active' } }
-      );
-
-      // Advance the enrollment to the next level, awaiting a new mentor match
-      await enrollment.update({
-        currentLevelId: nextLevel.id,
-        status: 'pending_match',
-        currentWeek: 1,
-        nextLevelEnrolledAt: new Date(),
-        completionRequestedAt: null,
-        completionRequestedBy: null,
-        completionRequestedByRole: null,
-        completionApprovedAt: null,
-        completionApprovedBy: null,
-        completionApprovedByRole: null,
-        completionRejectionReason: null
-      });
-
-      return {
-        enrollment: await this.getEnrollmentById(enrollmentId),
-        hasNextLevel: true,
-        nextLevelId: nextLevel.id,
-        nextLevelName: nextLevel.name,
-        autoPromoted: true
-      };
-    }
+    await notificationOrchestrator.dispatch({
+      eventKey: NOTIFICATION_EVENTS.MENTOR_FEEDBACK_REQUESTED,
+      recipients: [{ userId: enrollment.menteeId }],
+      payload: {
+        title: 'How was your mentorship?',
+        message: 'Share anonymous feedback on your mentor — it takes a minute and helps the next mentee.',
+        actionUrl: `/mentee/dashboard?review=${enrollment.id}`,
+        actionLabel: 'Leave feedback',
+        relatedEntityType: 'enrollment',
+        relatedEntityId: enrollment.id
+      },
+      dedupe: { relatedEntityType: 'mentor_feedback_request', relatedEntityId: enrollment.id }
+    }).catch((e) => console.error('[Completion] feedback request failed:', e.message));
 
     return {
       enrollment: await this.getEnrollmentById(enrollmentId),
       hasNextLevel: false,
-      nextLevelId: null,
-      nextLevelName: null,
-      autoPromoted: false
+      programCompleted: true
     };
   }
 
@@ -406,10 +372,8 @@ class EnrollmentService {
     }
 
     if (rejecterRole === 'mentor') {
-      const match = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId, mentorId: rejecterId, status: 'active' }
-      });
-      if (!match) throw new ForbiddenError('You are not the active mentor for this enrollment');
+      const authorized = await this._mentorAuthorizedForMentee(rejecterId, enrollment.menteeId, enrollmentId);
+      if (!authorized) throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
     await enrollment.update({
@@ -421,68 +385,6 @@ class EnrollmentService {
     });
 
     return this.getEnrollmentById(enrollmentId);
-  }
-
-  /**
-   * Admin promotes a level_completed mentee to the next level.
-   * Deactivates the current mentor match and creates a new pending_match state
-   * on the next level so admin can assign a new mentor.
-   */
-  async promoteToNextLevel(enrollmentId, adminId) {
-    const enrollment = await models.Enrollment.findByPk(enrollmentId, {
-      include: [
-        {
-          model: models.Program,
-          as: 'program',
-          include: [{
-            model: models.ProgramLevel,
-            as: 'levels',
-            order: [['level_order', 'ASC']]
-          }]
-        }
-      ]
-    });
-    if (!enrollment) throw new NotFoundError('Enrollment not found');
-
-    const levels = enrollment.program?.levels || [];
-    const currentIdx = levels.findIndex(l => l.id === enrollment.currentLevelId);
-
-    if (!['level_completed', 'matched', 'active'].includes(enrollment.status)) {
-      throw new ValidationError('Enrollment status must be level_completed to promote to the next level');
-    }
-
-    if (currentIdx === -1 || currentIdx >= levels.length - 1) {
-      throw new ValidationError('No next level available — this is the final level');
-    }
-
-    const nextLevel = levels[currentIdx + 1];
-
-    // End the current active mentor-mentee match
-    await models.MentorMenteeMatch.update(
-      { status: 'completed', endedAt: new Date() },
-      { where: { enrollmentId, status: 'active' } }
-    );
-
-    // Advance the enrollment
-    await enrollment.update({
-      currentLevelId: nextLevel.id,
-      status: 'pending_match',
-      currentWeek: 1,
-      nextLevelEnrolledAt: new Date(),
-      // Reset completion tracking
-      completionRequestedAt: null,
-      completionRequestedBy: null,
-      completionRequestedByRole: null,
-      completionApprovedAt: null,
-      completionApprovedBy: null,
-      completionApprovedByRole: null,
-      completionRejectionReason: null
-    });
-
-    return {
-      enrollment: await this.getEnrollmentById(enrollmentId),
-      promotedToLevel: nextLevel
-    };
   }
 
   /**

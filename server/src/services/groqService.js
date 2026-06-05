@@ -4,28 +4,56 @@ const { ValidationError } = require('../utils/errors/errorTypes');
 
 class GroqService {
   constructor() {
+    // OpenAI clients are cached by `${baseURL}|${apiKey}` so we don't rebuild
+    // one per call. The active key is resolved per request (configured AI
+    // connection first, env fallback second) — see `_resolve`.
+    this._clients = new Map();
     if (!config.ai.apiKey) {
-      console.warn('Groq API key not configured. AI features will be disabled.');
-      this.enabled = false;
-      return;
+      console.log('ℹ AI: no env key set — relying on configured AI connections (Settings → AI Connections).');
     }
+  }
 
-    this.client = new OpenAI({
-      apiKey: config.ai.apiKey,
-      baseURL: config.ai.baseURL
-    });
-    this.model = config.ai.model;
-    this.provider = config.ai.provider;
-    this.enabled = true;
-    console.log(`✓ Groq AI Service enabled using ${this.provider} (${this.model})`);
+  _clientFor(apiKey, baseURL) {
+    const cacheKey = `${baseURL}|${apiKey}`;
+    if (!this._clients.has(cacheKey)) {
+      this._clients.set(cacheKey, new OpenAI({ apiKey, baseURL }));
+    }
+    return this._clients.get(cacheKey);
+  }
+
+  /**
+   * Resolve the AI client + model to use. Prefers a configured AI connection
+   * (personal routing → org routing → any org key) and falls back to the env
+   * config. Returns { enabled, client, model }.
+   */
+  async _resolve(feature = null, userId = null) {
+    let cfg = null;
+    try {
+      // Lazy require avoids any load-order cycle (db ↔ services).
+      const aiConnectionService = require('./aiConnectionService');
+      cfg = await aiConnectionService.resolveActiveConfig(feature, userId);
+    } catch (e) {
+      console.error('[AI] connection resolve failed, falling back to env:', e.message);
+    }
+    if (!cfg && config.ai.apiKey) {
+      cfg = { apiKey: config.ai.apiKey, baseURL: config.ai.baseURL, model: config.ai.model, provider: config.ai.provider };
+    }
+    if (!cfg) return { enabled: false };
+    return {
+      enabled: true,
+      client: this._clientFor(cfg.apiKey, cfg.baseURL),
+      model: cfg.model || config.ai.model
+    };
   }
 
   /**
    * Generate roadmap using Groq AI
    */
   async generateRoadmap(params) {
-    if (!this.enabled) {
-      throw new ValidationError('Groq AI roadmap generation is not available. Please configure Groq API key.');
+    // Honour the caller's BYO key (personal → org → env) for the 'roadmap' feature.
+    const ai = await this._resolve(params?.feature || 'roadmap', params?.userId || null);
+    if (!ai.enabled) {
+      throw new ValidationError('AI is not configured. Add a provider key in Settings → AI Connections.');
     }
 
     const {
@@ -53,8 +81,8 @@ class GroqService {
     });
 
     try {
-      const response = await this.client.chat.completions.create({
-        model: this.model,
+      const response = await ai.client.chat.completions.create({
+        model: ai.model,
         messages: [
           {
             role: 'system',
@@ -308,7 +336,8 @@ CRITICAL RULES:
    * Generate adaptive recommendations
    */
   async generateAdaptiveRecommendations(params) {
-    if (!this.enabled) {
+    const ai = await this._resolve(params?.feature || 'adaptive', params?.userId || null);
+    if (!ai.enabled) {
       return { recommendations: [], confidence: 0 };
     }
 
@@ -356,8 +385,8 @@ Output as JSON:
 }`;
 
     try {
-      const response = await this.client.chat.completions.create({
-        model: this.model,
+      const response = await ai.client.chat.completions.create({
+        model: ai.model,
         messages: [
           {
             role: 'system',
@@ -383,8 +412,9 @@ Output as JSON:
   /**
    * Generate mentor-mentee matching score
    */
-  async generateMatchingScore(mentorProfile, menteeProfile, programRequirements) {
-    if (!this.enabled) {
+  async generateMatchingScore(mentorProfile, menteeProfile, programRequirements, opts = {}) {
+    const ai = await this._resolve('matching', opts.userId || null);
+    if (!ai.enabled) {
       // Fallback to simple rule-based matching
       return this.calculateBasicMatchScore(mentorProfile, menteeProfile);
     }
@@ -424,8 +454,8 @@ Output as JSON:
 }`;
 
     try {
-      const response = await this.client.chat.completions.create({
-        model: this.model,
+      const response = await ai.client.chat.completions.create({
+        model: ai.model,
         messages: [
           {
             role: 'system',
@@ -453,8 +483,9 @@ Output as JSON:
    * Returns an array of { mentorId, score, breakdown, reasoning, strengths, concerns }.
    * Falls back to calculateBasicMatchScore per mentor when AI is unavailable.
    */
-  async batchGenerateMatchingScores(mentors, menteeProfile, programRequirements) {
-    if (!this.enabled || mentors.length === 0) {
+  async batchGenerateMatchingScores(mentors, menteeProfile, programRequirements, opts = {}) {
+    const ai = await this._resolve('matching', opts.userId || null);
+    if (!ai.enabled || mentors.length === 0) {
       return mentors.map(m => ({
         mentorId: m.id,
         ...this.calculateBasicMatchScore(m, menteeProfile)
@@ -513,8 +544,8 @@ Output as JSON:
 }`;
 
     try {
-      const response = await this.client.chat.completions.create({
-        model: this.model,
+      const response = await ai.client.chat.completions.create({
+        model: ai.model,
         messages: [
           { role: 'system', content: 'You are an expert in mentor-mentee matching. Always respond with valid JSON only.' },
           { role: 'user', content: prompt }
@@ -535,113 +566,6 @@ Output as JSON:
     }
   }
 
-  /**
-   * Ask Groq AI to select the most appropriate starting level for a mentee.
-   * Falls back to keyword scoring if AI is unavailable.
-   *
-   * @param {Array}  levels        - ProgramLevel records sorted by levelOrder ASC
-   * @param {Object} menteeProfile - MenteeProfile record
-   * @param {Array}  menteeSkills  - User.skills array (each has .name and .UserSkill.proficiencyLevel)
-   * @returns {Object} The chosen level record
-   */
-  async determineBestLevel(levels, menteeProfile, menteeSkills) {
-    if (!levels || levels.length === 0) return null;
-    if (levels.length === 1) return levels[0];
-
-    const sorted = [...levels].sort((a, b) => a.levelOrder - b.levelOrder);
-
-    if (this.enabled) {
-      try {
-        const skillsSummary = (menteeSkills || [])
-          .map(s => `${s.name} (${s.UserSkill?.proficiencyLevel || 'beginner'})`)
-          .join(', ') || 'none listed';
-
-        const levelDescriptions = sorted
-          .map(l => ({
-            id: l.id,
-            name: l.name,
-            levelOrder: l.levelOrder,
-            description: l.description || '',
-            targetAudience: l.targetAudience || '',
-            prerequisites: (l.prerequisites || []).join(', '),
-            learningOutcomes: (l.learningOutcomes || []).join(', ')
-          }));
-
-        const prompt = `You are a mentorship program coordinator. Given a mentee's profile and a list of program levels, select the single most appropriate STARTING level for this mentee.
-
-**Mentee Profile:**
-- Skills: ${skillsSummary}
-- Prior Experience: ${menteeProfile?.priorExperience || 'none'}
-- Current Education: ${menteeProfile?.currentEducation || 'not provided'}
-- Interests: ${(menteeProfile?.interests || []).join(', ') || 'none'}
-- Learning Goals: ${(menteeProfile?.learningGoals || []).join(', ') || 'none'}
-
-**Available Program Levels (ordered from lowest to highest):**
-${JSON.stringify(levelDescriptions, null, 2)}
-
-Rules:
-- Choose the highest level the mentee is genuinely ready for based on their skills and experience.
-- If the mentee has no relevant background, choose the lowest level.
-- Return ONLY the id of the chosen level.
-
-Output as JSON: { "levelId": "<uuid>" }`;
-
-        const response = await this.client.chat.completions.create({
-          model: this.model,
-          messages: [
-            { role: 'system', content: 'You are an expert educational program coordinator. Always respond with valid JSON only.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.2,
-          max_tokens: 100,
-          response_format: { type: 'json_object' }
-        });
-
-        const result = JSON.parse(response.choices[0].message.content);
-        const chosen = sorted.find(l => l.id === result.levelId);
-        if (chosen) return chosen;
-      } catch (err) {
-        console.error('Groq determineBestLevel error, falling back to keyword scoring:', err.message);
-      }
-    }
-
-    // --- Keyword fallback ---
-    const skillNames = (menteeSkills || []).map(s => s.name.toLowerCase().trim());
-    const profileTokens = new Set();
-    const tokenize = (text) => {
-      if (!text) return;
-      text.toLowerCase().split(/\W+/).filter(w => w.length > 1).forEach(w => profileTokens.add(w));
-    };
-    tokenize(menteeProfile?.priorExperience);
-    tokenize(menteeProfile?.currentEducation);
-    tokenize(menteeProfile?.currentOccupation);
-    for (const arr of [menteeProfile?.interests, menteeProfile?.learningGoals]) {
-      for (const item of (arr || [])) tokenize(item);
-    }
-
-    const scored = sorted.map(level => {
-      const levelText = [
-        level.name, level.description, level.targetAudience,
-        ...(level.learningOutcomes || []),
-        ...(level.prerequisites || [])
-      ].filter(Boolean).join(' ').toLowerCase();
-
-      const skillScore = skillNames.filter(name => levelText.includes(name)).length * 3;
-      let tokenScore = 0;
-      for (const token of profileTokens) {
-        if (levelText.includes(token)) tokenScore++;
-      }
-      return { level, score: skillScore + tokenScore };
-    });
-
-    const best = scored.reduce((best, curr) => {
-      if (curr.score > best.score) return curr;
-      if (curr.score === best.score && curr.level.levelOrder < best.level.levelOrder) return curr;
-      return best;
-    }, scored[0]);
-
-    return best.score > 0 ? best.level : sorted[0];
-  }
 
   /**
    * Fallback basic matching score calculation
@@ -674,6 +598,28 @@ Output as JSON: { "levelId": "<uuid>" }`;
       strengths: skillMatch.length > 0 ? ['Skill alignment'] : [],
       concerns: mentorProfile.currentMentees >= mentorProfile.maxMentees ? ['Mentor at capacity'] : []
     };
+  }
+
+  /**
+   * Generic plain-text completion. Resolves the AI connection for `feature`
+   * (routed per the mentor/admin's BYO key) and returns the model's text.
+   * Throws a friendly error when no AI connection is configured.
+   */
+  async generateText({ system, prompt, feature = 'summary', userId = null, temperature = 0.6, maxTokens = 700 }) {
+    const ai = await this._resolve(feature, userId);
+    if (!ai.enabled) {
+      throw new ValidationError('AI is not configured. Add a provider key in Settings → AI Connections.');
+    }
+    const response = await ai.client.chat.completions.create({
+      model: ai.model,
+      messages: [
+        ...(system ? [{ role: 'system', content: system }] : []),
+        { role: 'user', content: prompt }
+      ],
+      temperature,
+      max_tokens: maxTokens
+    });
+    return (response.choices?.[0]?.message?.content || '').trim();
   }
 }
 

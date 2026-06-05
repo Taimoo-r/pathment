@@ -26,10 +26,18 @@ export interface ChatMessage {
   messageText: string;
   isRead: boolean;
   readAt?: string;
+  deliveredAt?: string | null;
   createdAt: string;
   updatedAt: string;
   sender?: ConversationParticipantUser;
   attachments?: MessageAttachment[];
+  reactions?: MessageReaction[];
+}
+
+export interface MessageReaction {
+  id: string;
+  userId: string;
+  emoji: string;
 }
 
 export interface ConversationSummary {

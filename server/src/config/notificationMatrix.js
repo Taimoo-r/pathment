@@ -13,7 +13,17 @@ const NOTIFICATION_EVENTS = {
   PASSWORD_RESET: 'password_reset',
   WEEKLY_PROGRESS_REPORT: 'weekly_progress_report',
   EXTENSION_REQUESTED: 'extension_requested',
-EXTENSION_HANDLED: 'extension_handled'
+EXTENSION_HANDLED: 'extension_handled',
+  MENTOR_NUDGE: 'mentor_nudge',
+  COMMUNITY_MENTION: 'community_mention',
+  COMMUNITY_REPLY: 'community_reply',
+  COMMUNITY_KUDOS: 'community_kudos',
+  COMMUNITY_ANSWER_ACCEPTED: 'community_answer_accepted',
+  COMPLETION_READY_FOR_SIGNOFF: 'completion_ready_for_signoff',
+  PROGRAM_COMPLETED: 'program_completed',
+  MENTOR_FEEDBACK_REQUESTED: 'mentor_feedback_requested',
+  MEETING_CANCELLED: 'meeting_cancelled',
+  CROSS_CLAN_ASSIGNED: 'cross_clan_assigned'
 };
 
 const NOTIFICATION_MATRIX = {
@@ -91,10 +101,86 @@ const NOTIFICATION_MATRIX = {
   type: 'task',
   preferenceKey: 'extension_handled',
   channels: { inApp: true, email: true, chat: false }
-}
+},
+  [NOTIFICATION_EVENTS.MENTOR_NUDGE]: {
+    type: 'system',
+    preferenceKey: 'mentor_nudge',
+    channels: { inApp: true, email: false, chat: false }
+  },
+  [NOTIFICATION_EVENTS.COMMUNITY_MENTION]: {
+    type: 'message',
+    preferenceKey: 'community_mention',
+    channels: { inApp: true, email: false, chat: false }
+  },
+  [NOTIFICATION_EVENTS.COMMUNITY_REPLY]: {
+    type: 'message',
+    preferenceKey: 'community_reply',
+    channels: { inApp: true, email: false, chat: false }
+  },
+  [NOTIFICATION_EVENTS.COMMUNITY_KUDOS]: {
+    type: 'message',
+    preferenceKey: 'community_kudos',
+    channels: { inApp: true, email: false, chat: false }
+  },
+  [NOTIFICATION_EVENTS.COMMUNITY_ANSWER_ACCEPTED]: {
+    type: 'system',
+    preferenceKey: 'community_answer_accepted',
+    channels: { inApp: true, email: false, chat: false }
+  },
+  [NOTIFICATION_EVENTS.COMPLETION_READY_FOR_SIGNOFF]: {
+    type: 'milestone',
+    preferenceKey: 'completion_ready_for_signoff',
+    channels: { inApp: true, email: true, chat: false }
+  },
+  [NOTIFICATION_EVENTS.PROGRAM_COMPLETED]: {
+    type: 'milestone',
+    preferenceKey: 'program_completed',
+    channels: { inApp: true, email: true, chat: false }
+  },
+  [NOTIFICATION_EVENTS.MENTOR_FEEDBACK_REQUESTED]: {
+    type: 'feedback',
+    preferenceKey: 'mentor_feedback_requested',
+    channels: { inApp: true, email: false, chat: false }
+  },
+  [NOTIFICATION_EVENTS.MEETING_CANCELLED]: {
+    type: 'system',
+    preferenceKey: 'meeting_cancelled',
+    channels: { inApp: true, email: true, chat: false }
+  },
+  [NOTIFICATION_EVENTS.CROSS_CLAN_ASSIGNED]: {
+    type: 'system',
+    preferenceKey: 'cross_clan_assigned',
+    channels: { inApp: true, email: true, chat: false }
+  }
 };
+
+/**
+ * User-facing email notification categories — the emailable, NON-transactional
+ * events a person can toggle in Settings. Each `key` is the preferenceKey the
+ * orchestrator checks in `emailNotifications`. (Transactional mail — password
+ * reset, account welcome — is intentionally excluded; it always sends.)
+ */
+const EMAIL_PREFERENCE_CATEGORIES = [
+  { group: 'Tasks', key: 'task_assigned', label: 'A task is assigned to me' },
+  { group: 'Tasks', key: 'task_submitted', label: 'A mentee submits a task' },
+  { group: 'Tasks', key: 'deadline_approaching', label: 'A task deadline is approaching' },
+  { group: 'Tasks', key: 'deadline_passed', label: 'A task deadline has passed' },
+  { group: 'Tasks', key: 'extension_requested', label: 'An extension is requested' },
+  { group: 'Tasks', key: 'extension_handled', label: 'My extension request is handled' },
+  { group: 'Feedback', key: 'submission_reviewed', label: 'My submission is reviewed' },
+  { group: 'Feedback', key: 'feedback_sent', label: 'I receive feedback' },
+  { group: 'Program', key: 'enrollment_updates', label: 'Enrollment updates' },
+  { group: 'Program', key: 'mentor_assignment', label: 'A mentor is assigned' },
+  { group: 'Program', key: 'program_updates', label: 'Program updates' },
+  { group: 'Program', key: 'meeting_cancelled', label: 'A 1:1 is cancelled' },
+  { group: 'Program', key: 'cross_clan_assigned', label: 'I\'m asked to cover or help another clan' },
+  { group: 'Milestones', key: 'completion_ready_for_signoff', label: 'Completion is ready for sign-off' },
+  { group: 'Milestones', key: 'program_completed', label: 'A program is completed' },
+  { group: 'Digests', key: 'weekly_progress_report', label: 'Weekly progress report' }
+];
 
 module.exports = {
   NOTIFICATION_EVENTS,
-  NOTIFICATION_MATRIX
+  NOTIFICATION_MATRIX,
+  EMAIL_PREFERENCE_CATEGORIES
 };

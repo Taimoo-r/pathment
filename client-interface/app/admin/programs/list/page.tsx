@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Plus, Users, Calendar, TrendingUp,
   MoreVertical, Eye, Edit, Trash2, ArrowUpDown,
@@ -11,12 +12,13 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { PageHeader, StatusBadge, SearchAndFilterBar, ConfirmDialog } from '@/components/admin/ui';
 import { useProgramList, ProgramStatus, ProgramSortBy, SortOrder } from '@/lib/hooks/admin/useProgramList';
+import { CreateProgramDrawer } from '@/components/admin/CreateProgramDrawer';
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
 function ProgramCardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse">
+    <div className="bg-card rounded-2xl border border-slate-200 p-6 animate-pulse">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-3">
@@ -58,7 +60,7 @@ const STATUS_CLS: Record<string, string> = {
   published: 'bg-green-100 text-green-700',
   active:    'bg-green-100 text-green-700',
   draft:     'bg-amber-100 text-amber-700',
-  completed: 'bg-indigo-100 text-indigo-700',
+  completed: 'bg-brand-100 text-brand-700',
   archived:  'bg-slate-100 text-slate-600',
 };
 
@@ -95,9 +97,11 @@ export default function ProgramListPage() {
     resetFilters, refetch, handleDelete,
   } = useProgramList();
 
+  const searchParams = useSearchParams();
   const [deleteProgramId, setDeleteProgramId] = useState<string | null>(null);
   const [deleteProgramName, setDeleteProgramName] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCreate, setShowCreate] = useState(searchParams.get('create') === '1');
 
   return (
     <>
@@ -106,13 +110,13 @@ export default function ProgramListPage() {
         title="Programs"
         subtitle="Manage all mentorship programs"
         actions={
-          <Link
-            href="/admin/programs/create"
-            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-colors text-sm font-medium"
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             Create Program
-          </Link>
+          </button>
         }
       />
 
@@ -161,7 +165,7 @@ export default function ProgramListPage() {
               }}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 sortBy === o.value
-                  ? 'bg-indigo-100 text-indigo-700'
+                  ? 'bg-brand-100 text-brand-700'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -197,7 +201,7 @@ export default function ProgramListPage() {
           action={
             hasActiveFilters
               ? { label: 'Clear filters', onClick: resetFilters }
-              : { label: 'Create Program', href: '/admin/programs/create' }
+              : { label: 'Create Program', onClick: () => setShowCreate(true) }
           }
         />
       ) : (
@@ -206,7 +210,7 @@ export default function ProgramListPage() {
             {programs.map((program) => (
               <div
                 key={program.id}
-                className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow"
+                className="bg-card rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow"
               >
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   {/* Program Info */}
@@ -214,7 +218,7 @@ export default function ProgramListPage() {
                     <div className="flex items-center gap-3 mb-2">
                       <Link
                         href={`/admin/programs/${program.id}`}
-                        className="text-base font-semibold text-slate-900 hover:text-indigo-600 transition-colors"
+                        className="text-base font-semibold text-slate-900 hover:text-brand-600 transition-colors"
                       >
                         {program.name}
                       </Link>
@@ -240,7 +244,7 @@ export default function ProgramListPage() {
                     {program.tags && program.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-3">
                         {program.tags.map((tag: string) => (
-                          <span key={tag} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">
+                          <span key={tag} className="px-2.5 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-medium">
                             {tag}
                           </span>
                         ))}
@@ -251,7 +255,7 @@ export default function ProgramListPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex-1 max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-indigo-500 rounded-full transition-all"
+                          className="h-full bg-brand-500 rounded-full transition-all"
                           style={{ width: `${program.completion || 0}%` }}
                         />
                       </div>
@@ -278,27 +282,27 @@ export default function ProgramListPage() {
                       <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                         <MoreVertical className="w-5 h-5 text-slate-500" />
                       </button>
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl dark:shadow-[0_8px_30px_rgba(0,0,0,0.55)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                         <Link
                           href={`/admin/programs/${program.id}`}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-slate-700 rounded-t-xl text-sm"
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-t-xl text-sm"
                         >
                           <Eye className="w-4 h-4" />
                           View Details
                         </Link>
                         <Link
-                          href={`/admin/programs/${program.id}/roadmap`}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-slate-700 text-sm"
+                          href="/admin/roadmaps"
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm"
                         >
                           <Edit className="w-4 h-4" />
-                          Edit Roadmap
+                          Roadmaps
                         </Link>
                         <button
                           onClick={() => {
                             setDeleteProgramId(program.id);
                             setDeleteProgramName(program.name);
                           }}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 w-full rounded-b-xl text-sm"
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 w-full rounded-b-xl text-sm"
                         >
                           <Trash2 className="w-4 h-4" />
                           Delete Program
@@ -312,7 +316,7 @@ export default function ProgramListPage() {
           </div>
 
           {/* ── Pagination ── */}
-          <div className="mt-6 bg-white rounded-2xl border border-slate-200 px-4">
+          <div className="mt-6 bg-card rounded-2xl border border-slate-200 px-4">
             <TablePagination
               pagination={pagination}
               isLoading={isLoading}
@@ -327,7 +331,7 @@ export default function ProgramListPage() {
       <ConfirmDialog
         open={!!deleteProgramId}
         title="Delete Program"
-        description={`Are you sure you want to delete "${deleteProgramName}"? This action cannot be undone and will permanently remove all related level data, roadmaps, and enrollments.`}
+        description={`Are you sure you want to delete "${deleteProgramName}"? This action cannot be undone and will permanently remove all related roadmaps and enrollments.`}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"
@@ -346,6 +350,8 @@ export default function ProgramListPage() {
         }}
         onCancel={() => setDeleteProgramId(null)}
       />
+
+      {showCreate && <CreateProgramDrawer onClose={() => setShowCreate(false)} />}
     </>
   );
 }

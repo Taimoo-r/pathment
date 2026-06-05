@@ -45,9 +45,9 @@ exports.getEnrollmentById = catchAsync(async (req, res) => {
  * POST /api/enrollments
  */
 exports.createEnrollment = catchAsync(async (req, res) => {
-  const { programId } = req.body;
-  const menteeId = req.user.id;
-  
+  // Admin-initiated enrollment: the target mentee is supplied explicitly.
+  const { programId, menteeId } = req.body;
+
   const enrollment = await enrollmentService.createEnrollment(programId, menteeId);
   res.status(201).json(successResponse('Enrolled successfully', { enrollment }, 201));
 });
@@ -131,19 +131,6 @@ exports.rejectCompletion = catchAsync(async (req, res) => {
   const { reason } = req.body;
   const enrollment = await enrollmentService.rejectCompletion(id, req.user.id, req.user.role, reason);
   res.status(200).json(successResponse('Completion request rejected — enrollment remains active', { enrollment }));
-});
-
-/**
- * Promote mentee to next level (admin only)
- * POST /api/enrollments/:id/promote-next-level
- */
-exports.promoteToNextLevel = catchAsync(async (req, res) => {
-  const { id } = req.params;
-  const result = await enrollmentService.promoteToNextLevel(id, req.user.id);
-  res.status(200).json(successResponse(
-    `Mentee promoted to "${result.promotedToLevel.name}" — assign a mentor to continue`,
-    result
-  ));
 });
 
 /**

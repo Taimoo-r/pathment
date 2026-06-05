@@ -1,23 +1,62 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, MessageSquare, RefreshCw, Send } from 'lucide-react';
+import { Check, CheckCheck, Loader2, MessageSquare, RefreshCw, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { messagingApi } from '@/lib/services/messaging-api';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/services/socket-client';
 import { useAuth } from '@/lib/context/AuthContext';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
-import type { ChatMessage, ConversationSummary, SearchableUser } from '@/lib/types/messaging';
+import type { ChatMessage, ConversationSummary, MessageReaction, SearchableUser } from '@/lib/types/messaging';
 import UserSearchCombobox from './UserSearchCombobox';
 
 interface MessageCenterProps {
   role: 'admin' | 'mentor' | 'mentee';
 }
 
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
+
 function getErrorMessage(error: unknown, fallback: string): string {
   return extractApiErrorMessage(error, fallback);
+}
+
+/** Same calendar day? (for date separators + consecutive-message grouping). */
+function sameDay(a: string, b: string): boolean {
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+/** Compact last-activity label for the conversation list: "3:42 PM" today, "Yesterday", weekday, else date. */
+function conversationTime(iso?: string): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  const within7 = (today.getTime() - date.getTime()) / 86400000 < 7;
+  if (within7) return date.toLocaleDateString([], { weekday: 'short' });
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+/** Human day label for the separator: Today / Yesterday / "Mon, Jun 2" (+ year if not this year). */
+function dayLabel(iso: string): string {
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}),
+  });
 }
 
 export default function MessageCenter({ role }: MessageCenterProps) {
@@ -196,10 +235,59 @@ export default function MessageCenter({ role }: MessageCenterProps) {
       });
     };
 
+    // Recipient came online (or opened a tab) → my sent ticks flip to delivered (✓✓).
+    const onDelivered = (payload: { messageIds?: string[] }) => {
+      const ids = new Set(payload?.messageIds || []);
+      if (ids.size === 0) {
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((message) =>
+          ids.has(message.id) && !message.deliveredAt
+            ? { ...message, deliveredAt: new Date().toISOString() }
+            : message
+        )
+      );
+    };
+
+    // The other participant read the conversation → my ticks turn blue (read).
+    const onConversationRead = (payload: { conversationId?: string; userId?: string }) => {
+      if (!payload?.conversationId || payload.conversationId !== selectedConversationId) {
+        return;
+      }
+      if (payload.userId === user?.id) {
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.senderId === user?.id && !message.isRead
+            ? { ...message, isRead: true, readAt: message.readAt || new Date().toISOString() }
+            : message
+        )
+      );
+    };
+
+    const onReaction = (payload: { messageId?: string; reactions?: MessageReaction[] }) => {
+      if (!payload?.messageId) {
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === payload.messageId ? { ...message, reactions: payload.reactions || [] } : message
+        )
+      );
+    };
+
     socket.on('message:new', onMessage);
+    socket.on('message:delivered', onDelivered);
+    socket.on('conversation:read', onConversationRead);
+    socket.on('message:reaction', onReaction);
 
     return () => {
       socket.off('message:new', onMessage);
+      socket.off('message:delivered', onDelivered);
+      socket.off('conversation:read', onConversationRead);
+      socket.off('message:reaction', onReaction);
       const currentSocket = getSocket();
       if (currentSocket?.connected) {
         disconnectSocket();
@@ -255,6 +343,19 @@ export default function MessageCenter({ role }: MessageCenterProps) {
     }
   };
 
+  const reactToMessage = async (messageId: string, emoji: string) => {
+    // Optimistic + authoritative: the server returns the full reaction set and
+    // also broadcasts `message:reaction`, so the click feels instant either way.
+    try {
+      const { reactions } = await messagingApi.toggleReaction(messageId, emoji);
+      setMessages((prev) =>
+        prev.map((message) => (message.id === messageId ? { ...message, reactions } : message))
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Could not add reaction'));
+    }
+  };
+
   const handleStartConversation = async (selectedUser: SearchableUser) => {
     try {
       const conversation = await messagingApi.createDirectConversation(selectedUser.id);
@@ -273,7 +374,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
   if (isBootstrapping) {
     return (
       <div className="h-[70vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -305,7 +406,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-[70vh] xl:h-[calc(100dvh-10rem)]">
-        <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col xl:h-full min-h-0">
+        <div className="xl:col-span-4 bg-card border border-slate-200 rounded-2xl overflow-hidden flex flex-col xl:h-full min-h-0">
           <div className="p-4 border-b border-slate-200">
             <h2 className="text-slate-900">Conversations</h2>
           </div>
@@ -326,17 +427,20 @@ export default function MessageCenter({ role }: MessageCenterProps) {
                     onClick={() => setSelectedConversationId(conversation.id)}
                     className={`w-full text-left p-4 transition-colors ${
                       selectedConversationId === conversation.id
-                        ? 'bg-indigo-50'
+                        ? 'bg-brand-50 dark:bg-brand-500/15'
                         : 'hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-slate-900 truncate">{title}</p>
-                      {conversation.unreadCount > 0 && (
-                        <span className="min-w-5 h-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
-                          {conversation.unreadCount}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[11px] text-slate-400">{conversationTime(conversation.lastMessageAt)}</span>
+                        {conversation.unreadCount > 0 && (
+                          <span className="min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-slate-500 truncate mt-1">
                       {conversation.lastMessage?.messageText || 'No messages yet'}
@@ -348,16 +452,16 @@ export default function MessageCenter({ role }: MessageCenterProps) {
           </div>
         </div>
 
-        <div className="xl:col-span-8 bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden xl:h-full min-h-0">
+        <div className="xl:col-span-8 bg-card border border-slate-200 rounded-2xl flex flex-col overflow-hidden xl:h-full min-h-0">
           <div className="p-4 border-b border-slate-200 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-indigo-600" />
+            <MessageSquare className="w-4 h-4 text-brand-600" />
             <h2 className="text-slate-900 truncate">{selectedTitle}</h2>
           </div>
 
-          <div className="flex-1 min-h-0 p-4 overflow-y-auto space-y-3 bg-slate-50">
+          <div className="flex-1 min-h-0 p-4 overflow-y-auto bg-slate-50">
             {isMessagesLoading ? (
               <div className="h-full flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
               </div>
             ) : messages.length === 0 ? (
               <div className="h-full flex items-center justify-center text-slate-500 text-sm">
@@ -365,27 +469,124 @@ export default function MessageCenter({ role }: MessageCenterProps) {
               </div>
             ) : (
               <>
-                {messages.map((message) => {
+                {messages.map((message, index) => {
                   const mine = message.senderId === user?.id;
+                  const read = Boolean(message.isRead || message.readAt);
+                  const prev = index > 0 ? messages[index - 1] : null;
+                  // A new day → show a centered date separator above this message.
+                  const showDateSeparator = !prev || !sameDay(prev.createdAt, message.createdAt);
+                  // Consecutive messages from the same sender on the same day collapse
+                  // into one visual group — only the first shows the name + extra gap.
+                  const startsRun = showDateSeparator || !prev || prev.senderId !== message.senderId;
+
+                  // Group reactions by emoji so chips show "👍 2" and mark which I added.
+                  const grouped = (message.reactions || []).reduce(
+                    (acc, reaction) => {
+                      let entry = acc.find((item) => item.emoji === reaction.emoji);
+                      if (!entry) {
+                        entry = { emoji: reaction.emoji, count: 0, mine: false };
+                        acc.push(entry);
+                      }
+                      entry.count += 1;
+                      if (reaction.userId === user?.id) {
+                        entry.mine = true;
+                      }
+                      return acc;
+                    },
+                    [] as { emoji: string; count: number; mine: boolean }[]
+                  );
+
                   return (
-                    <div
-                      key={message.id}
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        mine
-                          ? 'ml-auto bg-indigo-600 text-white'
-                          : 'bg-white border border-slate-200 text-slate-800'
-                      }`}
-                    >
-                      <p className="text-xs opacity-75 mb-1">
-                        {mine
-                          ? 'You'
-                          : `${message.sender?.firstName || ''} ${message.sender?.lastName || ''}`.trim() || 'User'}
-                      </p>
-                      <p className="text-sm whitespace-pre-wrap">{message.messageText}</p>
-                      <p className="text-[11px] opacity-70 mt-2">
-                        {new Date(message.createdAt).toLocaleString()}
-                      </p>
-                    </div>
+                    <Fragment key={message.id}>
+                      {showDateSeparator && (
+                        <div className="flex justify-center py-2">
+                          <span className="rounded-full bg-slate-200/70 px-3 py-1 text-[11px] font-medium text-slate-500">
+                            {dayLabel(message.createdAt)}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className={`flex flex-col ${mine ? 'items-end' : 'items-start'} ${startsRun ? 'mt-3' : 'mt-0.5'}`}
+                      >
+                      <div className="group/msg relative max-w-[80%]">
+                        <div
+                          className={`rounded-2xl px-4 py-3 ${
+                            mine
+                              ? 'bg-brand-600 text-white'
+                              : 'bg-card border border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          {startsRun && !mine && (
+                            <p className="text-xs font-medium opacity-75 mb-1">
+                              {`${message.sender?.firstName || ''} ${message.sender?.lastName || ''}`.trim() || 'User'}
+                            </p>
+                          )}
+                          <p className="text-sm whitespace-pre-wrap">{message.messageText}</p>
+                          <div className={`flex items-center gap-1.5 mt-2 ${mine ? 'justify-end' : ''}`}>
+                            <span className={`text-[11px] ${mine ? 'text-white/70' : 'text-slate-400'}`}>
+                              {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {mine && (
+                              <span className="inline-flex" title={read ? 'Seen' : message.deliveredAt ? 'Delivered' : 'Sent'}>
+                                {read ? (
+                                  // Seen → double blue tick
+                                  <CheckCheck className="w-4 h-4 text-sky-300" aria-label="Seen" />
+                                ) : message.deliveredAt ? (
+                                  // Delivered (recipient online) → double tick
+                                  <CheckCheck className="w-4 h-4 text-white/60" aria-label="Delivered" />
+                                ) : (
+                                  // Sent, recipient offline → single tick
+                                  <Check className="w-4 h-4 text-white/60" aria-label="Sent" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Hover reaction picker — floating pill that pops above the bubble */}
+                        <div
+                          className={`absolute -top-11 ${mine ? 'right-0' : 'left-0'} z-10 origin-bottom flex items-center gap-0.5 rounded-full border border-slate-200 bg-card px-1.5 py-1 shadow-lg opacity-0 scale-90 translate-y-1.5 pointer-events-none transition-all duration-150 ease-out group-hover/msg:opacity-100 group-hover/msg:scale-100 group-hover/msg:translate-y-0 group-hover/msg:pointer-events-auto focus-within:opacity-100 focus-within:scale-100 focus-within:translate-y-0 focus-within:pointer-events-auto`}
+                        >
+                          {QUICK_REACTIONS.map((emoji) => {
+                            const active = grouped.some((g) => g.emoji === emoji && g.mine);
+                            return (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => reactToMessage(message.id, emoji)}
+                                className={`w-8 h-8 rounded-full text-lg leading-none flex items-center justify-center transition-transform duration-100 hover:scale-125 hover:bg-slate-100 ${active ? 'bg-brand-50 dark:bg-brand-500/15' : ''}`}
+                                aria-label={`React ${emoji}`}
+                              >
+                                {emoji}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Reaction chips — sit on the bubble's bottom edge (WhatsApp-style) */}
+                        {grouped.length > 0 && (
+                          <div className={`flex flex-wrap gap-1 -mt-2 ${mine ? 'justify-end pr-1' : 'pl-1'} relative z-[1]`}>
+                            {grouped.map((entry) => (
+                              <button
+                                key={entry.emoji}
+                                type="button"
+                                onClick={() => reactToMessage(message.id, entry.emoji)}
+                                title={entry.mine ? 'You reacted — tap to remove' : 'Tap to react'}
+                                className={`inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs shadow-sm transition-all hover:-translate-y-0.5 ${
+                                  entry.mine
+                                    ? 'border-brand-300 ring-1 ring-brand-200 bg-brand-50 dark:bg-brand-500/15'
+                                    : 'border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="leading-none text-sm">{entry.emoji}</span>
+                                {entry.count > 1 && <span className="font-medium text-slate-500">{entry.count}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      </div>
+                    </Fragment>
                   );
                 })}
                 <div ref={messageListEndRef} />
@@ -393,7 +594,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
             )}
           </div>
 
-          <div className="p-4 border-t border-slate-200 bg-white">
+          <div className="p-4 border-t border-slate-200 bg-card">
             <div className="flex items-center gap-2">
               <textarea
                 value={composer}
@@ -407,12 +608,12 @@ export default function MessageCenter({ role }: MessageCenterProps) {
                 rows={2}
                 placeholder="Type a message..."
                 disabled={!selectedConversationId || isSending}
-                className="flex-1 resize-none border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="flex-1 resize-none border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!selectedConversationId || !composer.trim() || isSending}
-                className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                className="h-10 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
               >
                 {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 Send

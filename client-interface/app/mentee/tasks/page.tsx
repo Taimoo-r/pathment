@@ -1,12 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, CheckCircle2, AlertCircle, FileText, Loader2, Star, Calendar, XCircle, BookOpen, Sparkles, GraduationCap, ClipboardList } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, FileText, Loader2, Star, Calendar, XCircle, BookOpen, Sparkles, GraduationCap, ClipboardList, Layers } from 'lucide-react';
 import { useMenteeTasks } from '@/lib/hooks/mentee';
 import { StatsCard, SearchAndFilterBar, StatusBadge } from '@/components/admin/ui';
+import { SubmitTaskDrawer, type SubmitTaskTarget } from '@/components/mentee/SubmitTaskDrawer';
 
 export default function MenteeTasks() {
   const router = useRouter();
+  const [submitTarget, setSubmitTarget] = useState<SubmitTaskTarget | null>(null);
   const {
     filteredTasks,
     stats,
@@ -19,6 +22,7 @@ export default function MenteeTasks() {
     setFilterStatus,
     setSearchTerm,
     handleStartTask,
+    fetchTasks,
   } = useMenteeTasks();
 
   const getTaskSourceBadge = (isCustomTask: boolean) => {
@@ -28,7 +32,7 @@ export default function MenteeTasks() {
         Custom
       </span>
     ) : (
-      <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium flex items-center gap-1">
+      <span className="px-2 py-1 bg-brand-100 text-brand-700 rounded text-xs font-medium flex items-center gap-1">
         <BookOpen className="w-3 h-3" />
         Roadmap
       </span>
@@ -55,6 +59,14 @@ export default function MenteeTasks() {
     return new Date(dueDate) < new Date();
   };
 
+  // Group tasks by their personal lane (track) for a calm, scannable list.
+  const trackGroups = (filteredTasks as any[]).reduce((acc: Record<string, any[]>, t: any) => {
+    const key = t.track?.name || 'General';
+    (acc[key] = acc[key] || []).push(t);
+    return acc;
+  }, {} as Record<string, any[]>);
+  const showTrackHeaders = Object.keys(trackGroups).some((k) => k !== 'General') || Object.keys(trackGroups).length > 1;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -65,7 +77,7 @@ export default function MenteeTasks() {
 
       {/* Program Selector */}
       {enrollments.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+        <div className="bg-card rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-3">
             <GraduationCap className="w-4 h-4 text-slate-500" />
             <span className="text-sm font-medium text-slate-600">Program</span>
@@ -79,8 +91,8 @@ export default function MenteeTasks() {
                   onClick={() => setSelectedEnrollmentId(enrollment.id)}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
                     isSelected
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
+                      ? 'bg-brand-600 text-white border-brand-600'
+                      : 'bg-card text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600'
                   }`}
                 >
                   {enrollment.program?.name || 'Program'}
@@ -95,8 +107,8 @@ export default function MenteeTasks() {
                 onClick={() => setSelectedEnrollmentId(null)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
                   selectedEnrollmentId === null
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-card text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600'
                 }`}
               >
                 All Programs
@@ -108,7 +120,7 @@ export default function MenteeTasks() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatsCard icon={ClipboardList} label="Total Tasks"    value={stats?.total || 0}       colorClass="text-indigo-600 bg-indigo-50" />
+        <StatsCard icon={ClipboardList} label="Total Tasks"    value={stats?.total || 0}       colorClass="text-brand-600 bg-brand-50" />
         <StatsCard icon={CheckCircle2}  label="Completed"      value={stats?.completed || 0}   colorClass="text-green-600 bg-green-50"
           sub={stats?.total > 0 ? `${Math.round(((stats?.completed || 0) / stats?.total) * 100)}%` : undefined} />
         <StatsCard icon={FileText}      label="Pending Review" value={stats?.submitted || 0}   colorClass="text-purple-600 bg-purple-50" />
@@ -138,10 +150,10 @@ export default function MenteeTasks() {
       />
 
       {/* Tasks List */}
-      <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="bg-card rounded-2xl border border-slate-200">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="text-center py-12">
@@ -152,11 +164,21 @@ export default function MenteeTasks() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-200">
-            {filteredTasks.map((task) => {
-              const overdue = isOverdue(task.dueDate) && !['completed', 'submitted'].includes(task.status);
-              
-              return (
+          <div>
+            {Object.entries(trackGroups).map(([trackName, groupTasks]) => (
+              <div key={trackName}>
+                {showTrackHeaders && (
+                  <div className="px-6 pt-4 pb-1 flex items-center gap-2 border-t border-slate-100 first:border-t-0">
+                    <Layers className="w-3.5 h-3.5 text-brand-500" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{trackName}</span>
+                    <span className="text-xs text-slate-400 tabular-nums">{(groupTasks as any[]).length}</span>
+                  </div>
+                )}
+                <div className="divide-y divide-slate-100">
+                  {(groupTasks as any[]).map((task) => {
+                    const overdue = isOverdue(task.dueDate) && !['completed', 'submitted'].includes(task.status);
+
+                    return (
                 <div key={task.id} className="p-6 hover:bg-slate-50 transition-colors">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
                     <div className="flex-1 min-w-0">
@@ -184,12 +206,6 @@ export default function MenteeTasks() {
                       </p>
                       
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
-                        {task.roadmapTask?.week && (
-                          <>
-                            <span>Week {task.roadmapTask.week.weekNumber}</span>
-                            <span>•</span>
-                          </>
-                        )}
                         {task.dueDate && (
                           <>
                             <span className={`flex items-center gap-1 ${overdue ? 'text-red-600' : ''}`}>
@@ -236,7 +252,7 @@ export default function MenteeTasks() {
                       {task.status === 'assigned' && (
                         <button
                           onClick={() => handleStartTask(task.id)}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors"
+                          className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm transition-colors"
                         >
                           Start Task
                         </button>
@@ -244,8 +260,14 @@ export default function MenteeTasks() {
                       
                       {(task.status === 'in_progress' || task.status === 'revision_needed') && (
                         <button
-                          onClick={() => router.push(`/mentee/tasks/${task.id}/submit`)}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors"
+                          onClick={() => setSubmitTarget({
+                            id: task.id,
+                            title: task.roadmapTask?.title || 'Task',
+                            status: task.status,
+                            deliverable: task.roadmapTask?.deliverable,
+                            acceptanceCriteria: task.roadmapTask?.acceptanceCriteria || [],
+                          })}
+                          className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm transition-colors"
                         >
                           Submit Work
                         </button>
@@ -266,7 +288,7 @@ export default function MenteeTasks() {
                       {task.status === 'completed' && task.submissions?.[0]?.feedback?.[0] && (
                         <button
                           onClick={() => router.push(`/mentee/feedback/${task.id}`)}
-                          className="text-indigo-600 hover:underline text-sm"
+                          className="text-brand-600 hover:underline text-sm"
                         >
                           View Feedback
                         </button>
@@ -275,7 +297,7 @@ export default function MenteeTasks() {
                       {/* Always show a way to view task details */}
                       <button
                         onClick={() => router.push(`/mentee/tasks/${task.id}`)}
-                        className="text-slate-600 hover:text-indigo-600 text-sm transition-colors cursor-pointer"
+                        className="text-slate-600 hover:text-brand-600 text-sm transition-colors cursor-pointer"
                       >
                         View Details
                       </button>
@@ -293,10 +315,20 @@ export default function MenteeTasks() {
                   )}
                 </div>
               );
-            })}
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      <SubmitTaskDrawer
+        open={!!submitTarget}
+        task={submitTarget}
+        onClose={() => setSubmitTarget(null)}
+        onSubmitted={fetchTasks}
+      />
     </div>
   );
 }

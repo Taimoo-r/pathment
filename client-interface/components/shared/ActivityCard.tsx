@@ -36,11 +36,11 @@ function DailyBars({ sessions }: { sessions: DailySession[] }) {
           <div key={s.date} className="flex flex-col items-center gap-1 flex-1 group">
             <div className="relative w-full flex justify-center">
               {/* Tooltip */}
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#1e293b] text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
                 {fmt(s.activeMinutes || 0)}
               </span>
               <div
-                className="w-full rounded-t-sm bg-indigo-500 transition-all"
+                className="w-full rounded-t-sm bg-brand-500 transition-all"
                 style={{ height: `${Math.max(pct, 2)}%`, minHeight: '2px', maxHeight: '100%' }}
               />
             </div>
@@ -109,7 +109,7 @@ export function ActivityCard({
   }, [loading]);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
+    <div className="bg-card rounded-2xl border border-slate-200 p-5 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -125,7 +125,7 @@ export function ActivityCard({
               onClick={() => onDaysChange(d)}
               className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
                 days === d
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-brand-600 text-white'
                   : 'text-slate-500 hover:bg-slate-100'
               }`}
             >
@@ -147,7 +147,7 @@ export function ActivityCard({
 
       {loading ? (
         <div className="h-24 flex items-center justify-center">
-          <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <>
@@ -167,7 +167,7 @@ export function ActivityCard({
               icon={Clock}
               label="Platform time"
               value={fmt(summary?.todayActiveMinutes ?? 0)}
-              color="bg-indigo-50 text-indigo-600"
+              color="bg-brand-50 text-brand-600"
             />
             <Stat
               icon={CalendarCheck}
@@ -198,7 +198,7 @@ export function ActivityCard({
               <ul className="space-y-1.5">
                 {recentEvents.slice(0, 5).map((e, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-slate-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0" />
                     <span>{eventLabel(e.eventType)}</span>
                     <span className="ml-auto text-slate-400">
                       {new Date(e.createdAt).toLocaleTimeString([], {

@@ -1,0 +1,35 @@
+const express = require('express');
+const router = express.Router();
+const clanController = require('../controllers/clanController');
+const { authenticate, authorize } = require('../middlewares/auth');
+const { requirePermission, scope } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
+
+// Current user's clan memberships (any authenticated role).
+router.get('/me/memberships', authenticate, clanController.myMemberships);
+
+// Programs the current mentor runs (their clans + roster counts).
+router.get('/mentor/programs', authenticate, authorize(['mentor', 'admin']), clanController.mentorPrograms);
+
+// List clans (any authenticated user; filterable by program/status).
+router.get('/', authenticate, clanController.listClans);
+
+// Org-wide clan-health snapshot + insights (analytics consumers).
+router.get('/health', authenticate, requirePermission(PERMISSIONS.ANALYTICS_VIEW), clanController.clanHealth);
+router.get('/insights', authenticate, requirePermission(PERMISSIONS.ANALYTICS_VIEW), clanController.clanInsights);
+
+// Clan detail.
+router.get('/:id', authenticate, clanController.getClan);
+
+// Create a clan — needs clan.create (super_admin, people_admin, or program_admin
+// of the target program).
+router.post('/', authenticate, requirePermission(PERMISSIONS.CLAN_CREATE, (req) => ({ programId: req.body.programId })), clanController.createClan);
+
+// Update / manage members — needs clan.manage_members ON THIS CLAN. That's held
+// by admins and the clan's LEAD MENTOR (not co-mentors). This is how a lead
+// mentor adds a co-mentor / core-team member to their own clan.
+router.patch('/:id', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.updateClan);
+router.post('/:id/members', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.addMember);
+router.delete('/:id/members/:userId', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.removeMember);
+
+module.exports = router;

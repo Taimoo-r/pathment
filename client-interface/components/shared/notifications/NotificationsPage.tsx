@@ -122,7 +122,7 @@ export default function NotificationsPage({ role }: NotificationsPageProps) {
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <div className="bg-card border border-slate-200 rounded-2xl overflow-hidden">
         {isLoading ? (
           <div className="h-64 flex items-center justify-center text-slate-500 gap-2">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -140,7 +140,7 @@ export default function NotificationsPage({ role }: NotificationsPageProps) {
                 <div
                   key={notification.id}
                   className={`px-4 py-3 transition-colors ${
-                    notification.status === 'unread' ? 'bg-indigo-50' : 'bg-white'
+                    notification.status === 'unread' ? 'bg-brand-50 dark:bg-brand-500/10' : 'bg-card'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -148,7 +148,7 @@ export default function NotificationsPage({ role }: NotificationsPageProps) {
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-slate-900 truncate">{notification.title}</p>
                         {notification.status === 'unread' && (
-                          <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                          <span className="w-2 h-2 rounded-full bg-brand-600" />
                         )}
                       </div>
                       <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
@@ -159,7 +159,7 @@ export default function NotificationsPage({ role }: NotificationsPageProps) {
                       {notification.status === 'unread' && (
                         <button
                           onClick={() => handleMarkRead(notification.id)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 rounded"
+                          className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-100 rounded"
                           aria-label="Mark notification read"
                         >
                           <Check className="w-4 h-4" />

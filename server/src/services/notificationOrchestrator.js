@@ -6,8 +6,13 @@ const { NOTIFICATION_EVENTS, NOTIFICATION_MATRIX } = require('../config/notifica
 
 class NotificationOrchestrator {
   isNotificationEmailEnabled() {
-    const raw = String(process.env.EMAIL_NOTIFICATION_EMAILS_ENABLED || 'false').trim().toLowerCase();
-    return raw === '1' || raw === 'true' || raw === 'yes';
+    const raw = String(process.env.EMAIL_NOTIFICATION_EMAILS_ENABLED || '').trim().toLowerCase();
+    // Explicit kill-switch wins either way.
+    if (raw === '0' || raw === 'false' || raw === 'no') return false;
+    if (raw === '1' || raw === 'true' || raw === 'yes') return true;
+    // Default: ON when Resend is configured (e.g. the Pro plan), OFF otherwise —
+    // so important notification emails work out of the box without extra config.
+    return Boolean(process.env.RESEND_API_KEY);
   }
 
   getDisabledEmailEvents() {
@@ -65,7 +70,7 @@ class NotificationOrchestrator {
       // In-app channel
       if (channels.inApp) {
         if (!shouldSkipByDedupe) {
-          await models.Notification.create({
+          const created = await models.Notification.create({
             userId: recipient.userId,
             type: matrix.type,
             title: payload.title,
@@ -77,6 +82,26 @@ class NotificationOrchestrator {
             status: 'unread'
           });
           delivered += 1;
+
+          // Push it live so the recipient's bell updates without a refresh
+          // (the client NotificationDrawer listens for 'notification:new').
+          try {
+            const { emitToUser } = require('../socket');
+            emitToUser(recipient.userId, 'notification:new', {
+              id: created.id,
+              type: created.type,
+              title: created.title,
+              message: created.message,
+              status: created.status,
+              actionUrl: created.actionUrl,
+              actionLabel: created.actionLabel,
+              relatedEntityType: created.relatedEntityType,
+              relatedEntityId: created.relatedEntityId,
+              createdAt: created.createdAt
+            });
+          } catch (e) {
+            console.error('[Notifications] socket emit failed:', e.message);
+          }
         }
       }
 

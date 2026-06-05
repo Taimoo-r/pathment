@@ -32,6 +32,16 @@ module.exports = (sequelize, DataTypes) => {
         isIn: [['draft', 'published', 'archived', 'completed']]
       }
     },
+    // Discoverability, separate from lifecycle status. Private programs never
+    // appear in any discovery surface — they're reached only by invite/assignment.
+    visibility: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'private',
+      validate: {
+        isIn: [['private', 'public']]
+      }
+    },
     totalDurationWeeks: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -108,6 +118,7 @@ module.exports = (sequelize, DataTypes) => {
     paranoid: true,
     indexes: [
       { fields: ['status'] },
+      { fields: ['visibility'] },
       { fields: ['type'] },
       { fields: ['created_by'] },
       { fields: ['created_at'] },
@@ -118,7 +129,6 @@ module.exports = (sequelize, DataTypes) => {
   Program.associate = (models) => {
     Program.belongsTo(models.User, { foreignKey: 'created_by', as: 'creator' });
     Program.belongsTo(models.Program, { foreignKey: 'cloned_from', as: 'parent' });
-    Program.hasMany(models.ProgramLevel, { foreignKey: 'program_id', as: 'levels' });
     Program.hasMany(models.Roadmap, { foreignKey: 'program_id', as: 'roadmaps' });
     Program.hasMany(models.Enrollment, { foreignKey: 'program_id', as: 'enrollments' });
   };

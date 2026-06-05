@@ -9,10 +9,10 @@ const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/err
  * POST /api/matches
  */
 exports.createMatch = catchAsync(async (req, res) => {
-  const { enrollmentId, mentorId, levelId } = req.body;
+  const { enrollmentId, mentorId } = req.body;
   const matchedBy = req.user.id;
-  
-  const match = await matchingService.createMatch(enrollmentId, mentorId, levelId, matchedBy);
+
+  const match = await matchingService.createMatch(enrollmentId, mentorId, matchedBy);
   res.status(201).json(successResponse('Match created successfully', { match }, 201));
 });
 
@@ -25,17 +25,6 @@ exports.getAISuggestions = catchAsync(async (req, res) => {
   
   const suggestions = await matchingService.getAISuggestions(enrollmentId);
   res.status(200).json(successResponse('AI suggestions retrieved', { suggestions }));
-});
-
-/**
- * Get mentors assigned to a level
- * GET /api/matches/levels/:levelId/mentors
- */
-exports.getLevelMentors = catchAsync(async (req, res) => {
-  const { levelId } = req.params;
-  
-  const mentors = await matchingService.getLevelMentors(levelId);
-  res.status(200).json(successResponse('Level mentors retrieved', { mentors }));
 });
 
 /**

@@ -15,6 +15,9 @@ type InviteDetails = {
   email: string;
   role: 'mentor' | 'mentee';
   expiresAt: string;
+  program?: { id: string; name: string } | null;
+  clan?: { id: string; name: string } | null;
+  applicant?: { firstName: string; lastName: string } | null;
 };
 
 export default function RegisterPage() {
@@ -68,7 +71,14 @@ export default function RegisterPage() {
         }
 
         setInviteDetails(invite);
-        setFormData((prev) => ({ ...prev, email: invite.email }));
+        // Prefill name from the original application so the applicant doesn't
+        // re-type what they already gave at intake.
+        setFormData((prev) => ({
+          ...prev,
+          email: invite.email,
+          firstName: prev.firstName || invite.applicant?.firstName || '',
+          lastName: prev.lastName || invite.applicant?.lastName || '',
+        }));
       } catch (error: any) {
         const message = extractApiErrorMessage(error, 'This invite is invalid or expired.');
         setInviteError(message);
@@ -147,15 +157,15 @@ export default function RegisterPage() {
     <div className="space-y-6">
       {/* Logo & Header */}
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4">
           <span className="text-white text-2xl">P</span>
         </div>
-        <h1 className="text-indigo-900 mb-2">Create your Pathment account</h1>
+        <h1 className="text-brand-900 mb-2">Create your Pathment account</h1>
         <p className="text-slate-600">Invite-only signup for approved users</p>
       </div>
 
       {/* Registration Form */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
+      <div className="bg-card rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
         {inviteError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
@@ -167,11 +177,18 @@ export default function RegisterPage() {
         )}
 
         {!inviteError && inviteDetails && (
-          <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-            <p className="text-indigo-900 text-sm">
+          <div className="mb-6 p-4 bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 rounded-xl">
+            <p className="text-brand-900 text-sm">
               You are invited as <span className="font-semibold capitalize">{inviteDetails.role}</span>
             </p>
-            <p className="text-indigo-700 text-sm mt-1">Invite email: {inviteDetails.email}</p>
+            <p className="text-brand-700 text-sm mt-1">Invite email: {inviteDetails.email}</p>
+            {(inviteDetails.program || inviteDetails.clan) && (
+              <p className="text-brand-700 text-sm mt-1">
+                {inviteDetails.role === 'mentor' ? 'Mentoring' : 'Joining'}
+                {inviteDetails.program ? <> <span className="font-semibold">{inviteDetails.program.name}</span></> : ''}
+                {inviteDetails.clan ? <> · clan <span className="font-semibold">{inviteDetails.clan.name}</span></> : ''}
+              </p>
+            )}
           </div>
         )}
 
@@ -196,7 +213,7 @@ export default function RegisterPage() {
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className={`w-full pl-11 pr-4 py-3 border ${errors.firstName ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
+                  className={`w-full pl-11 pr-4 py-3 border ${errors.firstName ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent`}
                   placeholder="John"
                 />
               </div>
@@ -216,7 +233,7 @@ export default function RegisterPage() {
                   type="text"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className={`w-full pl-11 pr-4 py-3 border ${errors.lastName ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
+                  className={`w-full pl-11 pr-4 py-3 border ${errors.lastName ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent`}
                   placeholder="Doe"
                 />
               </div>
@@ -239,7 +256,7 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   disabled={!!inviteDetails?.email}
-                className={`w-full pl-11 pr-4 py-3 border ${errors.email ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
+                className={`w-full pl-11 pr-4 py-3 border ${errors.email ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent`}
                 placeholder="you@example.com"
               />
             </div>
@@ -260,7 +277,7 @@ export default function RegisterPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className={`w-full pl-11 pr-12 py-3 border ${errors.password ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
+                className={`w-full pl-11 pr-12 py-3 border ${errors.password ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent`}
                 placeholder="••••••••"
               />
               <button
@@ -288,7 +305,7 @@ export default function RegisterPage() {
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className={`w-full pl-11 pr-12 py-3 border ${errors.confirmPassword ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
+                className={`w-full pl-11 pr-12 py-3 border ${errors.confirmPassword ? 'border-red-300' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent`}
                 placeholder="••••••••"
               />
               <button
@@ -311,7 +328,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading || !!inviteError}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group"
+            className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group"
           >
             {loading ? (
               <>
@@ -331,7 +348,7 @@ export default function RegisterPage() {
         <div className="mt-6 text-center">
           <p className="text-slate-600 text-sm">
             Already have an account?{' '}
-            <Link href="/login" className="text-indigo-600 hover:text-indigo-700">
+            <Link href="/login" className="text-brand-600 hover:text-brand-700">
               Sign in
             </Link>
           </p>

@@ -2,6 +2,51 @@
 export { useMentorDashboard } from './useMentorDashboard';
 export type { UseMentorDashboardReturn } from './useMentorDashboard';
 
+export { useMentorCohort } from './useMentorCohort';
+export type {
+  UseMentorCohortReturn,
+  CohortMentee,
+  CohortTotals,
+  CohortRisk,
+  CohortMomentum,
+} from './useMentorCohort';
+
+export { useMenteeProfile } from './useMenteeProfile';
+export type {
+  UseMenteeProfileReturn,
+  MenteeProfile,
+  ProfileBlocker,
+  ProfileDelay,
+  Personality,
+  ProfileInsight,
+  MeetingNote,
+  ProfileCollaborator,
+} from './useMenteeProfile';
+
+export { useMentorApprovals } from './useMentorApprovals';
+export type { UseMentorApprovalsReturn, ApprovalItem } from './useMentorApprovals';
+
+export { useMentorRoadmaps } from './useMentorRoadmaps';
+export type { UseMentorRoadmapsReturn, LinearRoadmap, RoadmapStep } from './useMentorRoadmaps';
+
+export { useMentorSchedule } from './useMentorSchedule';
+export type { UseMentorScheduleReturn, AvailabilitySlot, Meeting } from './useMentorSchedule';
+
+export { useMentorPromotions } from './useMentorPromotions';
+export type { UseMentorPromotionsReturn, PromotionCandidate, PromotionStage } from './useMentorPromotions';
+
+export { useRewards } from './useRewards';
+export type { UseRewardsReturn, Gift, Redemption } from './useRewards';
+
+export { useLibrary } from './useLibrary';
+export type { UseLibraryReturn, LibraryDoc } from './useLibrary';
+
+export { useScheduleTemplates } from './useScheduleTemplates';
+export type { UseScheduleTemplatesReturn, ScheduleTemplate } from './useScheduleTemplates';
+
+export { useTracks } from './useTracks';
+export type { UseTracksReturn } from './useTracks';
+
 export { useMenteeActivity } from './useMenteeActivity';
 export type { UseMenteeActivityReturn } from './useMenteeActivity';
 
@@ -15,10 +60,7 @@ export { useMentorPrograms } from './useMentorPrograms';
 export type { UseMentorProgramsReturn } from './useMentorPrograms';
 
 export { useMentorProgramDetail } from './useMentorProgramDetail';
-export type { UseMentorProgramDetailReturn, ProgramDetailTab } from './useMentorProgramDetail';
-
-export { useMentorTasks } from './useMentorTasks';
-export type { UseMentorTasksReturn, MentorTaskTab, CustomTaskFormData } from './useMentorTasks';
+export type { UseMentorProgramDetailReturn, MentorProgramInfo, ProgramClanDetail, ProgramPerson } from './useMentorProgramDetail';
 
 export { useMentorTaskDetail } from './useMentorTaskDetail';
 export type { UseMentorTaskDetailReturn } from './useMentorTaskDetail';
@@ -26,16 +68,10 @@ export type { UseMentorTaskDetailReturn } from './useMentorTaskDetail';
 export { useMentorTaskFeedback } from './useMentorTaskFeedback';
 export type { UseMentorTaskFeedbackReturn, InlineFeedbackItem } from './useMentorTaskFeedback';
 
-export { useMenteeList } from './useMenteeList';
-export type { AssignedMentee } from './useMenteeList';
-
 export { useTaskAssignment } from './useTaskAssignment';
 
 export { useSubmissionReview } from './useSubmissionReview';
 export type { Submission } from './useSubmissionReview';
-
-export { useRoadmapTasks } from './useRoadmapTasks';
-export type { RoadmapTaskOption } from './useRoadmapTasks';
 
 export { useMentorSettings } from './useMentorSettings';
 export type {

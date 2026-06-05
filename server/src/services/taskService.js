@@ -6,120 +6,12 @@ const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 
 class TaskService {
   /**
-   * Auto-assign roadmap tasks for a mentee's current week
-   * Called when mentee advances to a new week
+   * Deprecated: week-curriculum auto-assignment was removed. Onboarding is now
+   * fully mentor-driven (mentor assigns roadmaps + tasks). Kept as a safe no-op
+   * so any residual caller does nothing rather than erroring.
    */
-  async autoAssignWeekTasks(enrollmentId, weekNumber) {
-    const enrollment = await models.Enrollment.findByPk(enrollmentId, {
-      include: [
-        { model: models.Program, as: 'program' },
-        { model: models.ProgramLevel, as: 'currentLevel' },
-        { model: models.User, as: 'mentee' }
-      ]
-    });
-
-    if (!enrollment) {
-      throw new NotFoundError('Enrollment not found');
-    }
-
-    // Get the mentee's mentor
-    const match = await models.MentorMenteeMatch.findOne({
-      where: {
-        enrollmentId,
-        status: 'active'
-      }
-    });
-
-    if (!match) {
-      throw new ValidationError('No active mentor assigned');
-    }
-
-    // Get roadmap for this level
-    const roadmap = await models.Roadmap.findOne({
-      where: {
-        programId: enrollment.programId,
-        levelId: enrollment.currentLevelId,
-        isBaseRoadmap: true
-      }
-    });
-
-    if (!roadmap) {
-      throw new NotFoundError('Roadmap not found for this level');
-    }
-
-    // Get the week from roadmap
-    const week = await models.RoadmapWeek.findOne({
-      where: {
-        roadmapId: roadmap.id,
-        weekNumber
-      },
-      include: [
-        {
-          model: models.RoadmapTask,
-          as: 'tasks',
-          order: [['taskOrder', 'ASC']]
-        }
-      ]
-    });
-
-    if (!week) {
-      return { assignedTasks: [] }; // No tasks for this week
-    }
-
-    const assignedTasks = [];
-    
-    for (const task of week.tasks) {
-      // Check if task is already assigned
-      const existing = await models.AssignedTask.findOne({
-        where: {
-          roadmapTaskId: task.id,
-          menteeId: enrollment.menteeId,
-          enrollmentId
-        }
-      });
-
-      if (!existing) {
-        // Calculate due date (1 week from now for weekly tasks)
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 7);
-
-        const assignedTask = await models.AssignedTask.create({
-          roadmapTaskId: task.id,
-          menteeId: enrollment.menteeId,
-          mentorId: match.mentorId,
-          enrollmentId,
-          status: 'assigned',
-          dueDate,
-          isCustomTask: false
-        });
-
-        const fullTask = await this.getAssignedTaskById(assignedTask.id);
-        assignedTasks.push(fullTask);
-
-        await notificationOrchestrator.dispatch({
-          eventKey: NOTIFICATION_EVENTS.TASK_ASSIGNED,
-          recipients: [{ userId: fullTask.menteeId }],
-          payload: {
-            title: 'New task assigned',
-            message: `A new task "${fullTask.roadmapTask?.title || 'Task'}" has been assigned to you.`,
-            actionUrl: `/mentee/tasks/${fullTask.id}`,
-            actionLabel: 'Open Task',
-            relatedEntityType: 'assigned_task',
-            relatedEntityId: fullTask.id,
-            emailSubject: 'Pathment: New task assigned'
-          },
-          dedupe: {
-            relatedEntityType: 'task_assigned',
-            relatedEntityId: fullTask.id
-          }
-        });
-      }
-    }
-
-    // Update enrollment task stats
-    await this.updateEnrollmentTaskStats(enrollmentId);
-
-    return { assignedTasks, week: week.title };
+  async autoAssignWeekTasks() {
+    return { assignedTasks: [] };
   }
 
   /**
@@ -128,8 +20,8 @@ class TaskService {
   async createCustomTask(data, mentorId) {
     const {
       menteeId,
-      enrollmentId,
       roadmapTaskId, // NEW: If provided, assign existing roadmap task
+      trackId, // Optional: personal lane this task belongs to
       title,
       description,
       type,
@@ -139,18 +31,21 @@ class TaskService {
       deliverable,
       acceptanceCriteria
     } = data;
+    let { enrollmentId } = data;
 
-    // Verify mentor-mentee relationship
-    const match = await models.MentorMenteeMatch.findOne({
-      where: {
-        mentorId,
-        menteeId,
-        enrollmentId,
-        status: 'active'
-      }
-    });
+    // Resolve the active enrollment if the caller didn't supply one (the assign
+    // drawer only knows the mentee). Falls back to most-recent enrollment.
+    if (!enrollmentId) {
+      const enrollment = await this._activeEnrollmentForMentee(menteeId);
+      if (!enrollment) throw new NotFoundError('Mentee has no enrollment to attach this task to');
+      enrollmentId = enrollment.id;
+    }
 
-    if (!match) {
+    // Verify the mentor is responsible for this mentee — via a legacy 1:1 match
+    // OR (the current model) a shared clan where the mentor leads/co-mentors and
+    // the mentee is an active member.
+    const isMentor = await this._isMentorForMentee(mentorId, menteeId);
+    if (!isMentor) {
       throw new ForbiddenError('You are not the mentor for this mentee');
     }
 
@@ -163,11 +58,10 @@ class TaskService {
         throw new NotFoundError('Roadmap task not found');
       }
     } else {
-      // Create custom roadmap task
+      // Create custom roadmap task (not part of any roadmap — a one-off).
       roadmapTask = await models.RoadmapTask.create({
-        roadmapWeekId: null, // Custom tasks don't belong to a week
         title,
-        description,
+        description: description || title || 'No description provided',
         type: type || 'custom',
         difficulty: difficulty || 'medium',
         taskOrder: 0,
@@ -188,24 +82,33 @@ class TaskService {
       enrollmentId,
       status: 'assigned',
       dueDate: dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      isCustomTask: roadmapTaskId ? false : true // Roadmap tasks are not custom
+      isCustomTask: roadmapTaskId ? false : true, // Roadmap tasks are not custom
+      trackId: trackId || null
     });
 
     await this.updateEnrollmentTaskStats(enrollmentId);
 
     const fullTask = await this.getAssignedTaskById(assignedTask.id);
 
+    const mentorUser = await models.User.findByPk(mentorId, { attributes: ['firstName', 'lastName'] });
+    const mentorName = mentorUser ? `${mentorUser.firstName} ${mentorUser.lastName}`.trim() : 'Your mentor';
+    const mentorFirst = mentorUser?.firstName || 'Your mentor';
+    const taskTitle = fullTask.roadmapTask?.title || 'a new task';
+    const dueStr = fullTask.dueDate
+      ? new Date(fullTask.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : null;
+
     await notificationOrchestrator.dispatch({
       eventKey: NOTIFICATION_EVENTS.TASK_ASSIGNED,
       recipients: [{ userId: fullTask.menteeId }],
       payload: {
-        title: 'New task assigned',
-        message: `Mentor assigned "${fullTask.roadmapTask?.title || 'Task'}" to you.`,
+        title: `${mentorFirst} assigned you a task`,
+        message: `“${taskTitle}” is now on your list${dueStr ? ` · due ${dueStr}` : ''}. Open it to get started.`,
         actionUrl: `/mentee/tasks/${fullTask.id}`,
-        actionLabel: 'Open Task',
+        actionLabel: 'Open task',
         relatedEntityType: 'assigned_task',
         relatedEntityId: fullTask.id,
-        emailSubject: 'Pathment: New task assigned'
+        emailSubject: `New task from ${mentorName}: ${taskTitle}`
       },
       dedupe: {
         relatedEntityType: 'task_assigned',
@@ -214,6 +117,61 @@ class TaskService {
     });
 
     return fullTask;
+  }
+
+  /**
+   * Is `mentorId` responsible for `menteeId`? True if an active 1:1 match exists,
+   * or they share an active clan where the user is lead/co/core mentor and the
+   * mentee is an active 'mentee' member (the clan-based model).
+   */
+  async _isMentorForMentee(mentorId, menteeId) {
+    const match = await models.MentorMenteeMatch.findOne({
+      where: { mentorId, menteeId, status: 'active' }
+    });
+    if (match) return true;
+
+    const mentorClans = await models.ClanMembership.findAll({
+      where: { userId: mentorId, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor', 'core_team'] } },
+      attributes: ['clanId']
+    });
+    const clanIds = mentorClans.map((c) => c.clanId);
+    if (!clanIds.length) return false;
+
+    const menteeMembership = await models.ClanMembership.findOne({
+      where: { userId: menteeId, status: 'active', role: 'mentee', clanId: { [Op.in]: clanIds } }
+    });
+    return Boolean(menteeMembership);
+  }
+
+  /** Active enrollment for a mentee (for assign flows that only know the mentee). */
+  async _activeEnrollmentForMentee(menteeId) {
+    const ACTIVE = ['active', 'matched', 'approved', 'pending_completion', 'level_completed'];
+    const enrollments = await models.Enrollment.findAll({ where: { menteeId } });
+    return enrollments.find((e) => ACTIVE.includes(e.status))
+      || [...enrollments].sort((a, b) => new Date(b.enrolledAt || 0) - new Date(a.enrolledAt || 0))[0]
+      || null;
+  }
+
+  /**
+   * Assign one custom task to many mentees. Per-mentee enrollment is resolved
+   * server-side; failures are collected, not fatal (one bad mentee won't sink
+   * the batch). Returns { results: [{ menteeId, ok, error? }], assigned }.
+   */
+  async bulkCreateCustomTasks(data, mentorId) {
+    const { menteeIds, ...taskFields } = data;
+    if (!Array.isArray(menteeIds) || !menteeIds.length) {
+      throw new ValidationError('menteeIds is required');
+    }
+    const results = [];
+    for (const menteeId of menteeIds) {
+      try {
+        await this.createCustomTask({ ...taskFields, menteeId }, mentorId);
+        results.push({ menteeId, ok: true });
+      } catch (err) {
+        results.push({ menteeId, ok: false, error: err.message });
+      }
+    }
+    return { results, assigned: results.filter((r) => r.ok).length };
   }
 
   /**
@@ -239,13 +197,7 @@ class TaskService {
       include: [
         {
           model: models.RoadmapTask,
-          as: 'roadmapTask',
-          include: [
-            {
-              model: models.RoadmapWeek,
-              as: 'week'
-            }
-          ]
+          as: 'roadmapTask'
         },
         {
           model: models.User,
@@ -256,8 +208,7 @@ class TaskService {
           model: models.Enrollment,
           as: 'enrollment',
           include: [
-            { model: models.Program, as: 'program' },
-            { model: models.ProgramLevel, as: 'currentLevel' }
+            { model: models.Program, as: 'program' }
           ]
         },
         {
@@ -266,6 +217,11 @@ class TaskService {
           separate: true,
           order: [['version', 'DESC']],
           limit: 1
+        },
+        {
+          model: models.Track,
+          as: 'track',
+          attributes: ['id', 'name', 'color']
         }
       ],
       order: [
@@ -303,13 +259,7 @@ class TaskService {
       include: [
         {
           model: models.RoadmapTask,
-          as: 'roadmapTask',
-          include: [
-            {
-              model: models.RoadmapWeek,
-              as: 'week'
-            }
-          ]
+          as: 'roadmapTask'
         },
         {
           model: models.User,
@@ -320,8 +270,7 @@ class TaskService {
           model: models.Enrollment,
           as: 'enrollment',
           include: [
-            { model: models.Program, as: 'program' },
-            { model: models.ProgramLevel, as: 'currentLevel' }
+            { model: models.Program, as: 'program' }
           ]
         },
         {
@@ -356,10 +305,6 @@ class TaskService {
           as: 'roadmapTask',
           include: [
             {
-              model: models.RoadmapWeek,
-              as: 'week'
-            },
-            {
               model: models.TaskResource,
               as: 'resources'
             }
@@ -379,8 +324,7 @@ class TaskService {
           model: models.Enrollment,
           as: 'enrollment',
           include: [
-            { model: models.Program, as: 'program' },
-            { model: models.ProgramLevel, as: 'currentLevel' }
+            { model: models.Program, as: 'program' }
           ]
         },
         {
@@ -581,18 +525,25 @@ class TaskService {
     const enrollment = await models.Enrollment.findByPk(enrollmentId);
     if (!enrollment) return null;
 
-    // Assigned tasks for stats (completed count, points, ratings)
+    // Progress is measured against the mentee's ACTUAL workload — every
+    // non-cancelled task assigned to this enrollment — and completed is the done
+    // subset of that SAME set. This keeps completed ⊆ total, so the bar can never
+    // read 100% while real tasks are still outstanding (the old base-roadmap +
+    // custom heuristic undercounted tasks assigned from non-base/local roadmaps,
+    // which falsely hit 100% and prematurely triggered completion).
     const assignedTasks = await models.AssignedTask.findAll({
       where: { enrollmentId }
     });
+    const liveTasks = assignedTasks.filter(t => t.status !== 'cancelled');
 
-    const tasksCompleted = assignedTasks.filter(t => t.status === 'completed').length;
+    const tasksTotal = liveTasks.length;
+    const tasksCompleted = liveTasks.filter(t => t.status === 'completed').length;
 
-    const totalPointsEarned = assignedTasks
+    const totalPointsEarned = liveTasks
       .filter(t => t.status === 'completed')
       .reduce((sum, t) => sum + (t.pointsAwarded || 0), 0);
 
-    const ratings = assignedTasks
+    const ratings = liveTasks
       .filter(t => t.finalRating !== null)
       .map(t => parseFloat(t.finalRating));
 
@@ -600,54 +551,39 @@ class TaskService {
       ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
       : null;
 
-    // Total tasks = live COUNT of RoadmapTask rows for every base roadmap in the program
-    // (the Roadmap.total_tasks column is never updated when tasks are added, so we count directly)
-    // PLUS any non-cancelled custom tasks assigned to this specific enrollment.
-    const roadmapTasksTotal = await models.RoadmapTask.count({
-      include: [{
-        model: models.RoadmapWeek,
-        as: 'week',
-        required: true,
-        include: [{
-          model: models.Roadmap,
-          as: 'roadmap',
-          required: true,
-          where: { programId: enrollment.programId, isBaseRoadmap: true }
-        }]
-      }]
-    });
-
-    // Count non-cancelled custom tasks assigned to this enrollment so that
-    // assigning a custom task immediately reduces the progress percentage.
-    const customTasksTotal = await models.AssignedTask.count({
-      where: {
-        enrollmentId,
-        isCustomTask: true,
-        status: { [Op.notIn]: ['cancelled'] }
-      }
-    });
-
-    const tasksTotal = roadmapTasksTotal + customTasksTotal;
-
     // Percentage against the full program — grows steadily as work is done
     const overallProgressPercentage = tasksTotal > 0
       ? Math.round((tasksCompleted / tasksTotal) * 100)
       : 0;
 
-    // If every task in the program (roadmap + custom) is completed, mark the enrollment done
+    // Completion is the MENTOR's call. When every program task (roadmap + custom)
+    // is done we don't silently complete — we flag the enrollment as ready for
+    // sign-off ('pending_completion', marked system-requested) so the mentor is
+    // prompted to confirm. If work reopens, only the system-flagged ones revert.
     const allProgramTasksDone = tasksTotal > 0 && tasksCompleted >= tasksTotal;
-
-    // If there are now uncompleted tasks and the enrollment was previously auto-marked
-    // as program_completed (e.g. a custom task was just assigned), revert to active.
     const currentEnrollment = await models.Enrollment.findByPk(enrollmentId);
-    const revertStatus =
-      !allProgramTasksDone && currentEnrollment?.status === 'program_completed'
-        ? { status: 'active', completedAt: null }
-        : {};
+    const current = currentEnrollment?.status;
 
-    const statusUpdate = allProgramTasksDone
-      ? { status: 'program_completed', completedAt: new Date() }
-      : revertStatus;
+    let statusUpdate = {};
+    if (allProgramTasksDone) {
+      if (current === 'active' || current === 'matched') {
+        statusUpdate = {
+          status: 'pending_completion',
+          completionRequestedAt: new Date(),
+          completionRequestedBy: null,
+          completionRequestedByRole: 'system',
+          completionRejectionReason: null
+        };
+      }
+    } else if (current === 'pending_completion' && currentEnrollment?.completionRequestedByRole === 'system') {
+      // Auto-flagged as ready, but new work appeared — send it back to active.
+      statusUpdate = {
+        status: 'active',
+        completionRequestedAt: null,
+        completionRequestedBy: null,
+        completionRequestedByRole: null
+      };
+    }
 
     await models.Enrollment.update(
       {
@@ -660,6 +596,14 @@ class TaskService {
       },
       { where: { id: enrollmentId } }
     );
+
+    // Just flagged ready for sign-off → prompt the mentor(s) to confirm completion.
+    // Fire-and-forget so task stats never fail on a notification hiccup.
+    if (statusUpdate.status === 'pending_completion') {
+      this._notifyMentorsReadyForSignoff(enrollment).catch((err) =>
+        console.error('[Completion] sign-off prompt failed:', err.message)
+      );
+    }
 
     // Auto-advance week / level when the current week's tasks are all done
     if (!allProgramTasksDone) {
@@ -676,119 +620,67 @@ class TaskService {
   }
 
   /**
-   * After every task review, check whether the mentee has finished the current
-   * week and should move on to the next week or level.
+   * Notify the mentee's mentor(s) that an enrollment has all tasks done and is
+   * ready for their completion sign-off. Resolves mentors via active 1:1 match
+   * OR the mentee's active clan (lead/co/core mentors) — same union the
+   * completion authorization uses. Mentee gets program + program name context.
    */
-  async _checkAndAdvanceProgress(enrollment, assignedTasks) {
-    const currentWeek = enrollment.currentWeek || 1;
+  async _notifyMentorsReadyForSignoff(enrollment) {
+    const program = await models.Program.findByPk(enrollment.programId, { attributes: ['id', 'name'] });
+    const programName = program?.name || 'the program';
+    const mentee = await models.User.findByPk(enrollment.menteeId, { attributes: ['firstName', 'lastName'] });
+    const menteeName = mentee ? `${mentee.firstName} ${mentee.lastName}`.trim() : 'Your mentee';
 
-    // Load the base roadmap for the current level including all weeks/tasks
-    const currentRoadmap = await models.Roadmap.findOne({
-      where: {
-        programId: enrollment.programId,
-        levelId: enrollment.currentLevelId,
-        isBaseRoadmap: true
-      },
-      include: [{
-        model: models.RoadmapWeek,
-        as: 'weeks',
-        order: [['weekNumber', 'ASC']],
-        include: [{ model: models.RoadmapTask, as: 'tasks', attributes: ['id'] }]
-      }]
+    const mentorIds = new Set();
+    const matches = await models.MentorMenteeMatch.findAll({
+      where: { enrollmentId: enrollment.id, status: 'active' },
+      attributes: ['mentorId']
     });
+    matches.forEach((m) => mentorIds.add(m.mentorId));
 
-    if (!currentRoadmap || !currentRoadmap.weeks || currentRoadmap.weeks.length === 0) return;
-
-    const currentRoadmapWeek = currentRoadmap.weeks.find(w => w.weekNumber === currentWeek);
-    if (!currentRoadmapWeek || !currentRoadmapWeek.tasks || currentRoadmapWeek.tasks.length === 0) return;
-
-    const currentWeekTaskIds = new Set(currentRoadmapWeek.tasks.map(t => t.id));
-
-    // Only consider non-cancelled assigned tasks that belong to the current week
-    const currentWeekAssigned = assignedTasks.filter(t =>
-      currentWeekTaskIds.has(t.roadmapTaskId) && t.status !== 'cancelled'
-    );
-
-    // All current-week tasks must be completed before advancing
-    if (currentWeekAssigned.length === 0) return;
-    const allCurrentWeekDone = currentWeekAssigned.every(t => t.status === 'completed');
-    if (!allCurrentWeekDone) return;
-
-    // Is there a next week in the same level?
-    const nextRoadmapWeek = currentRoadmap.weeks.find(w => w.weekNumber === currentWeek + 1);
-    if (nextRoadmapWeek) {
-      // Advance week within the same level
-      await models.Enrollment.update(
-        { currentWeek: currentWeek + 1, status: 'active' },
-        { where: { id: enrollment.id } }
-      );
-      await this.autoAssignWeekTasks(enrollment.id, currentWeek + 1);
-      return;
-    }
-
-    // No next week — check for a next level
-    const program = await models.Program.findByPk(enrollment.programId, {
-      include: [{ model: models.ProgramLevel, as: 'levels', separate: true, order: [['levelOrder', 'ASC']] }]
+    const menteeClans = await models.ClanMembership.findAll({
+      where: { userId: enrollment.menteeId, status: 'active', role: 'mentee' },
+      include: [{ model: models.Clan, as: 'clan', attributes: ['programId'] }]
     });
-
-    const levels = program?.levels || [];
-    const currentLevelIdx = levels.findIndex(l => l.id === enrollment.currentLevelId);
-    const nextLevel = levels[currentLevelIdx + 1];
-
-    if (nextLevel) {
-      // Advance the enrollment record to the next level
-      await models.Enrollment.update(
-        { currentLevelId: nextLevel.id, currentWeek: 1, status: 'active' },
-        { where: { id: enrollment.id } }
-      );
-
-      // ── Smart re-match ───────────────────────────────────────────────────
-      // Find the most-recently-created active match for this enrollment.
-      const currentMatch = await models.MentorMenteeMatch.findOne({
-        where: { enrollmentId: enrollment.id, status: 'active' },
-        order: [['matchedAt', 'DESC']]
+    const clanIds = menteeClans
+      .filter((m) => !m.clan || m.clan.programId === enrollment.programId)
+      .map((m) => m.clanId);
+    if (clanIds.length) {
+      const mentors = await models.ClanMembership.findAll({
+        where: { clanId: { [Op.in]: clanIds }, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor', 'core_team'] } },
+        attributes: ['userId']
       });
-
-      if (currentMatch) {
-        // Is that mentor assigned to teach the next level?
-        const mentorCanTeachNextLevel = await models.LevelMentorAssignment.findOne({
-          where: {
-            mentorId: currentMatch.mentorId,
-            levelId: nextLevel.id,
-            isActive: true
-          }
-        });
-
-        if (mentorCanTeachNextLevel) {
-          // Same mentor continues — create a match for the next level and begin week 1
-          await models.MentorMenteeMatch.create({
-            mentorId: currentMatch.mentorId,
-            menteeId: enrollment.menteeId,
-            enrollmentId: enrollment.id,
-            levelId: nextLevel.id,
-            matchedBy: currentMatch.matchedBy,
-            status: 'active',
-            matchedAt: new Date()
-          });
-          await this.autoAssignWeekTasks(enrollment.id, 1);
-        } else {
-          // Mentor is not qualified for the next level — re-queue for admin assignment.
-          // Week 1 tasks will be assigned once admin creates the new match.
-          await models.Enrollment.update(
-            { status: 'pending_match' },
-            { where: { id: enrollment.id } }
-          );
-        }
-      } else {
-        // No active match found (edge case) — re-queue for admin assignment
-        await models.Enrollment.update(
-          { status: 'pending_match' },
-          { where: { id: enrollment.id } }
-        );
-      }
+      mentors.forEach((m) => mentorIds.add(m.userId));
     }
-    // If no next level, all work in the program is done — program_completed
-    // is already handled by the caller (allProgramTasksDone check above)
+
+    if (!mentorIds.size) return;
+
+    await notificationOrchestrator.dispatch({
+      eventKey: NOTIFICATION_EVENTS.COMPLETION_READY_FOR_SIGNOFF,
+      recipients: [...mentorIds].map((userId) => ({ userId })),
+      payload: {
+        title: 'Ready to complete',
+        message: `${menteeName} has finished all tasks in "${programName}". Review and confirm program completion.`,
+        actionUrl: `/mentor/mentees/${enrollment.menteeId}`,
+        actionLabel: 'Review & confirm',
+        relatedEntityType: 'enrollment',
+        relatedEntityId: enrollment.id,
+        emailSubject: 'Pathment: a mentee is ready to complete their program'
+      },
+      dedupe: {
+        relatedEntityType: 'completion_signoff',
+        relatedEntityId: enrollment.id
+      }
+    });
+  }
+
+  /**
+   * Deprecated: week-based auto-advance was removed with the week curriculum.
+   * Week/level progression is now mentor-driven (the mentor approves level
+   * completion via the enrollment flow). Kept as a no-op for callers.
+   */
+  async _checkAndAdvanceProgress() {
+    return;
   }
 
   /**
@@ -953,68 +845,46 @@ class TaskService {
   }
 
   /**
-   * Get roadmap tasks for a program level (for mentors to view and assign)
-   * If menteeId is provided, include assignment status for that mentee
+   * Get roadmap tasks for a program (for mentors to view and assign).
+   * If menteeId is provided, include assignment status for that mentee.
    */
-  async getRoadmapTasks(programId, levelId, menteeId = null) {
-    // Get the roadmap for this program/level
+  async getRoadmapTasks(programId, menteeId = null) {
+    // Get the base roadmap for this program.
     const roadmap = await models.Roadmap.findOne({
-      where: {
-        programId,
-        levelId,
-        isBaseRoadmap: true
-      },
-      include: [
-        {
-          model: models.RoadmapWeek,
-          as: 'weeks',
-          include: [
-            {
-              model: models.RoadmapTask,
-              as: 'tasks',
-              where: { isCustomTask: false },
-              required: false
-            }
-          ]
-        }
-      ],
-      order: [[{ model: models.RoadmapWeek, as: 'weeks' }, 'weekNumber', 'ASC']]
+      where: { programId, isBaseRoadmap: true }
     });
 
     if (!roadmap) {
-      throw new NotFoundError('Roadmap not found for this program level');
+      throw new NotFoundError('Roadmap not found for this program');
     }
 
-    // If menteeId is provided, check which tasks are already assigned to this mentee
-    if (menteeId && roadmap.weeks) {
-      for (const week of roadmap.weeks) {
-        if (week.tasks) {
-          for (const task of week.tasks) {
-            // Check if this roadmap task is assigned to the mentee
-            const assignedTask = await models.AssignedTask.findOne({
-              where: {
-                menteeId,
-                roadmapTaskId: task.id
-              },
-              attributes: ['id', 'status', 'submittedAt', 'completedAt']
-            });
+    // Tasks link to the roadmap directly via roadmap_id (weeks were removed).
+    const tasks = await models.RoadmapTask.findAll({
+      where: { roadmapId: roadmap.id, isCustomTask: false },
+      order: [['taskOrder', 'ASC']]
+    });
 
-            // Add assignment status to the task object
-            task.dataValues.assignmentStatus = assignedTask ? {
-              isAssigned: true,
-              taskId: assignedTask.id,
-              status: assignedTask.status,
-              submittedAt: assignedTask.submittedAt,
-              completedAt: assignedTask.completedAt
-            } : {
-              isAssigned: false
-            };
-          }
-        }
+    // Annotate each task with this mentee's assignment status, if asked.
+    if (menteeId) {
+      for (const task of tasks) {
+        const assignedTask = await models.AssignedTask.findOne({
+          where: { menteeId, roadmapTaskId: task.id },
+          attributes: ['id', 'status', 'submittedAt', 'completedAt']
+        });
+        task.dataValues.assignmentStatus = assignedTask ? {
+          isAssigned: true,
+          taskId: assignedTask.id,
+          status: assignedTask.status,
+          submittedAt: assignedTask.submittedAt,
+          completedAt: assignedTask.completedAt
+        } : { isAssigned: false };
       }
     }
 
-    return roadmap;
+    // Preserve the consumer shape (roadmap.weeks[].tasks[]) with a single group.
+    const result = roadmap.toJSON();
+    result.weeks = [{ id: roadmap.id, weekNumber: 1, title: 'Roadmap', tasks: tasks.map((t) => t.toJSON ? t.toJSON() : t) }];
+    return result;
   }
 }
 

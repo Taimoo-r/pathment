@@ -10,8 +10,20 @@ import {
   Menu,
   X,
   ChevronDown,
+  Pin,
+  ArrowUp,
+  ArrowDown,
+  SlidersHorizontal,
+  Check,
+  Settings,
+  HelpCircle,
+  ShieldCheck,
+  Search,
 } from 'lucide-react';
-import { getNavigationLinks, NavLink } from '@/lib/config/navigation';
+import { NavLink } from '@/lib/config/navigation';
+import { useNavPreferences } from '@/lib/hooks/shared';
+import { usePermissions } from '@/lib/hooks/usePermissions';
+import { CommandPalette } from './CommandPalette';
 import { NotificationDrawer } from './NotificationDrawer';
 import { UserProfileCard } from './UserProfileCard';
 import { messagingApi } from '@/lib/services/messaging-api';
@@ -32,12 +44,38 @@ function isLinkActive(link: NavLink, pathname: string): boolean {
 export default function Navigation({ role }: NavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, user } = useAuth();
+  const { logout, user, availableRoles, setActiveRole } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-  const links = getNavigationLinks(role);
+  const { links, pinned, isEditing, toggleEdit, togglePin, moveUp, moveDown, reset, recordUsage } = useNavPreferences(role);
+  const { can, canAny, canAccessAdmin, loading: permsLoading } = usePermissions();
+
+  // Permission-filtered nav: hide items the user can't use, drop empty groups,
+  // and surface an "Admin area" entry for org/program admins in their own nav.
+  // While permissions load, show everything (no flicker for full admins).
+  const visibleLinks = React.useMemo<NavLink[]>(() => {
+    const base = permsLoading
+      ? links
+      : links
+          .map((link) => {
+            if (link.requiresAdminArea && !canAccessAdmin) return null;
+            if (link.children) {
+              const kids = link.children.filter((c) => !c.permission || can(c.permission));
+              return kids.length ? { ...link, children: kids } : null;
+            }
+            const okPerm = !link.permission || can(link.permission);
+            const okAny = !link.anyOf || canAny(link.anyOf);
+            return okPerm && okAny ? link : null;
+          })
+          .filter((l): l is NavLink => Boolean(l));
+
+    if (role !== 'admin' && canAccessAdmin) {
+      return [...base, { path: '/admin', icon: ShieldCheck, label: 'Admin area', requiresAdminArea: true }];
+    }
+    return base;
+  }, [links, permsLoading, canAccessAdmin, can, canAny, role]);
 
   // ── Collapsible group state ───────────────────────────────────────────────
   // Initialise with any group that contains the current path already open
@@ -102,6 +140,37 @@ export default function Navigation({ role }: NavigationProps) {
     router.push('/login');
   };
 
+  // ── Role switcher (multi-capability users) ────────────────────────────────
+  const switchRole = (target: UserRole) => {
+    if (target === role) return;
+    setActiveRole(target);
+    setMobileMenuOpen(false);
+    router.push(`/${target}/dashboard`);
+  };
+
+  const renderRoleSwitcher = () => {
+    if (!availableRoles || availableRoles.length <= 1) return null;
+    const order: UserRole[] = ['admin', 'mentor', 'mentee'];
+    const roles = order.filter((r) => availableRoles.includes(r));
+    return (
+      <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+        {roles.map((r) => (
+          <button
+            key={r}
+            onClick={() => switchRole(r)}
+            className={`flex-1 text-xs font-medium capitalize px-2 py-1.5 rounded-lg transition-all duration-150 ${
+              r === role
+                ? 'bg-card text-brand-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   // ── Shared render helpers ─────────────────────────────────────────────────
 
   const renderFlatLink = (link: NavLink, onNavigate?: () => void) => {
@@ -111,10 +180,10 @@ export default function Navigation({ role }: NavigationProps) {
       <Link
         key={link.path}
         href={link.path}
-        onClick={onNavigate}
+        onClick={() => { recordUsage(link.path); onNavigate?.(); }}
         className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
           isActive
-            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
+            ? 'bg-brand-600 text-white shadow-sm shadow-brand-200'
             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
         }`}
       >
@@ -138,14 +207,15 @@ export default function Navigation({ role }: NavigationProps) {
       <div key={link.path}>
         {/* Group trigger */}
         <button
+          data-tour={link.path}
           onClick={() => toggleGroup(link.path)}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
             isGroupActive && !isOpen
-              ? 'bg-indigo-50 text-indigo-700'
+              ? 'bg-brand-50 text-brand-700'
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          <Icon className={`w-4.5 h-4.5 shrink-0 ${isGroupActive && !isOpen ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
+          <Icon className={`w-4.5 h-4.5 shrink-0 ${isGroupActive && !isOpen ? 'text-brand-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
           <span className="text-sm font-medium flex-1 text-left">{link.label}</span>
           <ChevronDown
             className={`w-4 h-4 shrink-0 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
@@ -155,7 +225,7 @@ export default function Navigation({ role }: NavigationProps) {
         {/* Children */}
         <div
           className={`overflow-hidden transition-all duration-200 ease-in-out ${
-            isOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+            isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
           }`}
         >
           <div className="ml-3 mt-1 pl-4 border-l-2 border-slate-100 space-y-0.5 pb-1">
@@ -166,10 +236,10 @@ export default function Navigation({ role }: NavigationProps) {
                 <Link
                   key={child.path}
                   href={child.path}
-                  onClick={onNavigate}
+                  onClick={() => { recordUsage(child.path); onNavigate?.(); }}
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-150 group ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
+                      ? 'bg-brand-600 text-white shadow-sm shadow-brand-200'
                       : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
                   }`}
                 >
@@ -184,43 +254,117 @@ export default function Navigation({ role }: NavigationProps) {
     );
   };
 
-  const renderNavItems = (onNavigate?: () => void) =>
-    links.map((link) =>
-      link.children
-        ? renderGroupLink(link, onNavigate)
-        : renderFlatLink(link, onNavigate)
+  // Reorder/pin row shown in edit mode (no navigation).
+  const renderEditRow = (link: NavLink) => {
+    const Icon = link.icon;
+    const isPinned = pinned.has(link.path);
+    return (
+      <div key={link.path} className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-100">
+        <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+        <span className="text-sm font-medium text-slate-700 flex-1 truncate">{link.label}</span>
+        <button onClick={() => togglePin(link.path)} title={isPinned ? 'Unpin' : 'Pin to top'}
+          className={`p-1 rounded ${isPinned ? 'text-brand-600' : 'text-slate-300 hover:text-slate-500'}`}>
+          <Pin className="w-3.5 h-3.5" fill={isPinned ? 'currentColor' : 'none'} />
+        </button>
+        <button onClick={() => moveUp(link.path)} title="Move up" className="p-1 text-slate-400 hover:text-slate-700"><ArrowUp className="w-3.5 h-3.5" /></button>
+        <button onClick={() => moveDown(link.path)} title="Move down" className="p-1 text-slate-400 hover:text-slate-700"><ArrowDown className="w-3.5 h-3.5" /></button>
+      </div>
     );
+  };
+
+  const renderNavItems = (onNavigate?: () => void) =>
+    isEditing
+      ? links.map((link) => renderEditRow(link))
+      : visibleLinks.map((link) =>
+          link.children
+            ? renderGroupLink(link, onNavigate)
+            : renderFlatLink(link, onNavigate)
+        );
+
+  // Small header above the nav list to enter/exit customize mode + reset.
+  const renderNavHeader = () => (
+    <div className="flex items-center justify-between px-2 mb-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{isEditing ? 'Customize menu' : 'Menu'}</span>
+      <div className="flex items-center gap-1">
+        {isEditing && (
+          <button onClick={reset} className="text-[11px] text-slate-400 hover:text-slate-600">Reset</button>
+        )}
+        <button onClick={toggleEdit} title={isEditing ? 'Done' : 'Customize'}
+          className={`p-1 rounded-lg ${isEditing ? 'text-brand-600 bg-brand-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
+          {isEditing ? <Check className="w-3.5 h-3.5" /> : <SlidersHorizontal className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+
+  const openSearch = () => window.dispatchEvent(new CustomEvent('pathment:open-search'));
 
   return (
     <>
+      <CommandPalette role={role} />
+
       {/* ── Desktop Sidebar ── */}
-      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-slate-100">
+      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-card border-r border-slate-100">
         <div className="flex flex-col flex-1 overflow-y-auto">
 
-          {/* Logo */}
-          <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100">
-            <div className="flex items-center justify-center w-9 h-9 bg-indigo-600 rounded-xl shadow-sm shadow-indigo-200">
+          {/* Logo + quick actions (notifications & settings, always visible) */}
+          <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-100">
+            <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-xl shadow-sm shadow-brand-200 shrink-0">
               <span className="text-white font-bold text-sm">P</span>
             </div>
-            <div>
-              <div className="font-semibold text-slate-900 text-sm">Pathment</div>
-              <div className="text-slate-400 text-xs capitalize">{role} portal</div>
+            <div className="min-w-0">
+              <div className="font-semibold text-slate-900 text-sm truncate">Pathment</div>
+              <div className="text-slate-400 text-xs capitalize truncate">{role} portal</div>
             </div>
+            <div className="ml-auto flex items-center gap-0.5 shrink-0">
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('pathment:start-tour'))}
+                title="Take a tour"
+                aria-label="Take a tour"
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </button>
+              <span data-tour="notifications" className="inline-flex">
+                {user?.id && <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} />}
+              </span>
+              <Link
+                href={`/${role}/settings`}
+                title="Settings"
+                aria-label="Settings"
+                className={`p-2 rounded-xl transition-colors ${pathname.startsWith(`/${role}/settings`) ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+              >
+                <Settings className="w-5 h-5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Role switcher (only for users who hold more than one role view) */}
+          {availableRoles && availableRoles.length > 1 && (
+            <div className="px-3 pt-3">{renderRoleSwitcher()}</div>
+          )}
+
+          {/* Quick search (⌘K) */}
+          <div className="px-3 pt-3">
+            <button
+              onClick={openSearch}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-colors"
+            >
+              <Search className="w-4 h-4 shrink-0" />
+              <span className="text-sm flex-1 text-left">Search…</span>
+              <kbd className="text-[11px] border border-slate-200 rounded px-1.5 py-0.5">⌘K</kbd>
+            </button>
           </div>
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-0.5">
+            {renderNavHeader()}
             {renderNavItems()}
           </nav>
 
           {/* Bottom Section */}
           <div className="px-3 py-4 border-t border-slate-100 space-y-1">
             <UserProfileCard />
-            <div className="relative mt-2">
-              {user?.id && (
-                <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} showLabel />
-              )}
-            </div>
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-3 py-2.5 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors text-left group"
@@ -233,10 +377,10 @@ export default function Navigation({ role }: NavigationProps) {
       </div>
 
       {/* ── Mobile Header ── */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-100 z-60">
+      <div className="lg:hidden fixed top-0 left-0 right-0 glass border-b border-slate-100 dark:border-slate-700 z-60">
         <div className="flex items-center justify-between px-4 py-3.5">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 bg-indigo-600 rounded-xl shadow-sm shadow-indigo-200">
+            <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-xl shadow-sm shadow-brand-200">
               <span className="text-white font-bold text-sm">P</span>
             </div>
             <div>
@@ -246,9 +390,25 @@ export default function Navigation({ role }: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-1">
+            <button
+              onClick={openSearch}
+              title="Search"
+              aria-label="Search"
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Search className="w-5 h-5" />
+            </button>
             {user?.id && (
               <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} />
             )}
+            <Link
+              href={`/${role}/settings`}
+              title="Settings"
+              aria-label="Settings"
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
@@ -260,8 +420,11 @@ export default function Navigation({ role }: NavigationProps) {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-slate-100 bg-white">
+          <div className="border-t border-slate-100 bg-card">
             <nav className="px-3 py-3 space-y-0.5">
+              {availableRoles && availableRoles.length > 1 && (
+                <div className="pb-2">{renderRoleSwitcher()}</div>
+              )}
               {renderNavItems(() => setMobileMenuOpen(false))}
               <button
                 onClick={handleLogout}

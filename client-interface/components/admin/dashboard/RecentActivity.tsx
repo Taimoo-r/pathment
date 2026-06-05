@@ -22,7 +22,7 @@ interface RecentActivityProps {
 export function RecentActivity({ pendingMatches = [] }: RecentActivityProps) {
   return (
     <div>
-      <div className="bg-white rounded-2xl border border-slate-200">
+      <div className="bg-card rounded-2xl border border-slate-200">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-slate-900 font-semibold">Pending Matches</h2>
@@ -63,7 +63,7 @@ export function RecentActivity({ pendingMatches = [] }: RecentActivityProps) {
             <div className="px-6 py-4 border-t border-slate-200">
               <Link
                 href="/admin/matching/mentor-assignment"
-                className="block text-center text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+                className="block text-center text-brand-600 hover:text-brand-700 text-sm font-medium"
               >
                 Assign Mentors
               </Link>

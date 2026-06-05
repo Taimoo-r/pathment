@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/services/api-client';
 import { apiConfig } from '@/lib/config/api';
+import { preferencesApi } from '@/lib/services/preferences-api';
 import { useAuth } from '@/lib/context/AuthContext';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { toast } from 'sonner';
@@ -14,6 +15,10 @@ export interface MentorProfileData {
   email: string;
   phone: string;
   bio: string;
+  city: string;
+  country: string;
+  languages: string[];
+  timezone: string;
 }
 
 export interface MentorProfessionalProfile {
@@ -70,6 +75,10 @@ export function useMentorSettings(): UseMentorSettingsReturn {
     email: '',
     phone: '',
     bio: '',
+    city: '',
+    country: '',
+    languages: [],
+    timezone: '',
   });
 
   const [mentorProfile, setMentorProfile] = useState<MentorProfessionalProfile>({
@@ -107,6 +116,10 @@ export function useMentorSettings(): UseMentorSettingsReturn {
         email: data.email || '',
         phone: data.phone || '',
         bio: data.bio || '',
+        city: data.city || '',
+        country: data.country || '',
+        languages: Array.isArray(data.languages) ? data.languages : [],
+        timezone: data.settings?.timezone || '',
       });
 
       if (data.mentorProfile) {
@@ -125,6 +138,11 @@ export function useMentorSettings(): UseMentorSettingsReturn {
           maxMentees: data.mentorProfile.maxMentees || 5,
           currentMenteeCount: data.mentorProfile.currentMenteeCount || 0,
         });
+      }
+
+      const savedNotif = data.settings?.preferences?.notifications;
+      if (savedNotif && typeof savedNotif === 'object') {
+        setNotificationSettings((prev) => ({ ...prev, ...savedNotif }));
       }
     } catch (error: any) {
       console.error('Failed to fetch settings:', error);
@@ -186,15 +204,15 @@ export function useMentorSettings(): UseMentorSettingsReturn {
   const handleNotificationUpdate = useCallback(async () => {
     try {
       setSaving(true);
-      // TODO: Implement notification settings API
-      toast.success('Notification settings updated successfully');
+      await preferencesApi.update('notifications', notificationSettings as unknown as Record<string, unknown>);
+      toast.success('Notification settings saved');
     } catch (error: any) {
       console.error('Failed to update notifications:', error);
-      toast.error('Failed to update notification settings');
+      toast.error(extractApiErrorMessage(error, 'Failed to save notification settings'));
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [notificationSettings]);
 
   return {
     loading,

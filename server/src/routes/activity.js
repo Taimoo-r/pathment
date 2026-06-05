@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middlewares/auth');
+const { requirePermission } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 const { verifyAccessToken } = require('../utils/jwt');
 const { models } = require('../db');
 const {
@@ -60,6 +62,6 @@ router.get('/me/summary', getMySummary);
 router.get('/mentee/:id/summary', authorize(['mentor', 'admin']), getMenteeSummary);
 
 // Admin-only aggregate overview
-router.get('/admin/overview', authorize(['admin']), getAdminOverview);
+router.get('/admin/overview', requirePermission(PERMISSIONS.ANALYTICS_VIEW), getAdminOverview);
 
 module.exports = router;

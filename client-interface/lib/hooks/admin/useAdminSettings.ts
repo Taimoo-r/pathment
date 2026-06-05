@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { apiClient } from '@/lib/services/api-client';
 import { apiConfig } from '@/lib/config/api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
+import { preferencesApi } from '@/lib/services/preferences-api';
 import { toast } from 'sonner';
 
 export interface ProfileData {
@@ -13,6 +14,10 @@ export interface ProfileData {
   email: string;
   phone: string;
   bio: string;
+  city: string;
+  country: string;
+  languages: string[];
+  timezone: string;
 }
 
 export interface SystemSettings {
@@ -38,7 +43,7 @@ export interface NotificationSettings {
   urgentIssues: boolean;
 }
 
-const DEFAULT_PROFILE: ProfileData = { firstName: '', lastName: '', email: '', phone: '', bio: '' };
+const DEFAULT_PROFILE: ProfileData = { firstName: '', lastName: '', email: '', phone: '', bio: '', city: '', country: '', languages: [], timezone: '' };
 
 const DEFAULT_SYSTEM: SystemSettings = {
   autoApproveEnrollments: false,
@@ -94,14 +99,23 @@ export function useAdminSettings(): UseAdminSettingsReturn {
     try {
       setLoading(true);
       const response = await apiClient.get(apiConfig.endpoints.profile);
-      const data = (response as { data?: ProfileData }).data ?? (response as ProfileData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = ((response as any).data ?? response) as any;
       setProfileData({
         firstName: data.firstName || '',
         lastName: data.lastName || '',
         email: data.email || '',
         phone: data.phone || '',
         bio: data.bio || '',
+        city: data.city || '',
+        country: data.country || '',
+        languages: Array.isArray(data.languages) ? data.languages : [],
+        timezone: data.settings?.timezone || '',
       });
+      const prefs = data.settings?.preferences;
+      if (prefs?.system && typeof prefs.system === 'object') setSystemSettings((prev) => ({ ...prev, ...prefs.system }));
+      if (prefs?.userManagement && typeof prefs.userManagement === 'object') setUserManagementSettings((prev) => ({ ...prev, ...prefs.userManagement }));
+      if (prefs?.notifications && typeof prefs.notifications === 'object') setNotificationSettings((prev) => ({ ...prev, ...prefs.notifications }));
     } catch (err: unknown) {
       console.error('Failed to fetch settings:', err);
       toast.error('Failed to load settings');
@@ -131,41 +145,41 @@ export function useAdminSettings(): UseAdminSettingsReturn {
   const handleSystemSettingsUpdate = useCallback(async () => {
     try {
       setSaving(true);
-      // TODO: Implement system settings API
-      toast.success('System settings updated successfully');
+      await preferencesApi.update('system', systemSettings as unknown as Record<string, unknown>);
+      toast.success('System settings saved');
     } catch (err: unknown) {
       console.error('Failed to update system settings:', err);
-      toast.error('Failed to update system settings');
+      toast.error(extractApiErrorMessage(err, 'Failed to save system settings'));
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [systemSettings]);
 
   const handleUserManagementUpdate = useCallback(async () => {
     try {
       setSaving(true);
-      // TODO: Implement user management settings API
-      toast.success('User management settings updated successfully');
+      await preferencesApi.update('userManagement', userManagementSettings as unknown as Record<string, unknown>);
+      toast.success('User management settings saved');
     } catch (err: unknown) {
       console.error('Failed to update user management:', err);
-      toast.error('Failed to update user management settings');
+      toast.error(extractApiErrorMessage(err, 'Failed to save user management settings'));
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [userManagementSettings]);
 
   const handleNotificationUpdate = useCallback(async () => {
     try {
       setSaving(true);
-      // TODO: Implement notification settings API
-      toast.success('Notification settings updated successfully');
+      await preferencesApi.update('notifications', notificationSettings as unknown as Record<string, unknown>);
+      toast.success('Notification settings saved');
     } catch (err: unknown) {
       console.error('Failed to update notifications:', err);
-      toast.error('Failed to update notification settings');
+      toast.error(extractApiErrorMessage(err, 'Failed to save notification settings'));
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [notificationSettings]);
 
   return {
     loading,

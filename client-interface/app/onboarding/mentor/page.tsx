@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { apiClient } from '@/lib/services/api-client';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { ArrowRight, Loader2, Award, Briefcase, Globe, Github, Linkedin, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -70,63 +72,40 @@ export default function MentorOnboardingPage() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please log in again');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/complete-mentor`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
-          maxMentees: parseInt(formData.maxMentees) || 5
-        })
+      await apiClient.post('/profile/complete-mentor', {
+        ...formData,
+        yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
+        maxMentees: parseInt(formData.maxMentees) || 5
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to complete profile');
-      }
-
-      toast.success('Profile completed! Let\'s add your skills.');
-      // Update user context with new onboarding step
-      if (updateUser) {
-        updateUser({ ...user, onboardingStep: 1 });
-      }
+      toast.success('Profile saved — let\'s add your skills.');
+      if (updateUser) updateUser({ ...user, onboardingStep: 1 });
       router.push('/onboarding/skills');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to complete profile');
+    } catch (error: unknown) {
+      toast.error(extractApiErrorMessage(error, 'Failed to complete profile'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 dark:from-brand-500/10 via-card to-brand-50 dark:to-transparent py-12 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4">
             <Award className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Complete Your Mentor Profile</h1>
+          <h1 className="text-3xl font-bold text-brand-900 mb-2">Complete Your Mentor Profile</h1>
           <p className="text-slate-600">Help mentees find and connect with you</p>
           <div className="flex items-center justify-center gap-2 mt-4">
-            <div className="w-8 h-2 bg-indigo-600 rounded-full"></div>
+            <div className="w-8 h-2 bg-brand-600 rounded-full"></div>
             <div className="w-8 h-2 bg-slate-200 rounded-full"></div>
             <div className="w-8 h-2 bg-slate-200 rounded-full"></div>
           </div>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
+        <div className="bg-card rounded-2xl shadow-xl border border-slate-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Title */}
             <div>
@@ -139,7 +118,7 @@ export default function MentorOnboardingPage() {
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="e.g., Senior Software Engineer"
               />
             </div>
@@ -155,7 +134,7 @@ export default function MentorOnboardingPage() {
                   type="text"
                   value={formData.organization}
                   onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="Company name"
                 />
               </div>
@@ -169,7 +148,7 @@ export default function MentorOnboardingPage() {
                   min="0"
                   value={formData.yearsOfExperience}
                   onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="5"
                 />
               </div>
@@ -186,13 +165,13 @@ export default function MentorOnboardingPage() {
                   value={specializationInput}
                   onChange={(e) => setSpecializationInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSpecialization())}
-                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="e.g., Full-Stack Development, DevOps, Machine Learning"
                 />
                 <button
                   type="button"
                   onClick={addSpecialization}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+                  className="px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700"
                 >
                   Add
                 </button>
@@ -201,13 +180,13 @@ export default function MentorOnboardingPage() {
                 {formData.specialization.map((spec) => (
                   <span
                     key={spec}
-                    className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg"
+                    className="inline-flex items-center gap-2 px-3 py-1 bg-brand-50 text-brand-700 rounded-lg"
                   >
                     {spec}
                     <button
                       type="button"
                       onClick={() => removeSpecialization(spec)}
-                      className="text-indigo-500 hover:text-indigo-700"
+                      className="text-brand-500 hover:text-brand-700"
                     >
                       ×
                     </button>
@@ -225,7 +204,7 @@ export default function MentorOnboardingPage() {
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                 rows={4}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="Tell mentees about your experience, teaching philosophy, and what makes you a great mentor..."
               />
             </div>
@@ -243,7 +222,7 @@ export default function MentorOnboardingPage() {
                   type="url"
                   value={formData.linkedinUrl}
                   onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="https://linkedin.com/in/yourprofile"
                 />
               </div>
@@ -257,7 +236,7 @@ export default function MentorOnboardingPage() {
                   type="url"
                   value={formData.githubUrl}
                   onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="https://github.com/yourusername"
                 />
               </div>
@@ -271,7 +250,7 @@ export default function MentorOnboardingPage() {
                   type="url"
                   value={formData.portfolioUrl}
                   onChange={(e) => setFormData({ ...formData, portfolioUrl: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="https://yourportfolio.com"
                 />
               </div>
@@ -289,7 +268,7 @@ export default function MentorOnboardingPage() {
                 max="20"
                 value={formData.maxMentees}
                 onChange={(e) => setFormData({ ...formData, maxMentees: e.target.value })}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <p className="text-slate-500 text-sm mt-1">How many mentees can you effectively guide at once?</p>
             </div>
@@ -307,7 +286,7 @@ export default function MentorOnboardingPage() {
                     onClick={() => toggleMenteeLevel(level)}
                     className={`p-3 rounded-xl border-2 capitalize transition-all ${
                       formData.preferredMenteeLevel.includes(level)
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        ? 'border-brand-600 bg-brand-50 text-brand-700'
                         : 'border-slate-200 text-slate-700 hover:border-slate-300'
                     }`}
                   >
@@ -321,7 +300,7 @@ export default function MentorOnboardingPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-4 rounded-xl transition-colors flex items-center justify-center gap-2 group"
+              className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white py-4 rounded-xl transition-colors flex items-center justify-center gap-2 group"
             >
               {loading ? (
                 <>

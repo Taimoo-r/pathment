@@ -1,19 +1,52 @@
 # Pathment - Enterprise Mentorship Platform
 
-Pathment is a comprehensive SaaS-based mentorship platform that helps companies save money on employee training by connecting mentees with experienced mentors through structured learning programs.
+Pathment is a comprehensive, open-source mentorship platform that helps companies save money on employee training by connecting mentees with experienced mentors through structured learning programs.
+
+> **👋 New to the codebase?** Start with the two zero-to-hero guides:
+> - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — how the whole system fits together (apps, request flow, the core life-cycle, conventions).
+> - **[docs/DATABASE.md](docs/DATABASE.md)** — the full data model with ER diagrams, domain by domain.
+
+## 🧩 The Problem We're Solving
+
+**Domain:** an operating system for organizations that develop people through structured, mentor-led programs — internships, bootcamps, apprenticeships, and employee onboarding/upskilling. (EdTech / workforce development; a mentorship-centric, project-based take on a cohort learning platform.)
+
+Today, organizations that run these programs do it on a patchwork of **spreadsheets, Google Forms, Slack, email, and ad-hoc docs**. That patchwork doesn't scale, isn't fair, and makes outcomes invisible. Specifically:
+
+- **Intake is manual and leaky.** Applications live in forms and sheets; assessing applicants, shortlisting, and onboarding them into the right group is copy-paste work.
+- **Mentorship doesn't scale and quality varies.** A mentor can only hold so many mentees, and without structure every mentor improvises — so learners get inconsistent guidance.
+- **Progress is opaque and trust erodes.** Nobody has a reliable, real-time picture of who's on track, who's blocked, or whether a mentee actually finished.
+- **Engagement and fairness are hard.** Motivation drops over long programs, and uneven workloads or favoritism creep in unnoticed.
+- **Communication and feedback are scattered** across too many tools, so context and accountability get lost.
+
+**Pathment turns the messy, manual lifecycle of `recruit → assess → place → mentor → track → graduate` into one structured, measurable, and fair platform** for admins, mentors, and mentees:
+
+- A public program catalog, shareable cohort apply links, and admin-defined assessments replace the form-and-spreadsheet intake — then accept → invite → placement in one flow.
+- Clans (mentor-led groups), shared roadmaps, and a standardized task **submit → review → feedback** loop make mentorship repeatable and scalable.
+- Enrollment progress is computed from real assigned tasks (a single source of truth), with blockers, delays, analytics, and mentor-confirmed completion making outcomes visible.
+- Gamification, a scoped community feed, and admin fairness/clan-health lenses keep people engaged and the program equitable.
+- Real-time messaging, notifications, structured feedback, and meeting notes keep all communication in one place.
+
+> In one line: **Pathment is the operating system for mentor-led development programs — it replaces the spreadsheet-and-Slack sprawl of running structured training with a single platform that makes mentorship scalable, progress measurable, and outcomes fair.**
 
 ## 🎯 Overview
 
 Pathment enables organizations to:
-- Create structured mentorship programs with multiple levels
+- Create structured mentorship **programs**, organized into **cohorts** (intake seasons) and mentor-led **clans**
+- Run **intake**: applications, admin review, and invite-based placement into a program + clan
 - Match mentees with expert mentors based on skills and availability
-- Track progress through AI-generated roadmaps and tasks
-- Manage enrollments and mentor assignments
-- Monitor mentorship outcomes and performance
+- Hand out work through **roadmaps** of **tasks** with versioned submissions and mentor review
+- Engage members with a **scoped community feed**, **real-time messaging** (delivery/read receipts + reactions), and **gamification** (points, badges, leaderboards, gift catalog)
+- Schedule **1:1s** from mentor availability and capture meeting notes
+- Personalize the experience with **per-user themes + dark mode**, and plug in AI via **bring-your-own-key** connections
+- Monitor outcomes through per-mentee/mentor/program **analytics**
+
+The platform spans **3 roles** (admin, mentor, mentee), **83 data models** across 10 domains, and a Next.js client + Express API. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the guided tour.
 
 ## 📋 Table of Contents
 
+- [The Problem We're Solving](#-the-problem-were-solving)
 - [Architecture](#architecture)
+- [Understanding the System](#-understanding-the-system)
 - [Prerequisites](#prerequisites)
 - [Installation & Setup](#installation--setup)
 - [Project Structure](#project-structure)
@@ -25,6 +58,23 @@ Pathment enables organizations to:
 - [Troubleshooting](#troubleshooting)
 - [Quick Start Checklist](#-quick-start-checklist)
 - [Contributing](#-contributing)
+
+---
+
+## 🧭 Understanding the System
+
+If you're here to understand or contribute to Pathment, read these in order — they're
+written to take you from zero to productive:
+
+| Guide | What it covers |
+| --- | --- |
+| **[docs/features/](docs/features/README.md)** | **The feature manual — one deep-dive per feature** (what it is, data model, backend, frontend, and the journey for each role). Start here to understand any specific feature. |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | The big picture: the monorepo apps, how a request flows (route → controller → service → model), auth & capabilities, the core apply → accept → register → place → work life-cycle, real-time messaging, background jobs, AI, theming, and the conventions every contributor follows. |
+| **[docs/DATABASE.md](docs/DATABASE.md)** | The complete data model: a "spine" diagram of the core entities plus a per-domain ER diagram (Mermaid) for all 83 models, schema conventions, and the migration history. |
+| **[server/README.md](server/README.md)** | Backend deep-dive: modules, API endpoints, background jobs, security. |
+| **[server/docs/API_DOCUMENTATION.md](server/docs/API_DOCUMENTATION.md)** | REST endpoint reference with request/response examples. |
+| **[client-interface/README.md](client-interface/README.md)** | Frontend structure, theming, and RBAC. |
+| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Fork → branch → PR workflow and code standards. |
 
 ---
 
@@ -259,10 +309,10 @@ Frontend will run at: `http://localhost:3000`
 server/
 ├── config/
 │   └── config.json              # Database configuration
-├── docs/                        # API and module documentation
+├── docs/                        # API reference + quick start + testing guides
 │   ├── API_DOCUMENTATION.md
-│   ├── AUTH_MODULE_COMPLETE.md
-│   └── PROGRAMS_MODULE_COMPLETE.md
+│   ├── QUICK_START.md
+│   └── TESTING_AUTH.md
 ├── postman/                     # Postman collection for API testing
 ├── scripts/                     # Database and utility scripts
 │   ├── createTables.js
@@ -1013,7 +1063,10 @@ Quick PR flow:
 
 ## 📄 License
 
-This project is proprietary and confidential.
+Pathment is open source. A specific license (e.g. MIT or Apache-2.0) is being finalized —
+once chosen, the full text will live in a top-level `LICENSE` file and this section will
+point to it. Until then, treat external contributions under the inbound-equals-outbound
+model described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

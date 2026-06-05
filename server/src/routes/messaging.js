@@ -16,6 +16,7 @@ router.get('/conversations/:conversationId/messages', validateParams(messagingSc
 router.post('/conversations/:conversationId/read', validateParams(messagingSchemas.conversationParams), messagingController.markConversationRead);
 
 router.post('/messages', validateBody(messagingSchemas.sendMessage), messagingController.sendMessage);
+router.post('/messages/:messageId/reactions', messagingController.toggleReaction);
 
 router.get('/notifications', messagingController.getNotifications);
 router.post('/notifications/read-all', messagingController.markAllNotificationsRead);

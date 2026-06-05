@@ -33,7 +33,7 @@ class MatchingService {
     return currentMenteeCount;
   }
 
-  async createMatch(enrollmentId, mentorId, levelId, matchedBy) {
+  async createMatch(enrollmentId, mentorId, matchedBy) {
     // Validate enrollment
     const enrollment = await models.Enrollment.findByPk(enrollmentId, {
       include: [{
@@ -80,7 +80,6 @@ class MatchingService {
       mentorId,
       menteeId: enrollment.menteeId,
       enrollmentId,
-      levelId,
       matchedBy,
       status: 'active',
       matchedAt: new Date()
@@ -96,17 +95,13 @@ class MatchingService {
     // scope from day 1, then auto-assign week 1 tasks for the current level.
     const taskService = require('./taskService');
     await taskService.updateEnrollmentTaskStats(enrollmentId);
-    try {
-      await taskService.autoAssignWeekTasks(enrollmentId, enrollment.currentWeek || 1);
-    } catch (err) {
-      // Don't fail match creation if task assignment fails (e.g. roadmap not set up yet)
-      console.warn('Could not auto-assign week 1 tasks on match creation:', err.message);
-    }    const hydratedMatch = await models.MentorMenteeMatch.findByPk(match.id, {
+    // Onboarding is fully mentor-driven: the mentor assigns roadmaps/tasks
+    // after matching. (Legacy week-curriculum auto-assignment was removed.)
+    const hydratedMatch = await models.MentorMenteeMatch.findByPk(match.id, {
       include: [
         { model: models.User, as: 'mentor', attributes: ['id', 'firstName', 'lastName', 'email'] },
         { model: models.User, as: 'mentee', attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: models.Enrollment, as: 'enrollment' },
-        { model: models.ProgramLevel, as: 'level' }
+        { model: models.Enrollment, as: 'enrollment', include: [{ model: models.Program, as: 'program', attributes: ['name'] }] }
       ]
     });
 
@@ -115,7 +110,7 @@ class MatchingService {
       recipients: [{ userId: hydratedMatch.mentorId }],
       payload: {
         title: 'New mentee assigned',
-        message: `You have been matched for level "${hydratedMatch.level?.name || 'current level'}".`,
+        message: `You have been matched in "${hydratedMatch.enrollment?.program?.name || 'a program'}".`,
         actionUrl: `/mentor/mentees`,
         actionLabel: 'Open Mentees',
         relatedEntityType: 'mentor_match',
@@ -133,7 +128,7 @@ class MatchingService {
       recipients: [{ userId: hydratedMatch.menteeId }],
       payload: {
         title: 'Mentor assigned',
-        message: `A mentor has been assigned for level "${hydratedMatch.level?.name || 'current level'}".`,
+        message: `A mentor has been assigned in "${hydratedMatch.enrollment?.program?.name || 'your program'}".`,
         actionUrl: `/mentee/programs`,
         actionLabel: 'View Program',
         relatedEntityType: 'mentor_match',
@@ -164,7 +159,7 @@ class MatchingService {
             }
           ]
         },
-        { model: models.ProgramLevel, as: 'currentLevel' }
+        { model: models.Program, as: 'program' }
       ]
     });
 
@@ -172,8 +167,8 @@ class MatchingService {
       throw new NotFoundError('Enrollment not found');
     }
 
-    // Get mentors assigned to this level, including their skills
-    const levelMentorIds = (await this.getLevelMentors(enrollment.currentLevelId)).map(m => m.id);
+    // Candidate pool = all active mentors (level-based gating was removed).
+    const levelMentorIds = (await this.getCandidateMentors()).map(m => m.id);
     if (levelMentorIds.length === 0) return [];
 
     const mentorUsers = await models.User.findAll({
@@ -201,8 +196,8 @@ class MatchingService {
     };
 
     const programRequirements = {
-      skills: (enrollment.currentLevel?.learningOutcomes || []),
-      level: enrollment.currentLevel?.name || 'Not specified'
+      skills: (enrollment.program?.learningOutcomes || []),
+      level: enrollment.program?.name || 'Not specified'
     };
 
     // Build mentor payloads and fire a single batch AI call
@@ -234,7 +229,7 @@ class MatchingService {
           email: mentor.email,
           mentorProfile: mentor.mentorProfile
         },
-        level: enrollment.currentLevel,
+        program: enrollment.program,
         currentMentees: mentor.mentorProfile?.currentMenteeCount || 0,
         matchScore: aiResult.score,
         matchReason: aiResult.reasoning || '',
@@ -247,26 +242,17 @@ class MatchingService {
     return suggestions.sort((a, b) => b.matchScore - a.matchScore);
   }
 
-  async getLevelMentors(levelId) {
-    const assignments = await models.LevelMentorAssignment.findAll({
-      where: { levelId, isActive: true },
-      include: [
-        {
-          model: models.User,
-          as: 'mentor',
-          include: [{ model: models.MentorProfile, as: 'mentorProfile' }]
-        }
-      ]
+  /** Candidate mentors for matching — all active mentors (no level gating). */
+  async getCandidateMentors() {
+    const mentors = await models.User.findAll({
+      where: { role: 'mentor' },
+      include: [{ model: models.MentorProfile, as: 'mentorProfile' }]
     });
 
-    // Use the currentMenteeCount from the database (already calculated)
-    const mentors = assignments.map(assignment => ({
-      ...assignment.mentor.toJSON(),
-      currentMentees: assignment.mentor.mentorProfile?.currentMenteeCount || 0,
-      assignmentId: assignment.id
+    return mentors.map((m) => ({
+      ...m.toJSON(),
+      currentMentees: m.mentorProfile?.currentMenteeCount || 0
     }));
-
-    return mentors;
   }
 
   async getMatches(filters) {
@@ -286,70 +272,44 @@ class MatchingService {
           attributes: ['id', 'firstName', 'lastName', 'email'],
           include: [{ model: models.MenteeProfile, as: 'menteeProfile' }]
         },
-        { 
-          model: models.Enrollment, 
+        {
+          model: models.Enrollment,
           as: 'enrollment',
           include: [
-            { model: models.Program, as: 'program' },
-            { model: models.ProgramLevel, as: 'currentLevel' }
+            { model: models.Program, as: 'program' }
           ]
-        },
-        { model: models.ProgramLevel, as: 'level' }
+        }
       ],
       order: [['matchedAt', 'DESC']]
     });
   }
 
   /**
-   * Get all levels a mentor is assigned to teach (via LevelMentorAssignment).
-   * Groups by program so the frontend can build cascading Program → Level → Mentee dropdowns.
-   * This is the authoritative source — it is independent of whether the mentor has
-   * active mentee matches in those levels yet.
+   * Programs a mentor is working in, derived from their ACTIVE matches. Grouped
+   * by program for the frontend's program dropdowns. (Levels were removed; the
+   * `levels` array is kept empty for backward-compatible response shape.)
    */
   async getMentorAssignedLevels(mentorId) {
-    const assignments = await models.LevelMentorAssignment.findAll({
-      where: { mentorId, isActive: true },
+    const matches = await models.MentorMenteeMatch.findAll({
+      where: { mentorId, status: 'active' },
       include: [
         {
-          model: models.ProgramLevel,
-          as: 'level',
-          include: [
-            {
-              model: models.Program,
-              as: 'program',
-              attributes: ['id', 'name', 'type', 'status']
-            }
-          ]
+          model: models.Enrollment,
+          as: 'enrollment',
+          include: [{ model: models.Program, as: 'program', attributes: ['id', 'name', 'type', 'status'] }]
         }
-      ],
-      order: [
-        [{ model: models.ProgramLevel, as: 'level' }, { model: models.Program, as: 'program' }, 'name', 'ASC'],
-        [{ model: models.ProgramLevel, as: 'level' }, 'levelOrder', 'ASC']
       ]
     });
 
-    // Group by program for easy consumption
     const programMap = new Map();
-    for (const a of assignments) {
-      const level = a.level;
-      const program = level?.program;
-      if (!program || !level) continue;
-
+    for (const m of matches) {
+      const program = m.enrollment?.program;
+      if (!program) continue;
       if (!programMap.has(program.id)) {
         programMap.set(program.id, {
-          id: program.id,
-          name: program.name,
-          type: program.type,
-          status: program.status,
-          levels: []
+          id: program.id, name: program.name, type: program.type, status: program.status, levels: []
         });
       }
-      programMap.get(program.id).levels.push({
-        id: level.id,
-        name: level.name,
-        levelOrder: level.levelOrder,
-        durationWeeks: level.durationWeeks
-      });
     }
 
     return Array.from(programMap.values());
@@ -609,7 +569,6 @@ class MatchingService {
     const enrollments = await models.Enrollment.findAll({
       where: whereClause,
       include: [
-        { model: models.ProgramLevel, as: 'currentLevel' },
         {
           model: models.User,
           as: 'mentee',
@@ -630,7 +589,7 @@ class MatchingService {
           results.skipped.push({
             enrollmentId: enrollment.id,
             menteeName,
-            reason: 'No mentor suggestions available for this level'
+            reason: 'No mentor suggestions available for this enrollment'
           });
           continue;
         }
@@ -639,7 +598,6 @@ class MatchingService {
         const match = await this.createMatch(
           enrollment.id,
           top.mentor.id,
-          enrollment.currentLevelId,
           matchedBy
         );
 

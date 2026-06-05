@@ -95,29 +95,36 @@ class SubmissionService {
       });
     }
 
-    // Update task status
+    // Update task status (persist time-spent the mentee reported, if any)
+    const reportedHours = Number(submissionData.timeSpentHours);
     await task.update({
       status: 'submitted',
       submittedAt: new Date(),
       currentSubmissionVersion: newVersion,
       startedAt: task.startedAt || new Date(),
-      isLate: task.dueDate && new Date() > new Date(task.dueDate)
+      isLate: task.dueDate && new Date() > new Date(task.dueDate),
+      ...(Number.isFinite(reportedHours) && reportedHours > 0 ? { timeSpentHours: reportedHours } : {})
     });
 
     // Return complete submission with files
     const fullSubmission = await this.getSubmissionById(submission.id);
 
+    const submitter = await models.User.findByPk(task.menteeId, { attributes: ['firstName', 'lastName'] });
+    const submitterName = submitter ? `${submitter.firstName} ${submitter.lastName}`.trim() : 'A mentee';
+    const submittedTitle = fullSubmission.assignedTask?.roadmapTask?.title || 'a task';
+    const isResubmission = newVersion > 1;
+
     await notificationOrchestrator.dispatch({
       eventKey: NOTIFICATION_EVENTS.TASK_SUBMITTED,
       recipients: [{ userId: task.mentorId }],
       payload: {
-        title: 'Task submitted for review',
-        message: `A mentee submitted "${fullSubmission.assignedTask?.roadmapTask?.title || 'a task'}" for review.`,
+        title: `${submitterName} submitted work to review`,
+        message: `${submitterName} ${isResubmission ? 'resubmitted' : 'submitted'} “${submittedTitle}”${isResubmission ? ` (v${newVersion})` : ''}. Review it when you can.`,
         actionUrl: `/mentor/tasks/${task.id}/feedback`,
-        actionLabel: 'Review Submission',
+        actionLabel: 'Review submission',
         relatedEntityType: 'task_submission',
         relatedEntityId: submission.id,
-        emailSubject: 'Pathment: Task submitted for review'
+        emailSubject: `${submitterName} submitted “${submittedTitle}” for review`
       },
       dedupe: {
         relatedEntityType: 'task_submitted',
@@ -301,8 +308,14 @@ class SubmissionService {
       isApproved,
       revisionNotes,
       criteriaMet,
-      pointsAwarded
+      pointsAwarded,
+      decision,
+      checkedCriteria
     } = reviewData;
+
+    // Derive the explicit decision when not provided (keeps the 4-decision
+    // model and the legacy isApproved boolean in sync).
+    const resolvedDecision = decision || (isApproved ? 'approved' : 'changes');
 
     // Validate rating
     if (rating < 0 || rating > 5) {
@@ -340,6 +353,8 @@ class SubmissionService {
       isApproved,
       revisionNotes: isApproved ? null : revisionNotes,
       criteriaMet: criteriaMet || null,
+      decision: resolvedDecision,
+      checkedCriteria: checkedCriteria || null,
       feedbackType
     });
 
@@ -365,6 +380,19 @@ class SubmissionService {
     }
 
     await task.update(updateData);
+
+    // Auto-advance a roadmap chain FIRST (assign the next step) so the stats
+    // recompute below counts it — otherwise approving the last-assigned step
+    // would momentarily read 100% and flag the enrollment ready-to-complete
+    // before the next step appears.
+    if (isApproved) {
+      try {
+        const linearRoadmapService = require('./linearRoadmapService');
+        await linearRoadmapService.advanceOnApproval(task.menteeId, task.roadmapTaskId);
+      } catch (err) {
+        console.error('Roadmap auto-advance failed (non-fatal):', err.message);
+      }
+    }
 
     // Update enrollment task stats so tasksCompleted/tasksTotal/overallProgressPercentage stay current
     const taskService = require('./taskService');
@@ -408,19 +436,23 @@ class SubmissionService {
 
     const reviewedSubmission = await this.getSubmissionById(submissionId);
 
+    const reviewedTitle = reviewedSubmission.assignedTask?.roadmapTask?.title || 'your task';
+    const ratingNum = Number(rating);
+    const ratingStr = Number.isFinite(ratingNum) && ratingNum > 0 ? `${ratingNum % 1 === 0 ? ratingNum : ratingNum.toFixed(1)}★` : null;
+
     await notificationOrchestrator.dispatch({
       eventKey: NOTIFICATION_EVENTS.SUBMISSION_REVIEWED,
       recipients: [{ userId: task.menteeId }],
       payload: {
-        title: isApproved ? 'Submission approved' : 'Submission needs revision',
+        title: isApproved ? `“${reviewedTitle}” approved 🎉` : `Changes requested on “${reviewedTitle}”`,
         message: isApproved
-          ? `Great work! Your submission for "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}" was approved.`
-          : `Your submission for "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}" needs revision.`,
+          ? `Your mentor approved “${reviewedTitle}”${ratingStr ? ` · ${ratingStr}` : ''}. Nice work — keep the momentum going.`
+          : `Your mentor asked for another pass on “${reviewedTitle}”. Read their notes and resubmit when ready.`,
         actionUrl: `/mentee/tasks/${task.id}`,
-        actionLabel: 'View Feedback',
+        actionLabel: isApproved ? 'See review' : 'View notes & resubmit',
         relatedEntityType: 'task_submission',
         relatedEntityId: submission.id,
-        emailSubject: 'Pathment: Submission review update'
+        emailSubject: isApproved ? `Approved: “${reviewedTitle}”` : `Revision requested: “${reviewedTitle}”`
       },
       dedupe: {
         relatedEntityType: 'submission_reviewed',
@@ -429,17 +461,19 @@ class SubmissionService {
     });
 
     if (feedbackText && String(feedbackText).trim()) {
+      const reviewer = await models.User.findByPk(mentorId, { attributes: ['firstName', 'lastName'] });
+      const reviewerName = reviewer ? `${reviewer.firstName} ${reviewer.lastName}`.trim() : 'Your mentor';
       await notificationOrchestrator.dispatch({
         eventKey: NOTIFICATION_EVENTS.FEEDBACK_SENT,
         recipients: [{ userId: task.menteeId }],
         payload: {
-          title: 'New mentor feedback',
-          message: `Your mentor left new feedback on "${reviewedSubmission.assignedTask?.roadmapTask?.title || 'task'}".`,
+          title: `${reviewerName} left you feedback`,
+          message: `New feedback on “${reviewedTitle}”. Take a look when you get a moment.`,
           actionUrl: `/mentee/tasks/${task.id}`,
-          actionLabel: 'Read Feedback',
+          actionLabel: 'Read feedback',
           relatedEntityType: 'task_feedback',
           relatedEntityId: submission.id,
-          emailSubject: 'Pathment: New mentor feedback'
+          emailSubject: `${reviewerName} left feedback on “${reviewedTitle}”`
         },
         dedupe: {
           relatedEntityType: 'feedback_sent',
@@ -648,6 +682,75 @@ class SubmissionService {
       totalTasksCompleted,
       avgTaskRating
     });
+  }
+
+  /**
+   * The mentor's approvals queue: pending submissions across their assigned
+   * tasks, shaped for the review UI (criteria checklist + submission content).
+   */
+  async getMentorApprovalsQueue(mentorId) {
+    const submissions = await models.TaskSubmission.findAll({
+      where: { status: 'pending' },
+      include: [{
+        model: models.AssignedTask,
+        as: 'assignedTask',
+        required: true,
+        where: { mentorId, status: 'submitted' },
+        include: [
+          { model: models.RoadmapTask, as: 'roadmapTask', attributes: ['title', 'type', 'description', 'deliverable', 'acceptanceCriteria', 'pointsBase'] },
+          { model: models.User, as: 'mentee', attributes: ['id', 'firstName', 'lastName', 'profilePictureUrl'] }
+        ]
+      }],
+      order: [['submittedAt', 'ASC']]
+    });
+
+    return submissions.map((s) => {
+      const t = s.assignedTask;
+      const m = t.mentee;
+      return {
+        submissionId: s.id,
+        taskId: t.id,
+        version: s.version,
+        submissionText: s.submissionText,
+        submissionUrls: s.submissionUrls || [],
+        submittedAt: s.submittedAt,
+        isLate: t.isLate,
+        title: t.roadmapTask?.title || 'Task',
+        type: t.roadmapTask?.type || null,
+        brief: t.roadmapTask?.description || null,
+        deliverable: t.roadmapTask?.deliverable || null,
+        criteria: t.roadmapTask?.acceptanceCriteria || [],
+        maxPoints: t.roadmapTask?.pointsBase ?? 10,
+        mentee: m ? {
+          id: m.id,
+          name: `${m.firstName} ${m.lastName}`.trim(),
+          avatar: `${(m.firstName || '').charAt(0)}${(m.lastName || '').charAt(0)}`.toUpperCase()
+        } : null
+      };
+    });
+  }
+
+  /**
+   * Bulk-approve a set of submissions (used for on-time work). Each goes
+   * through the normal review path so points/notifications/stats all fire.
+   * Returns per-submission results so the caller can report partial failure.
+   */
+  async bulkApprove(mentorId, submissionIds = []) {
+    const results = [];
+    for (const submissionId of submissionIds) {
+      try {
+        await this.reviewSubmission(submissionId, mentorId, {
+          rating: 5,
+          feedbackText: 'Approved.',
+          isApproved: true,
+          decision: 'approved'
+        });
+        results.push({ submissionId, ok: true });
+      } catch (error) {
+        results.push({ submissionId, ok: false, error: error.message });
+      }
+    }
+    return results;
   }
 }
 

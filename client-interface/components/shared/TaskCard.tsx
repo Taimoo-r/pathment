@@ -71,7 +71,7 @@ export function TaskCard({
 
   return (
     <Link href={href}>
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow">
+      <div className="bg-card rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1">
@@ -82,7 +82,7 @@ export function TaskCard({
                   <Sparkles className="w-3 h-3" /> Custom
                 </span>
               ) : (
-                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium flex items-center gap-1">
+                <span className="px-2 py-0.5 bg-brand-100 text-brand-700 rounded text-xs font-medium flex items-center gap-1">
                   <BookOpen className="w-3 h-3" /> Roadmap
                 </span>
               )}
@@ -131,12 +131,6 @@ export function TaskCard({
               <span>{estimatedHours}h</span>
             </div>
           )}
-          {roadmapTask?.week && (
-            <div className="flex items-center gap-1">
-              <BookOpen className="w-4 h-4" />
-              <span>Week {roadmapTask.week.weekNumber}</span>
-            </div>
-          )}
           {finalRating && (
             <div className="flex items-center gap-1 text-yellow-600">
               <Star className="w-4 h-4 fill-yellow-400" />
@@ -163,7 +157,7 @@ export function TaskCard({
               </div>
             )}
             {pointsAwarded != null && (
-              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium">
+              <span className="px-3 py-1 bg-brand-50 text-brand-700 rounded-lg text-sm font-medium">
                 +{pointsAwarded} pts
               </span>
             )}
