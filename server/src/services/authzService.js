@@ -67,9 +67,11 @@ class AuthzService {
     for (const m of memberships) add(m.role, 'clan', m.clanId);
 
     // 1c. Cross-clan assignments → co-mentor access to another clan.
+    //     Consent-first: only ACCEPTED (active) cover grants access; pending/declined
+    //     requests grant nothing until the person accepts.
     if (models.CrossClanAssignment) {
       const cross = await models.CrossClanAssignment.findAll({
-        where: { userId: user.id },
+        where: { userId: user.id, status: 'active' },
         attributes: ['toClanId']
       });
       for (const c of cross) if (c.toClanId) add('co_mentor', 'clan', c.toClanId);

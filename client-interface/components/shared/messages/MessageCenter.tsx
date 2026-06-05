@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, CheckCheck, Loader2, MessageSquare, RefreshCw, Send } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,6 +20,43 @@ const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return extractApiErrorMessage(error, fallback);
+}
+
+/** Same calendar day? (for date separators + consecutive-message grouping). */
+function sameDay(a: string, b: string): boolean {
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+/** Compact last-activity label for the conversation list: "3:42 PM" today, "Yesterday", weekday, else date. */
+function conversationTime(iso?: string): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  const within7 = (today.getTime() - date.getTime()) / 86400000 < 7;
+  if (within7) return date.toLocaleDateString([], { weekday: 'short' });
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+/** Human day label for the separator: Today / Yesterday / "Mon, Jun 2" (+ year if not this year). */
+function dayLabel(iso: string): string {
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}),
+  });
 }
 
 export default function MessageCenter({ role }: MessageCenterProps) {
@@ -396,11 +433,14 @@ export default function MessageCenter({ role }: MessageCenterProps) {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-slate-900 truncate">{title}</p>
-                      {conversation.unreadCount > 0 && (
-                        <span className="min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center">
-                          {conversation.unreadCount}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[11px] text-slate-400">{conversationTime(conversation.lastMessageAt)}</span>
+                        {conversation.unreadCount > 0 && (
+                          <span className="min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-slate-500 truncate mt-1">
                       {conversation.lastMessage?.messageText || 'No messages yet'}
@@ -418,7 +458,7 @@ export default function MessageCenter({ role }: MessageCenterProps) {
             <h2 className="text-slate-900 truncate">{selectedTitle}</h2>
           </div>
 
-          <div className="flex-1 min-h-0 p-4 overflow-y-auto space-y-3 bg-slate-50">
+          <div className="flex-1 min-h-0 p-4 overflow-y-auto bg-slate-50">
             {isMessagesLoading ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
@@ -429,9 +469,15 @@ export default function MessageCenter({ role }: MessageCenterProps) {
               </div>
             ) : (
               <>
-                {messages.map((message) => {
+                {messages.map((message, index) => {
                   const mine = message.senderId === user?.id;
                   const read = Boolean(message.isRead || message.readAt);
+                  const prev = index > 0 ? messages[index - 1] : null;
+                  // A new day → show a centered date separator above this message.
+                  const showDateSeparator = !prev || !sameDay(prev.createdAt, message.createdAt);
+                  // Consecutive messages from the same sender on the same day collapse
+                  // into one visual group — only the first shows the name + extra gap.
+                  const startsRun = showDateSeparator || !prev || prev.senderId !== message.senderId;
 
                   // Group reactions by emoji so chips show "👍 2" and mark which I added.
                   const grouped = (message.reactions || []).reduce(
@@ -451,11 +497,18 @@ export default function MessageCenter({ role }: MessageCenterProps) {
                   );
 
                   return (
-                    <div
-                      key={message.id}
-                      className={`group/msg flex flex-col ${mine ? 'items-end' : 'items-start'}`}
-                    >
-                      <div className="relative max-w-[80%]">
+                    <Fragment key={message.id}>
+                      {showDateSeparator && (
+                        <div className="flex justify-center py-2">
+                          <span className="rounded-full bg-slate-200/70 px-3 py-1 text-[11px] font-medium text-slate-500">
+                            {dayLabel(message.createdAt)}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className={`flex flex-col ${mine ? 'items-end' : 'items-start'} ${startsRun ? 'mt-3' : 'mt-0.5'}`}
+                      >
+                      <div className="group/msg relative max-w-[80%]">
                         <div
                           className={`rounded-2xl px-4 py-3 ${
                             mine
@@ -463,11 +516,11 @@ export default function MessageCenter({ role }: MessageCenterProps) {
                               : 'bg-card border border-slate-200 text-slate-800'
                           }`}
                         >
-                          <p className="text-xs opacity-75 mb-1">
-                            {mine
-                              ? 'You'
-                              : `${message.sender?.firstName || ''} ${message.sender?.lastName || ''}`.trim() || 'User'}
-                          </p>
+                          {startsRun && !mine && (
+                            <p className="text-xs font-medium opacity-75 mb-1">
+                              {`${message.sender?.firstName || ''} ${message.sender?.lastName || ''}`.trim() || 'User'}
+                            </p>
+                          )}
                           <p className="text-sm whitespace-pre-wrap">{message.messageText}</p>
                           <div className={`flex items-center gap-1.5 mt-2 ${mine ? 'justify-end' : ''}`}>
                             <span className={`text-[11px] ${mine ? 'text-white/70' : 'text-slate-400'}`}>
@@ -532,7 +585,8 @@ export default function MessageCenter({ role }: MessageCenterProps) {
                           </div>
                         )}
                       </div>
-                    </div>
+                      </div>
+                    </Fragment>
                   );
                 })}
                 <div ref={messageListEndRef} />

@@ -9,4 +9,8 @@ export const clanRequestsApi = {
   createCrossClan: (data: { kind: string; userId: string; toClanId: string; fromClanId?: string; note?: string }) =>
     apiClient.post('/clan-requests/cross-clan', data),
   removeCrossClan: (id: string) => apiClient.delete(`/clan-requests/cross-clan/${id}`),
+  // The covering person's own surface.
+  listMyCrossClan: () => apiClient.get('/clan-requests/cross-clan/mine'),
+  respondCrossClan: (id: string, accept: boolean) =>
+    apiClient.post(`/clan-requests/cross-clan/${id}/respond`, { accept }),
 };

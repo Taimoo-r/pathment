@@ -16,6 +16,15 @@ module.exports = (sequelize, DataTypes) => {
     fromClanId: { type: DataTypes.UUID, allowNull: true, field: 'from_clan_id' },
     toClanId: { type: DataTypes.UUID, allowNull: true, field: 'to_clan_id' },
     note: { type: DataTypes.TEXT, allowNull: true },
+    // Consent-first: a lead's request stays `pending` until the person accepts;
+    // admin-created cover is `active` immediately. Only `active` grants access.
+    status: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'active',
+      validate: { isIn: [['pending', 'active', 'declined']] }
+    },
+    respondedAt: { type: DataTypes.DATE, allowNull: true, field: 'responded_at' },
     createdBy: { type: DataTypes.UUID, allowNull: true, field: 'created_by' }
   }, {
     tableName: 'cross_clan_assignments',

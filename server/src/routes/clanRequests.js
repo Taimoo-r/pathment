@@ -20,6 +20,10 @@ router.get('/', adminOnly, c.overview);
 router.post('/requests', authenticate, c.createRequest);
 router.patch('/requests/:id/resolve', adminOnly, c.resolveRequest);
 
+// The covering person's own surface: see + accept/decline cover requests for them.
+router.get('/cross-clan/mine', authenticate, c.listMyCrossClan);
+router.post('/cross-clan/:id/respond', authenticate, c.respondCrossClan);
+
 // Cross-clan: admins manage org-wide; a clan's lead mentor manages cover for THEIR clan.
 router.get('/cross-clan', authenticate, onTargetClan((req) => req.query.clanId), c.listCrossClan);
 router.post('/cross-clan', authenticate, onTargetClan((req) => req.body.toClanId), c.createCrossClan);

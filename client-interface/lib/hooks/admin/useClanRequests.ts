@@ -18,6 +18,7 @@ export interface CrossClanItem {
   fromClan: string | null;
   toClan: string | null;
   note: string | null;
+  status?: string;
   at: string;
 }
 export interface UseClanRequestsReturn {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { GitPullRequest, Loader2, Check, X, Plus, Trash2, ArrowRight, Search } from 'lucide-react';
 import { useClanRequests } from '@/lib/hooks/admin';
@@ -16,10 +17,23 @@ const CROSS_KINDS = [
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700', approved: 'bg-emerald-100 text-emerald-700', denied: 'bg-slate-100 text-slate-500',
 };
+const CROSS_STATUS_CLASS: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700', active: 'bg-emerald-100 text-emerald-700', declined: 'bg-slate-100 text-slate-500',
+};
+const CROSS_STATUS_LABEL: Record<string, string> = { pending: 'Awaiting acceptance', active: 'Active', declined: 'Declined' };
 
-export default function AdminClanRequests() {
+function AdminClanRequestsInner() {
   const { requests, crossClan, loading, error, refetch } = useClanRequests();
   const [tab, setTab] = useState<Tab>('requests');
+  const searchParams = useSearchParams();
+
+  // Deep-link support: /admin/requests?tab=cross opens the Cross-clan tab
+  // (e.g. from the "Cross-clan cover arranged" notification) — reactive, so it
+  // also switches when the user is already on the page.
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t === 'cross' || t === 'requests') setTab(t);
+  }, [searchParams]);
   const [busy, setBusy] = useState<string | null>(null);
 
   // cross-clan form
@@ -31,6 +45,7 @@ export default function AdminClanRequests() {
   const [ccToClan, setCcToClan] = useState('');
   const [ccFromClan, setCcFromClan] = useState('');
   const [clans, setClans] = useState<{ id: string; name: string }[]>([]);
+  const [showCcForm, setShowCcForm] = useState(false);
 
   const act = async (id: string, fn: () => Promise<unknown>, msg = 'Done') => {
     try { setBusy(id); await fn(); toast.success(msg); refetch(); } catch (e: any) { toast.error(e?.response?.data?.message || 'Action failed'); } finally { setBusy(null); }
@@ -65,7 +80,7 @@ export default function AdminClanRequests() {
         note: ccNote.trim() || undefined,
       });
       toast.success(`${ccUser.name} can now help that clan`);
-      setCcUser(null); setCcUserQuery(''); setCcToClan(''); setCcFromClan(''); setCcNote('');
+      setCcUser(null); setCcUserQuery(''); setCcToClan(''); setCcFromClan(''); setCcNote(''); setShowCcForm(false);
       refetch();
     } catch (e: any) { toast.error(e?.response?.data?.message || 'Could not add'); } finally { setBusy(null); }
   };
@@ -106,9 +121,10 @@ export default function AdminClanRequests() {
           {/* Change requests */}
           {tab === 'requests' && (
             requests.length === 0 ? (
-              <div className="bg-card rounded-2xl border border-slate-200 py-12 text-center">
+              <div className="bg-card rounded-2xl border border-slate-200 py-12 px-6 text-center">
                 <GitPullRequest className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-600">No clan-change requests.</p>
+                <p className="text-slate-600 font-medium">No clan-change requests</p>
+                <p className="text-slate-400 text-sm mt-1 max-w-md mx-auto">When a mentee asks to move from one clan to another, it shows up here for you to approve or deny. Approving moves the mentee into the new clan.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -140,6 +156,43 @@ export default function AdminClanRequests() {
           {/* Cross-clan */}
           {tab === 'cross' && (
             <div className="space-y-4">
+              {/* Current assignments first — this is what people come to see. */}
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-slate-700">
+                  Cross-clan support {crossClan.length > 0 && <span className="text-slate-400 font-normal">· {crossClan.length}</span>}
+                </h2>
+                <button onClick={() => setShowCcForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                  {showCcForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}{showCcForm ? 'Close' : 'Grant access'}
+                </button>
+              </div>
+
+              {crossClan.length === 0 ? (
+                <div className="bg-card rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
+                  No cross-clan support yet. Use <span className="font-medium">Grant access</span> to bring a mentor into another clan.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {crossClan.map((c) => (
+                    <div key={c.id} className="bg-card rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+                      <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs font-medium shrink-0">{CROSS_KINDS.find((k) => k.key === c.kind)?.label ?? c.kind}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-slate-800 truncate">
+                          <span className="font-medium">{c.user || '—'}</span>
+                          <span className="text-slate-400"> → {c.toClan || '—'}</span>
+                        </p>
+                        {c.note && <p className="text-xs text-slate-500 truncate">{c.note}</p>}
+                      </div>
+                      {c.status && c.status !== 'active' && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${CROSS_STATUS_CLASS[c.status] || 'bg-slate-100 text-slate-500'}`}>{CROSS_STATUS_LABEL[c.status] || c.status}</span>
+                      )}
+                      <button onClick={() => act(c.id, () => clanRequestsApi.removeCrossClan(c.id), 'Removed')} disabled={busy === c.id} className="text-slate-400 hover:text-red-500 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Grant form — revealed on demand so it never buries the list. */}
+              {showCcForm && (
               <div className="bg-card rounded-2xl border border-slate-200 p-4 space-y-3">
                 <p className="text-sm font-medium text-slate-700">Give someone temporary access to another clan</p>
 
@@ -202,30 +255,19 @@ export default function AdminClanRequests() {
                 </div>
                 <p className="text-xs text-slate-400">They get co-mentor access to that clan (review tasks, see mentees) until you remove it.</p>
               </div>
-
-              {crossClan.length === 0 ? (
-                <p className="text-sm text-slate-500">No cross-clan assignments.</p>
-              ) : (
-                <div className="space-y-2">
-                  {crossClan.map((c) => (
-                    <div key={c.id} className="bg-card rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
-                      <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs font-medium shrink-0">{CROSS_KINDS.find((k) => k.key === c.kind)?.label ?? c.kind}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-slate-800 truncate">
-                          <span className="font-medium">{c.user || '—'}</span>
-                          <span className="text-slate-400"> → {c.toClan || '—'}</span>
-                        </p>
-                        {c.note && <p className="text-xs text-slate-500 truncate">{c.note}</p>}
-                      </div>
-                      <button onClick={() => act(c.id, () => clanRequestsApi.removeCrossClan(c.id), 'Removed')} disabled={busy === c.id} className="text-slate-400 hover:text-red-500 shrink-0"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
           )}
         </>
       )}
     </div>
+  );
+}
+
+export default function AdminClanRequests() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>}>
+      <AdminClanRequestsInner />
+    </Suspense>
   );
 }

@@ -18,10 +18,12 @@ import {
   Settings,
   HelpCircle,
   ShieldCheck,
+  Search,
 } from 'lucide-react';
 import { NavLink } from '@/lib/config/navigation';
 import { useNavPreferences } from '@/lib/hooks/shared';
 import { usePermissions } from '@/lib/hooks/usePermissions';
+import { CommandPalette } from './CommandPalette';
 import { NotificationDrawer } from './NotificationDrawer';
 import { UserProfileCard } from './UserProfileCard';
 import { messagingApi } from '@/lib/services/messaging-api';
@@ -295,8 +297,12 @@ export default function Navigation({ role }: NavigationProps) {
     </div>
   );
 
+  const openSearch = () => window.dispatchEvent(new CustomEvent('pathment:open-search'));
+
   return (
     <>
+      <CommandPalette role={role} />
+
       {/* ── Desktop Sidebar ── */}
       <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-card border-r border-slate-100">
         <div className="flex flex-col flex-1 overflow-y-auto">
@@ -338,6 +344,18 @@ export default function Navigation({ role }: NavigationProps) {
             <div className="px-3 pt-3">{renderRoleSwitcher()}</div>
           )}
 
+          {/* Quick search (⌘K) */}
+          <div className="px-3 pt-3">
+            <button
+              onClick={openSearch}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-colors"
+            >
+              <Search className="w-4 h-4 shrink-0" />
+              <span className="text-sm flex-1 text-left">Search…</span>
+              <kbd className="text-[11px] border border-slate-200 rounded px-1.5 py-0.5">⌘K</kbd>
+            </button>
+          </div>
+
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {renderNavHeader()}
@@ -372,6 +390,14 @@ export default function Navigation({ role }: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-1">
+            <button
+              onClick={openSearch}
+              title="Search"
+              aria-label="Search"
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Search className="w-5 h-5" />
+            </button>
             {user?.id && (
               <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} />
             )}

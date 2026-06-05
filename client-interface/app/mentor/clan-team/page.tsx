@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Crown, HeartHandshake, Loader2, Search, Shield, Trash2, UserPlus, Users2, X } from 'lucide-react';
+import { Check, Crown, HeartHandshake, Loader2, Search, Shield, Trash2, UserPlus, Users2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { apiClient } from '@/lib/services/api-client';
@@ -50,6 +50,8 @@ export default function ClanTeamPage() {
         <h1 className="text-slate-900 mb-2 inline-flex items-center gap-2"><Users2 className="w-6 h-6 text-brand-600" /> Clan Team</h1>
         <p className="text-slate-600">Manage the people who help run your clan — add co-mentors and core-team members. Mentees are placed by admins.</p>
       </div>
+
+      <PendingCoverInvites />
 
       {loading ? (
         <div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
@@ -156,13 +158,88 @@ function ClanTeamCard({ clanId, myRole }: { clanId: string; myRole: string }) {
   );
 }
 
-interface CrossClan { id: string; kind: string; user: string | null; fromClan: string | null; toClan: string | null; note: string | null; at: string }
+interface CrossClan { id: string; kind: string; user: string | null; fromClan: string | null; toClan: string | null; note: string | null; status?: string; at: string }
+interface MyCrossClan { id: string; kind: string; status: string; toClan: string | null; fromClan: string | null; note: string | null; at: string }
 
 const KIND_LABEL: Record<string, string> = {
   cover: 'Cover',
   specialist: 'Specialist',
   co_mentee_access: 'Mentee access',
 };
+
+const STATUS_BADGE: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  active: 'bg-emerald-100 text-emerald-700',
+  declined: 'bg-slate-100 text-slate-500',
+};
+const STATUS_LABEL: Record<string, string> = { pending: 'Awaiting acceptance', active: 'Active', declined: 'Declined' };
+
+/** A mentor's own inbox of cover requests addressed to them — accept or decline. */
+function PendingCoverInvites() {
+  const [rows, setRows] = useState<MyCrossClan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    clanRequestsApi.listMyCrossClan()
+      .then((r: any) => setRows(r.data?.crossClan || []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(load, [load]);
+
+  const respond = async (id: string, accept: boolean) => {
+    setBusy(id);
+    try {
+      await clanRequestsApi.respondCrossClan(id, accept);
+      toast.success(accept ? 'Accepted — you now have access' : 'Declined');
+      load();
+    } catch (e) { toast.error(extractApiErrorMessage(e, 'Could not respond')); }
+    finally { setBusy(null); }
+  };
+
+  const pending = rows.filter((r) => r.status === 'pending');
+  const active = rows.filter((r) => r.status === 'active');
+  if (loading || (pending.length === 0 && active.length === 0)) return null;
+
+  return (
+    <div className="rounded-2xl border border-brand-200 bg-brand-50/60 dark:bg-brand-500/10 p-5 space-y-3">
+      <p className="text-sm font-semibold text-slate-900 inline-flex items-center gap-2">
+        <HeartHandshake className="w-4 h-4 text-brand-600" /> Cross-clan help for you
+      </p>
+
+      {pending.map((r) => (
+        <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-card px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-900">
+              You’ve been asked to provide {(KIND_LABEL[r.kind] || r.kind).toLowerCase()} for <span className="font-semibold">{r.toClan || 'a clan'}</span>
+            </p>
+            {r.note && <p className="text-xs text-slate-500 mt-0.5">“{r.note}”</p>}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => respond(r.id, true)} disabled={busy === r.id}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+              {busy === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Accept
+            </button>
+            <button onClick={() => respond(r.id, false)} disabled={busy === r.id}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-rose-300 hover:text-rose-600 disabled:opacity-50">
+              Decline
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {active.map((r) => (
+        <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-card px-4 py-2.5">
+          <p className="text-sm text-slate-700">
+            You’re currently providing {(KIND_LABEL[r.kind] || r.kind).toLowerCase()} for <span className="font-medium">{r.toClan || 'a clan'}</span>
+          </p>
+          <span className="text-[11px] rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 shrink-0">Active</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** Lead-mentor view: who is covering / helping THIS clan, plus a way to request cover. */
 function CrossClanSection({ clanId, clanName }: { clanId: string; clanName: string }) {
@@ -210,9 +287,12 @@ function CrossClanSection({ clanId, clanName }: { clanId: string; clanName: stri
             return (
               <div key={c.id} className="flex items-start justify-between rounded-xl border border-slate-200 px-3 py-2">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium text-slate-900 truncate">{c.user || 'Someone'}</p>
                     <span className="text-[11px] rounded-full bg-slate-100 text-slate-600 px-1.5 py-0.5">{KIND_LABEL[c.kind] || c.kind}</span>
+                    {c.status && c.status !== 'active' && (
+                      <span className={`text-[11px] rounded-full px-1.5 py-0.5 ${STATUS_BADGE[c.status] || 'bg-slate-100 text-slate-500'}`}>{STATUS_LABEL[c.status] || c.status}</span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-500 truncate">
                     {incoming ? 'Helping this clan' : `Lent to ${c.toClan || 'another clan'}`}

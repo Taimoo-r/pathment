@@ -28,7 +28,17 @@ const createCrossClan = catchAsync(async (req, res) => {
 });
 
 const removeCrossClan = catchAsync(async (req, res) => {
-  res.status(200).json(successResponse('Assignment removed', await clanRequestsService.removeCrossClan(req.params.id)));
+  res.status(200).json(successResponse('Assignment removed', await clanRequestsService.removeCrossClan(req.params.id, req.user.id)));
 });
 
-module.exports = { overview, createRequest, resolveRequest, listCrossClan, createCrossClan, removeCrossClan };
+const listMyCrossClan = catchAsync(async (req, res) => {
+  const crossClan = await clanRequestsService.listMyCrossClan(req.user.id);
+  res.status(200).json(successResponse('Your cross-clan requests', { crossClan }));
+});
+
+const respondCrossClan = catchAsync(async (req, res) => {
+  const result = await clanRequestsService.respondToCrossClan(req.params.id, req.user.id, req.body.accept === true);
+  res.status(200).json(successResponse('Response recorded', result));
+});
+
+module.exports = { overview, createRequest, resolveRequest, listCrossClan, createCrossClan, removeCrossClan, listMyCrossClan, respondCrossClan };

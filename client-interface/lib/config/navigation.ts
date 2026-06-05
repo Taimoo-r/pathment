@@ -175,3 +175,38 @@ export const navigationConfig: Record<string, NavLink[]> = {
 export function getNavigationLinks(role: UserRole): NavLink[] {
   return navigationConfig[role] || [];
 }
+
+/** A single navigable destination, flattened out of groups — used by the search palette. */
+export interface FlatNavItem {
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  /** Parent group label (for context/breadcrumb), if this item lived in a group. */
+  group?: string;
+  permission?: string;
+  anyOf?: string[];
+  requiresAdminArea?: boolean;
+}
+
+/**
+ * Flatten a role's navigation (standalone links + every group child) into a single
+ * list of destinations. Synthetic `group:*` parents are dropped — only real pages
+ * remain. Permission filtering is applied by the caller (same rules as the sidebar).
+ */
+export function getFlatNavItems(role: UserRole): FlatNavItem[] {
+  const links = navigationConfig[role] || [];
+  const out: FlatNavItem[] = [];
+  for (const link of links) {
+    if (link.children) {
+      for (const child of link.children) {
+        out.push({ path: child.path, label: child.label, icon: child.icon, group: link.label, permission: child.permission });
+      }
+    } else {
+      out.push({
+        path: link.path, label: link.label, icon: link.icon,
+        permission: link.permission, anyOf: link.anyOf, requiresAdminArea: link.requiresAdminArea,
+      });
+    }
+  }
+  return out;
+}
