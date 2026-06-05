@@ -40,6 +40,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE,
       field: 'read_at'
     },
+    deliveredAt: {
+      type: DataTypes.DATE,
+      field: 'delivered_at'
+    },
     isArchived: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
@@ -73,6 +77,7 @@ module.exports = (sequelize, DataTypes) => {
     Message.belongsTo(models.AssignedTask, { foreignKey: 'related_task_id', as: 'relatedTask' });
     Message.belongsTo(models.Enrollment, { foreignKey: 'related_enrollment_id', as: 'relatedEnrollment' });
     Message.hasMany(models.MessageAttachment, { foreignKey: 'message_id', as: 'attachments' });
+    Message.hasMany(models.MessageReaction, { foreignKey: 'message_id', as: 'reactions' });
   };
 
   return Message;

@@ -2,19 +2,21 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, MessageSquare, RefreshCw, Send } from 'lucide-react';
+import { Check, CheckCheck, Loader2, MessageSquare, RefreshCw, Send, SmilePlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { messagingApi } from '@/lib/services/messaging-api';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/services/socket-client';
 import { useAuth } from '@/lib/context/AuthContext';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
-import type { ChatMessage, ConversationSummary, SearchableUser } from '@/lib/types/messaging';
+import type { ChatMessage, ConversationSummary, MessageReaction, SearchableUser } from '@/lib/types/messaging';
 import UserSearchCombobox from './UserSearchCombobox';
 
 interface MessageCenterProps {
   role: 'admin' | 'mentor' | 'mentee';
 }
+
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return extractApiErrorMessage(error, fallback);
@@ -196,10 +198,59 @@ export default function MessageCenter({ role }: MessageCenterProps) {
       });
     };
 
+    // Recipient came online (or opened a tab) → my sent ticks flip to delivered (✓✓).
+    const onDelivered = (payload: { messageIds?: string[] }) => {
+      const ids = new Set(payload?.messageIds || []);
+      if (ids.size === 0) {
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((message) =>
+          ids.has(message.id) && !message.deliveredAt
+            ? { ...message, deliveredAt: new Date().toISOString() }
+            : message
+        )
+      );
+    };
+
+    // The other participant read the conversation → my ticks turn blue (read).
+    const onConversationRead = (payload: { conversationId?: string; userId?: string }) => {
+      if (!payload?.conversationId || payload.conversationId !== selectedConversationId) {
+        return;
+      }
+      if (payload.userId === user?.id) {
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.senderId === user?.id && !message.isRead
+            ? { ...message, isRead: true, readAt: message.readAt || new Date().toISOString() }
+            : message
+        )
+      );
+    };
+
+    const onReaction = (payload: { messageId?: string; reactions?: MessageReaction[] }) => {
+      if (!payload?.messageId) {
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === payload.messageId ? { ...message, reactions: payload.reactions || [] } : message
+        )
+      );
+    };
+
     socket.on('message:new', onMessage);
+    socket.on('message:delivered', onDelivered);
+    socket.on('conversation:read', onConversationRead);
+    socket.on('message:reaction', onReaction);
 
     return () => {
       socket.off('message:new', onMessage);
+      socket.off('message:delivered', onDelivered);
+      socket.off('conversation:read', onConversationRead);
+      socket.off('message:reaction', onReaction);
       const currentSocket = getSocket();
       if (currentSocket?.connected) {
         disconnectSocket();
@@ -252,6 +303,19 @@ export default function MessageCenter({ role }: MessageCenterProps) {
       toast.error(getErrorMessage(error, 'Failed to send message'));
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const reactToMessage = async (messageId: string, emoji: string) => {
+    // Optimistic + authoritative: the server returns the full reaction set and
+    // also broadcasts `message:reaction`, so the click feels instant either way.
+    try {
+      const { reactions } = await messagingApi.toggleReaction(messageId, emoji);
+      setMessages((prev) =>
+        prev.map((message) => (message.id === messageId ? { ...message, reactions } : message))
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Could not add reaction'));
     }
   };
 
@@ -367,24 +431,99 @@ export default function MessageCenter({ role }: MessageCenterProps) {
               <>
                 {messages.map((message) => {
                   const mine = message.senderId === user?.id;
+                  const read = Boolean(message.isRead || message.readAt);
+
+                  // Group reactions by emoji so chips show "👍 2" and mark which I added.
+                  const grouped = (message.reactions || []).reduce(
+                    (acc, reaction) => {
+                      let entry = acc.find((item) => item.emoji === reaction.emoji);
+                      if (!entry) {
+                        entry = { emoji: reaction.emoji, count: 0, mine: false };
+                        acc.push(entry);
+                      }
+                      entry.count += 1;
+                      if (reaction.userId === user?.id) {
+                        entry.mine = true;
+                      }
+                      return acc;
+                    },
+                    [] as { emoji: string; count: number; mine: boolean }[]
+                  );
+
                   return (
                     <div
                       key={message.id}
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        mine
-                          ? 'ml-auto bg-brand-600 text-white'
-                          : 'bg-card border border-slate-200 text-slate-800'
-                      }`}
+                      className={`group/msg flex flex-col ${mine ? 'items-end' : 'items-start'}`}
                     >
-                      <p className="text-xs opacity-75 mb-1">
-                        {mine
-                          ? 'You'
-                          : `${message.sender?.firstName || ''} ${message.sender?.lastName || ''}`.trim() || 'User'}
-                      </p>
-                      <p className="text-sm whitespace-pre-wrap">{message.messageText}</p>
-                      <p className="text-[11px] opacity-70 mt-2">
-                        {new Date(message.createdAt).toLocaleString()}
-                      </p>
+                      <div className="relative max-w-[80%]">
+                        <div
+                          className={`rounded-2xl px-4 py-3 ${
+                            mine
+                              ? 'bg-brand-600 text-white'
+                              : 'bg-card border border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          <p className="text-xs opacity-75 mb-1">
+                            {mine
+                              ? 'You'
+                              : `${message.sender?.firstName || ''} ${message.sender?.lastName || ''}`.trim() || 'User'}
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">{message.messageText}</p>
+                          <div className={`flex items-center gap-1 mt-2 ${mine ? 'justify-end' : ''}`}>
+                            <span className="text-[11px] opacity-70">
+                              {new Date(message.createdAt).toLocaleString()}
+                            </span>
+                            {mine &&
+                              (read ? (
+                                <CheckCheck className="w-3.5 h-3.5 text-sky-300" aria-label="Read" />
+                              ) : message.deliveredAt ? (
+                                <CheckCheck className="w-3.5 h-3.5 opacity-70" aria-label="Delivered" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5 opacity-70" aria-label="Sent" />
+                              ))}
+                          </div>
+                        </div>
+
+                        {/* Hover reaction picker */}
+                        <div
+                          className={`absolute -top-4 ${
+                            mine ? 'right-1' : 'left-1'
+                          } flex items-center gap-0.5 rounded-full border border-slate-200 bg-card px-1 py-0.5 shadow-sm opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity`}
+                        >
+                          {QUICK_REACTIONS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => reactToMessage(message.id, emoji)}
+                              className="w-6 h-6 rounded-full hover:bg-slate-100 text-sm leading-none flex items-center justify-center"
+                              aria-label={`React ${emoji}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                          <SmilePlus className="w-3.5 h-3.5 text-slate-400 mx-0.5" />
+                        </div>
+                      </div>
+
+                      {grouped.length > 0 && (
+                        <div className={`flex flex-wrap gap-1 mt-1 ${mine ? 'justify-end' : ''}`}>
+                          {grouped.map((entry) => (
+                            <button
+                              key={entry.emoji}
+                              type="button"
+                              onClick={() => reactToMessage(message.id, entry.emoji)}
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                                entry.mine
+                                  ? 'border-brand-300 bg-brand-50 dark:bg-brand-500/15 text-brand-700'
+                                  : 'border-slate-200 bg-card text-slate-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              <span>{entry.emoji}</span>
+                              <span>{entry.count}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

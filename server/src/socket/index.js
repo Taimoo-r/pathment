@@ -117,6 +117,23 @@ function initSocket(httpServer) {
       socketId: socket.id
     });
 
+    // This user is now online → mark messages addressed to them as delivered
+    // and tell each sender so their ticks flip from sent (✓) to delivered (✓✓).
+    messagingService.markDelivered(userId).then((delivered) => {
+      if (!delivered.length) return;
+      const bySender = new Map();
+      delivered.forEach((d) => {
+        if (!bySender.has(d.senderId)) bySender.set(d.senderId, []);
+        bySender.get(d.senderId).push(d);
+      });
+      for (const [senderId, items] of bySender) {
+        emitToUser(senderId, 'message:delivered', {
+          messageIds: items.map((i) => i.id),
+          conversationIds: [...new Set(items.map((i) => i.conversationId))]
+        });
+      }
+    }).catch((err) => console.error('[Socket] markDelivered failed:', err.message));
+
     socket.on('conversation:join', async ({ conversationId }, ack) => {
       try {
         await messagingService.assertUserInConversation(userId, conversationId);

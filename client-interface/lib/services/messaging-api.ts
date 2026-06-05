@@ -47,6 +47,14 @@ export const messagingApi = {
     };
   },
 
+  async toggleReaction(messageId: string, emoji: string): Promise<{ messageId: string; reactions: { id: string; userId: string; emoji: string }[] }> {
+    const response = await apiClient.post<any>(`/messaging/messages/${messageId}/reactions`, { emoji });
+    return {
+      messageId: response.data?.messageId || messageId,
+      reactions: response.data?.reactions || [],
+    };
+  },
+
   async listNotifications(limit = 30): Promise<{ notifications: NotificationItem[]; unreadCount: number }> {
     const response = await apiClient.get<any>(`/messaging/notifications?limit=${limit}`);
     return {
