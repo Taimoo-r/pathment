@@ -20,6 +20,7 @@ import {
   GitPullRequest,
   MessageSquare,
   UserPlus,
+  ShieldCheck,
   Settings,
   GraduationCap,
   School,
@@ -34,6 +35,8 @@ export interface NavChildLink {
   path: string;
   icon: LucideIcon;
   label: string;
+  /** Hide unless the user holds this permission (any scope). Omit = always show. */
+  permission?: string;
 }
 
 export interface NavLink {
@@ -41,6 +44,12 @@ export interface NavLink {
   icon: LucideIcon;
   label: string;
   hasBadge?: boolean;
+  /** Hide unless the user holds this permission (any scope). Omit = always show. */
+  permission?: string;
+  /** Hide unless the user holds ANY of these permissions. */
+  anyOf?: string[];
+  /** Show only when the user can access the admin area (scoped RBAC). */
+  requiresAdminArea?: boolean;
   /** If present, renders as a collapsible group with these child links */
   children?: NavChildLink[];
 }
@@ -52,51 +61,52 @@ export const navigationConfig: Record<string, NavLink[]> = {
   // frecency); the rest are clustered into collapsible sections. Group parents use
   // a synthetic `group:*` path — they only expand/collapse, they never navigate.
   admin: [
-    { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard', permission: 'analytics.view' },
     { path: '/admin/messages', icon: MessageSquare, label: 'Messages', hasBadge: true },
     {
       path: 'group:admissions', icon: CalendarRange, label: 'Admissions',
       children: [
-        { path: '/admin/cohorts', icon: CalendarRange, label: 'Intake' },
-        { path: '/admin/assessments', icon: ClipboardCheck, label: 'Assessments' },
-        { path: '/admin/invites', icon: UserPlus, label: 'Invites' },
+        { path: '/admin/cohorts', icon: CalendarRange, label: 'Intake', permission: 'intake.manage' },
+        { path: '/admin/assessments', icon: ClipboardCheck, label: 'Assessments', permission: 'assessment.author' },
+        { path: '/admin/invites', icon: UserPlus, label: 'Invites', permission: 'invite.create' },
       ],
     },
     {
       path: 'group:people', icon: Users, label: 'People & Clans',
       children: [
-        { path: '/admin/enrollment/overview', icon: Users, label: 'Enrollments' },
-        { path: '/admin/clans', icon: Users2, label: 'Clans' },
-        { path: '/admin/users/mentors', icon: GraduationCap, label: 'Mentors' },
-        { path: '/admin/users/mentees', icon: School, label: 'Mentees' },
-        { path: '/admin/requests', icon: GitPullRequest, label: 'Clan Requests' },
+        { path: '/admin/enrollment/overview', icon: Users, label: 'Enrollments', permission: 'mentee.manage' },
+        { path: '/admin/clans', icon: Users2, label: 'Clans', permission: 'clan.create' },
+        { path: '/admin/users/mentors', icon: GraduationCap, label: 'Mentors', permission: 'user.manage' },
+        { path: '/admin/users/mentees', icon: School, label: 'Mentees', permission: 'user.manage' },
+        { path: '/admin/requests', icon: GitPullRequest, label: 'Clan Requests', permission: 'mentee.manage' },
       ],
     },
     {
       path: 'group:programs', icon: BookOpen, label: 'Programs',
       children: [
-        { path: '/admin/programs/list', icon: BookOpen, label: 'Programs' },
-        { path: '/admin/roadmaps', icon: Route, label: 'Roadmaps' },
-        { path: '/admin/schedules', icon: CalendarClock, label: 'Schedules' },
+        { path: '/admin/programs/list', icon: BookOpen, label: 'Programs', permission: 'program.manage' },
+        { path: '/admin/roadmaps', icon: Route, label: 'Roadmaps', permission: 'roadmap.author' },
+        { path: '/admin/schedules', icon: CalendarClock, label: 'Schedules', permission: 'program.manage' },
       ],
     },
     {
       path: 'group:engagement', icon: Megaphone, label: 'Engagement',
       children: [
-        { path: '/admin/announcements', icon: Megaphone, label: 'Announcements' },
-        { path: '/admin/rewards', icon: Gift, label: 'Rewards' },
-        { path: '/admin/moderation', icon: ShieldAlert, label: 'Moderation' },
+        { path: '/admin/announcements', icon: Megaphone, label: 'Announcements', permission: 'community.moderate' },
+        { path: '/admin/rewards', icon: Gift, label: 'Rewards', permission: 'gamification.manage' },
+        { path: '/admin/moderation', icon: ShieldAlert, label: 'Moderation', permission: 'community.moderate' },
       ],
     },
     {
       path: 'group:analytics', icon: TrendingUp, label: 'Analytics',
       children: [
-        { path: '/admin/insights', icon: TrendingUp, label: 'Insights' },
-        { path: '/admin/activity', icon: BarChart2, label: 'Activity' },
+        { path: '/admin/insights', icon: TrendingUp, label: 'Insights', permission: 'analytics.view' },
+        { path: '/admin/activity', icon: BarChart2, label: 'Activity', permission: 'analytics.view' },
       ],
     },
+    { path: '/admin/access', icon: ShieldCheck, label: 'Roles & Access', permission: 'access.manage' },
     { path: '/admin/mentor-spec', icon: Compass, label: 'Mentor Spec' },
-    { path: '/admin/settings', icon: Settings, label: 'Settings' },
+    { path: '/admin/settings', icon: Settings, label: 'Settings', permission: 'system.settings' },
   ],
   mentor: [
     { path: '/mentor/dashboard', icon: LayoutDashboard, label: 'Cockpit' },
@@ -105,6 +115,7 @@ export const navigationConfig: Record<string, NavLink[]> = {
       path: 'group:mentees', icon: Users2, label: 'My Mentees',
       children: [
         { path: '/mentor/mentees', icon: Users2, label: 'My Mentees' },
+        { path: '/mentor/clan-team', icon: ShieldCheck, label: 'Clan Team' },
         { path: '/mentor/approvals', icon: ClipboardCheck, label: 'Approvals' },
         { path: '/mentor/review', icon: CalendarRange, label: 'Cohort Review' },
         { path: '/mentor/at-risk', icon: AlertTriangle, label: 'At-risk' },

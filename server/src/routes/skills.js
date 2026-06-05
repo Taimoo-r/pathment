@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const skillController = require('../controllers/skillController');
-const { authenticate, authorize } = require('../middlewares/auth');
+const { authenticate } = require('../middlewares/auth');
+const { requirePermission } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
 /**
  * @route   GET /api/skills
@@ -29,6 +31,6 @@ router.get('/user', authenticate, skillController.getUserSkills);
  * @desc    Create new skill (admin only)
  * @access  Private (Admin only)
  */
-router.post('/', authenticate, authorize('admin'), skillController.createSkill);
+router.post('/', authenticate, requirePermission(PERMISSIONS.SYSTEM_SETTINGS), skillController.createSkill);
 
 module.exports = router;

@@ -206,6 +206,20 @@ class AuthService {
         }
       }
 
+      // Apply any pre-assigned role grants carried on the invite (e.g. an
+      // "invite with access" that makes the new account a program_admin).
+      const pendingGrants = Array.isArray(invite.metadata?.pendingGrants) ? invite.metadata.pendingGrants : [];
+      for (const g of pendingGrants) {
+        if (!g || !g.role) continue;
+        await models.RoleAssignment.create({
+          userId: user.id,
+          role: g.role,
+          scopeType: g.scopeType || 'org',
+          scopeId: g.scopeId || null,
+          grantedBy: invite.invitedBy
+        }, { transaction }).catch(() => {});
+      }
+
       // Link the originating application (if this invite came from intake).
       await models.Application.update(
         { userId: user.id },

@@ -4,6 +4,8 @@ const adminController = require('../controllers/adminController');
 const { validateBody, validateQuery } = require('../middlewares/validate');
 const { adminSchemas } = require('../validations/adminValidation');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { requirePermission } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
 /**
  * All admin routes require authentication and admin role
@@ -13,7 +15,7 @@ const { authenticate, authorize } = require('../middlewares/auth');
 router.get(
   '/dashboard/stats',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.ANALYTICS_VIEW),
   adminController.getDashboardStats
 );
 
@@ -21,16 +23,16 @@ router.get(
 router.post(
   '/create',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.USER_MANAGE),
   validateBody(adminSchemas.createAdmin),
   adminController.createAdmin
 );
 
-// Create registration invite
+// Create registration invite (invite.create — super_admin, intake_manager, program_admin)
 router.post(
   '/invites',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.INVITE_CREATE),
   validateBody(adminSchemas.createInvite),
   adminController.createRegistrationInvite
 );
@@ -39,7 +41,7 @@ router.post(
 router.post(
   '/invites/bulk',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.INVITE_CREATE),
   validateBody(adminSchemas.bulkInvite),
   adminController.bulkRegistrationInvites
 );
@@ -48,7 +50,7 @@ router.post(
 router.get(
   '/invites',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.INVITE_CREATE),
   validateQuery(adminSchemas.inviteListQuery),
   adminController.listRegistrationInvites
 );
@@ -57,7 +59,7 @@ router.get(
 router.post(
   '/invites/:id/revoke',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.INVITE_CREATE),
   adminController.revokeRegistrationInvite
 );
 
@@ -65,7 +67,7 @@ router.post(
 router.put(
   '/:id/permissions',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.ACCESS_MANAGE),
   validateBody(adminSchemas.updatePermissions),
   adminController.updatePermissions
 );
@@ -74,7 +76,7 @@ router.put(
 router.post(
   '/recalculate-mentor-counts',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.SYSTEM_SETTINGS),
   adminController.recalculateMentorCounts
 );
 
@@ -82,7 +84,7 @@ router.post(
 router.delete(
   '/users/:id',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.USER_MANAGE),
   adminController.deleteUser
 );
 
@@ -90,7 +92,7 @@ router.delete(
 router.put(
   '/users/:id/suspend',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.USER_MANAGE),
   adminController.suspendUser
 );
 
@@ -98,7 +100,7 @@ router.put(
 router.put(
   '/users/:id/unsuspend',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.USER_MANAGE),
   adminController.unsuspendUser
 );
 
@@ -106,7 +108,7 @@ router.put(
 router.patch(
   '/users/:id/capabilities',
   authenticate,
-  authorize('admin'),
+  requirePermission(PERMISSIONS.USER_MANAGE),
   adminController.updateUserCapabilities
 );
 

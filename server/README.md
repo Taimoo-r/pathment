@@ -45,7 +45,7 @@ npm run dev
 - ✅ Upstash Redis polling intervals tuned to stay within the free-tier 10k commands/day limit
 
 ### Infrastructure
-- ✅ 43 Sequelize models (users, auth, programs, tasks, messaging, gamification, system, analytics)
+- ✅ 83 Sequelize models across 10 domains (users, auth, programs, intake, tasks, messaging, gamification, scheduling, analytics, system) — see [../docs/DATABASE.md](../docs/DATABASE.md)
 - ✅ Auto-loading model system
 - ✅ Custom error classes
 - ✅ Validation middleware
@@ -68,15 +68,17 @@ server/
 │   │   └── inviteEmailQueue.js
 │   ├── workers/            # Bull job processors
 │   │   └── inviteEmailWorker.js
-│   ├── models/             # Sequelize models (43 total)
-│   │   ├── users/          # 6 models
-│   │   ├── auth/           # 4 models
-│   │   ├── programs/       # 6 models
-│   │   ├── tasks/          # 9 models
-│   │   ├── messaging/      # 3 models
-│   │   ├── gamification/   # 6 models
-│   │   ├── system/         # 6 models
-│   │   └── analytics/      # 7 models
+│   ├── models/             # Sequelize models (83 total — see ../docs/DATABASE.md)
+│   │   ├── users/          # 9 models
+│   │   ├── auth/           # 6 models
+│   │   ├── programs/       # 8 models
+│   │   ├── intake/         # 4 models (Application + Assessment×3)
+│   │   ├── tasks/          # 14 models
+│   │   ├── messaging/      # 6 models
+│   │   ├── gamification/   # 8 models
+│   │   ├── scheduling/     # 5 models
+│   │   ├── analytics/      # 8 models
+│   │   └── system/         # 15 models
 │   ├── utils/
 │   │   ├── errors/         # Error classes
 │   │   ├── responses/      # Response formatters

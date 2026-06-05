@@ -32,6 +32,7 @@ const mentorSpecRoutes = require('./mentorSpec');
 const intakeRoutes = require('./intake');
 const assessmentRoutes = require('./assessments');
 const publicRoutes = require('./public');
+const accessRoutes = require('./access');
 const aiConnectionRoutes = require('./aiConnections');
 const programReviewRoutes = require('./programReviews');
 
@@ -134,6 +135,9 @@ router.use('/assessments', assessmentRoutes);
 
 // Public, unauthenticated intake — program catalog + apply + applicant status
 router.use('/public', publicRoutes);
+
+// IAM — scoped role grants + effective-permission lookup
+router.use('/access', accessRoutes);
 
 // AI connections — admin BYO provider keys + feature routing
 router.use('/ai-connections', aiConnectionRoutes);

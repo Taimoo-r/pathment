@@ -10,6 +10,8 @@ export const clanApi = {
   insights: () => apiClient.get('/clans/insights'),
   /** Programs the current mentor runs, with their clans + roster counts. */
   mentorPrograms: () => apiClient.get('/clans/mentor/programs'),
+  /** The current user's active clan memberships (with role per clan). */
+  myMemberships: () => apiClient.get('/clans/me/memberships'),
   get: (id: string) => apiClient.get(`/clans/${id}`),
   create: (data: {
     programId: string;

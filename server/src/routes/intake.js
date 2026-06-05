@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const intakeController = require('../controllers/intakeController');
-const { authenticate, authorize } = require('../middlewares/auth');
+const { authenticate } = require('../middlewares/auth');
+const { requirePermission } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
-// All intake routes are admin-only.
-const adminOnly = [authenticate, authorize(['admin'])];
+// Intake (cohorts, applications, links) requires intake.manage; super_admin,
+// intake_manager and program_admin hold it. Org-scoped — same gate everywhere.
+const adminOnly = [authenticate, requirePermission(PERMISSIONS.INTAKE_MANAGE)];
 
 // ─── Cohorts ─────────────────────────────────────────────────────────────────
 router.get('/cohorts', ...adminOnly, intakeController.listCohorts);

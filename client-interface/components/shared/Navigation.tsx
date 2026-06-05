@@ -17,9 +17,11 @@ import {
   Check,
   Settings,
   HelpCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import { NavLink } from '@/lib/config/navigation';
 import { useNavPreferences } from '@/lib/hooks/shared';
+import { usePermissions } from '@/lib/hooks/usePermissions';
 import { NotificationDrawer } from './NotificationDrawer';
 import { UserProfileCard } from './UserProfileCard';
 import { messagingApi } from '@/lib/services/messaging-api';
@@ -46,6 +48,32 @@ export default function Navigation({ role }: NavigationProps) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   const { links, pinned, isEditing, toggleEdit, togglePin, moveUp, moveDown, reset, recordUsage } = useNavPreferences(role);
+  const { can, canAny, canAccessAdmin, loading: permsLoading } = usePermissions();
+
+  // Permission-filtered nav: hide items the user can't use, drop empty groups,
+  // and surface an "Admin area" entry for org/program admins in their own nav.
+  // While permissions load, show everything (no flicker for full admins).
+  const visibleLinks = React.useMemo<NavLink[]>(() => {
+    const base = permsLoading
+      ? links
+      : links
+          .map((link) => {
+            if (link.requiresAdminArea && !canAccessAdmin) return null;
+            if (link.children) {
+              const kids = link.children.filter((c) => !c.permission || can(c.permission));
+              return kids.length ? { ...link, children: kids } : null;
+            }
+            const okPerm = !link.permission || can(link.permission);
+            const okAny = !link.anyOf || canAny(link.anyOf);
+            return okPerm && okAny ? link : null;
+          })
+          .filter((l): l is NavLink => Boolean(l));
+
+    if (role !== 'admin' && canAccessAdmin) {
+      return [...base, { path: '/admin', icon: ShieldCheck, label: 'Admin area', requiresAdminArea: true }];
+    }
+    return base;
+  }, [links, permsLoading, canAccessAdmin, can, canAny, role]);
 
   // ── Collapsible group state ───────────────────────────────────────────────
   // Initialise with any group that contains the current path already open
@@ -245,7 +273,7 @@ export default function Navigation({ role }: NavigationProps) {
   const renderNavItems = (onNavigate?: () => void) =>
     isEditing
       ? links.map((link) => renderEditRow(link))
-      : links.map((link) =>
+      : visibleLinks.map((link) =>
           link.children
             ? renderGroupLink(link, onNavigate)
             : renderFlatLink(link, onNavigate)

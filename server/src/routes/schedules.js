@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const c = require('../controllers/scheduleTemplateController');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { requirePermission } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
 const mentorOnly = [authenticate, authorize(['mentor', 'admin'])];
-const adminOnly = [authenticate, authorize(['admin'])];
+const adminOnly = [authenticate, requirePermission(PERMISSIONS.PROGRAM_MANAGE)];
 
 // Admin org templates (the shared library mentors import).
 router.get('/org', adminOnly, c.listOrg);

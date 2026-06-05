@@ -1,8 +1,12 @@
 # Pathment Server — Sequelize Models Implementation Guide
 
+> ⚠️ **This is a historical phase note.** The model set has grown well beyond what's
+> described here. For the **canonical, up-to-date data model** (80 models with ER diagrams
+> across 10 domains), see **[../../docs/DATABASE.md](../../docs/DATABASE.md)**.
+
 ## Status
 
-**✅ PHASE 2 COMPLETE**: All 43 core models created and organized!
+**✅ PHASE 2 COMPLETE**: 43 core models created and organized (the schema has since grown to 80 — see the canonical doc above).
 
 ## Completed Models (43 Total)
 

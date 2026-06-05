@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const c = require('../controllers/linearRoadmapController');
-const { authenticate, authorize } = require('../middlewares/auth');
+const { authenticate } = require('../middlewares/auth');
+const { requirePermission } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
-const adminOnly = [authenticate, authorize(['admin'])];
+const adminOnly = [authenticate, requirePermission(PERMISSIONS.ROADMAP_AUTHOR)];
 
 // Mentee's own roadmap progress (step X/N) for their progress view.
 router.get('/me', authenticate, c.myRoadmaps);

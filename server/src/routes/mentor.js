@@ -4,6 +4,8 @@ const cohortController = require('../controllers/cohortController');
 const linearRoadmapController = require('../controllers/linearRoadmapController');
 const promotionController = require('../controllers/promotionController');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { requirePermission } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
 const mentorOnly = [authenticate, authorize(['mentor', 'admin'])];
 
@@ -51,6 +53,6 @@ router.post('/roadmaps/:id/assign', mentorOnly, linearRoadmapController.assign);
 router.get('/promotions', mentorOnly, promotionController.list);
 router.post('/promotions', mentorOnly, promotionController.nominate);
 router.patch('/promotions/:id', mentorOnly, promotionController.advance);
-router.post('/promotions/:id/promote', authenticate, authorize(['admin']), promotionController.promote);
+router.post('/promotions/:id/promote', authenticate, requirePermission(PERMISSIONS.USER_MANAGE), promotionController.promote);
 
 module.exports = router;
