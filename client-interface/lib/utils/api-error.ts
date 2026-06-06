@@ -57,6 +57,35 @@ export const extractApiErrorMessage = (error: any, fallback = 'Something went wr
   return fallback;
 };
 
+/** Format a seconds count as a friendly "1m 20s" / "45s" / "2m". */
+export const formatRetryAfter = (sec: number): string => {
+  const s = Math.max(0, Math.ceil(sec));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r ? `${m}m ${r}s` : `${m}m`;
+};
+
+/**
+ * Read rate-limit (HTTP 429) info off an axios error. Handles our structured
+ * JSON body ({ message, retryAfter }), the `Retry-After` header, and a plain
+ * string body - so callers can show a real countdown instead of a generic error.
+ */
+export const getRateLimit = (
+  error: any
+): { limited: boolean; retryAfterSec: number; message: string } => {
+  if (error?.response?.status !== 429) return { limited: false, retryAfterSec: 0, message: '' };
+  const data = error?.response?.data;
+  const headerRA = Number(error?.response?.headers?.['retry-after']);
+  const retryAfterSec =
+    Number(data?.retryAfter) || (Number.isFinite(headerRA) && headerRA > 0 ? headerRA : 60);
+  const message =
+    toSafeString(data?.message) ||
+    (typeof data === 'string' ? toSafeString(data) : '') ||
+    'Too many attempts. Please slow down and try again shortly.';
+  return { limited: true, retryAfterSec, message };
+};
+
 export const normalizeAxiosError = (error: any): any => {
   const preferredMessage = extractApiErrorMessage(error);
 

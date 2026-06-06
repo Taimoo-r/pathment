@@ -1,65 +1,46 @@
 const rateLimit = require('express-rate-limit');
 
-// Login rate limiter: 5 attempts per 15 minutes
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts
-  message: 'Too many login attempts. Please try again in 15 minutes',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  skipSuccessfulRequests: true, // Don't count successful requests
-  skipFailedRequests: false, // Do count failed requests
-});
+/**
+ * Build a limiter that returns a STRUCTURED 429 ({ success, message, retryAfter })
+ * instead of express-rate-limit's plain-string body — so the client can show a
+ * real "try again in N seconds" countdown rather than a misleading generic error.
+ */
+function make({ windowMs, max, message, skipSuccessfulRequests = true, skipFailedRequests = false }) {
+  return rateLimit({
+    windowMs,
+    max,
+    skipSuccessfulRequests,
+    skipFailedRequests,
+    standardHeaders: true, // RateLimit-* + Retry-After headers
+    legacyHeaders: false,
+    handler: (req, res) => {
+      const resetTime = req.rateLimit && req.rateLimit.resetTime;
+      const retryAfter = resetTime
+        ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
+        : Math.ceil(windowMs / 1000);
+      res.setHeader('Retry-After', String(retryAfter));
+      res.status(429).json({ success: false, code: 'rate_limited', message, retryAfter });
+    },
+  });
+}
 
-// Password reset rate limiter: 3 attempts per 1 hour
-const passwordResetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3,
-  message: 'Too many password reset requests. Please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-});
+// Login: 5 attempts / 15 min (successful logins don't count).
+const loginLimiter = make({ windowMs: 15 * 60 * 1000, max: 5, message: 'Too many login attempts. Please try again later.' });
 
-// Register rate limiter: 5 attempts per 1 hour
-const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,
-  message: 'Too many registration attempts. Please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: false, // Count all registration attempts
-});
+// Password reset: 3 / hour.
+const passwordResetLimiter = make({ windowMs: 60 * 60 * 1000, max: 3, message: 'Too many password reset requests. Please try again later.' });
 
-// Verify email rate limiter: 5 attempts per 1 hour
-const verifyEmailLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,
-  message: 'Too many verification attempts. Please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-});
+// Register: 5 / hour (count all attempts).
+const registerLimiter = make({ windowMs: 60 * 60 * 1000, max: 5, message: 'Too many registration attempts. Please try again later.', skipSuccessfulRequests: false });
 
-// Resend verification rate limiter: 5 attempts per 1 hour
-const resendVerificationLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,
-  message: 'Too many resend requests. Please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-});
+// Verify email: 5 / hour.
+const verifyEmailLimiter = make({ windowMs: 60 * 60 * 1000, max: 5, message: 'Too many verification attempts. Please try again later.' });
 
-// Token refresh rate limiter: 10 attempts per 1 hour
-const refreshTokenLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
-  message: 'Rate limit exceeded. Please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-});
+// Resend verification: 5 / hour.
+const resendVerificationLimiter = make({ windowMs: 60 * 60 * 1000, max: 5, message: 'Too many resend requests. Please try again later.' });
+
+// Token refresh: 10 / hour.
+const refreshTokenLimiter = make({ windowMs: 60 * 60 * 1000, max: 10, message: 'Rate limit exceeded. Please try again later.' });
 
 module.exports = {
   loginLimiter,
@@ -67,5 +48,5 @@ module.exports = {
   registerLimiter,
   verifyEmailLimiter,
   resendVerificationLimiter,
-  refreshTokenLimiter
+  refreshTokenLimiter,
 };

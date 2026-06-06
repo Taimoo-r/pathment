@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/context/AuthContext';
 import { TwoFactorCodeInput } from '@/components/shared/TwoFactorCodeInput';
-import { extractApiErrorMessage } from '@/lib/utils/api-error';
+import { extractApiErrorMessage, getRateLimit, formatRetryAfter } from '@/lib/utils/api-error';
 import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +17,17 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Rate-limit cooldown: timestamp (ms) until which login is blocked, + a 1s tick.
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const cooldownSec = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
+
+  // Tick every second while a cooldown is active so the countdown updates live.
+  useEffect(() => {
+    if (cooldownUntil <= Date.now()) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [cooldownUntil]);
 
   // Check if redirected due to expired session
   useEffect(() => {
@@ -47,8 +58,16 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      setError(extractApiErrorMessage(err, 'Invalid email or password'));
-      toast.error('Login failed');
+      const rl = getRateLimit(err);
+      if (rl.limited) {
+        setCooldownUntil(Date.now() + rl.retryAfterSec * 1000);
+        setNow(Date.now());
+        setError(rl.message);
+        toast.error(`Too many attempts - try again in ${formatRetryAfter(rl.retryAfterSec)}`);
+      } else {
+        setError(extractApiErrorMessage(err, 'Invalid email or password'));
+        toast.error('Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -115,7 +134,11 @@ export default function LoginPage() {
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
             <div>
               <p className="text-red-900">{error}</p>
-              <p className="text-red-700 text-sm mt-1">Please check your credentials and try again</p>
+              <p className="text-red-700 text-sm mt-1">
+                {cooldownSec > 0
+                  ? `You can try again in ${formatRetryAfter(cooldownSec)}.`
+                  : 'Please check your credentials and try again'}
+              </p>
             </div>
           </div>
         )}
@@ -191,11 +214,13 @@ export default function LoginPage() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group"
+            disabled={loading || cooldownSec > 0}
+            className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed text-white py-3 rounded-xl transition-colors flex items-center justify-center gap-2 group"
           >
             {loading ? (
               'Signing in...'
+            ) : cooldownSec > 0 ? (
+              `Try again in ${formatRetryAfter(cooldownSec)}`
             ) : (
               <>
                 Sign In
