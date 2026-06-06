@@ -571,14 +571,18 @@ export default function SecurityTab({ showAuditLogs = false }: SecurityTabProps)
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {auditLogs.map((log) => (
                 <div key={log.id} className="p-3 border border-slate-200 rounded-lg">
-                  <div className="flex items-start justify-between mb-1">
-                    <p className="text-slate-900 font-medium">{log.action}</p>
-                    <span className="text-xs text-slate-500">{formatDate(log.createdAt)}</span>
+                  <div className="flex items-start justify-between gap-3 mb-0.5">
+                    <p className="text-slate-900 font-medium">{log.label || log.action}</p>
+                    <span className="text-xs text-slate-500 shrink-0">{formatDate(log.createdAt)}</span>
                   </div>
-                  <p className="text-sm text-slate-600">
-                    {log.entityType} {log.entityId && `(ID: ${log.entityId})`}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">IP: {log.ipAddress}</p>
+                  {(log.summary || log.target) && (
+                    <p className="text-sm text-slate-600">{log.summary || log.target}</p>
+                  )}
+                  {(log.ipAddress || log.device) && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      {[log.ipAddress && `IP ${log.ipAddress}`, log.device].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

@@ -7,8 +7,12 @@ const routes = require('./routes');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
 const { initSocket } = require('./socket');
 const notificationScheduler = require('./services/notificationScheduler');
+const requestContext = require('./middlewares/requestContext');
 
 const app = express();
+// Behind nginx/Vercel: trust the proxy so req.ip is the real client IP
+// (also makes rate-limiting key on the true IP).
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
@@ -48,6 +52,9 @@ app.use(cors({
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Seed per-request audit context (IP + user-agent) for downstream audit writes.
+app.use(requestContext);
 
 // Request logging in development
 if (process.env.NODE_ENV === 'development') {

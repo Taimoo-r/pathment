@@ -10,15 +10,8 @@ const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 
 // Helper function for audit logging (non-blocking)
-async function createAuditLog(logData) {
-  try {
-    if (models.AuditLog) {
-      await models.AuditLog.create(logData);
-    }
-  } catch (error) {
-    console.warn('Audit log failed:', error.message);
-  }
-}
+// Shared audit writer: records IP + user-agent from the request context automatically.
+const { createAuditLog } = require('../utils/auditContext');
 
 class ProgramService {
   /**

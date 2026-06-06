@@ -1,5 +1,6 @@
 const { models } = require('../db');
 const { NotFoundError, ValidationError, ConflictError } = require('../utils/errors/errorTypes');
+const { createAuditLog } = require('../utils/auditContext');
 const adminService = require('./adminService');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -94,7 +95,7 @@ class ApplicationService {
     }
 
     if (report.created > 0 || report.updated > 0) {
-      await models.AuditLog.create({
+      await createAuditLog({
         userId: importedBy,
         action: 'APPLICATIONS_IMPORTED',
         entityType: 'Cohort',

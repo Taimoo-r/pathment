@@ -13,12 +13,16 @@ import axiosInstance from './axios-instance';
 export interface AuditLog {
   id: string;
   action: string;
-  entityType: string;
-  entityId: string;
-  oldValues?: Record<string, any>;
-  newValues?: Record<string, any>;
-  ipAddress: string;
-  userAgent: string;
+  /** Friendly label, e.g. "Invite sent". */
+  label?: string;
+  /** Human one-line summary of what happened, e.g. "Invited mentee@x.com as mentee". */
+  summary?: string | null;
+  /** Friendly entity type fallback when there's no summary. */
+  target?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  /** Friendly device, e.g. "Chrome on Mac". */
+  device?: string | null;
   createdAt: string;
 }
 

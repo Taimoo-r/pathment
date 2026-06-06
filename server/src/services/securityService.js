@@ -5,6 +5,49 @@ const { models, Sequelize } = require('../db');
 const { NotFoundError, ValidationError, UnauthorizedError } = require('../utils/errors/errorTypes');
 const { Op } = Sequelize;
 
+// Best-effort "Chrome on Mac" from a user-agent string (no dependency).
+const parseDevice = (ua) => {
+  if (!ua) return null;
+  const browser =
+    /edg/i.test(ua) ? 'Edge' :
+    /opr|opera/i.test(ua) ? 'Opera' :
+    /chrome|crios/i.test(ua) ? 'Chrome' :
+    /firefox|fxios/i.test(ua) ? 'Firefox' :
+    /safari/i.test(ua) ? 'Safari' : null;
+  const os =
+    /iphone|ipad|ipod/i.test(ua) ? 'iOS' :
+    /android/i.test(ua) ? 'Android' :
+    /mac os x|macintosh/i.test(ua) ? 'Mac' :
+    /windows/i.test(ua) ? 'Windows' :
+    /linux/i.test(ua) ? 'Linux' : null;
+  if (browser && os) return `${browser} on ${os}`;
+  return browser || os || null;
+};
+
+// "PROGRAM_CREATED" -> "Program created"
+const titleCase = (s) => {
+  const t = String(s || '').replace(/_/g, ' ').trim().toLowerCase();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+};
+
+// Nicer labels for the few actions where the auto title-case reads awkwardly.
+const AUDIT_LABELS = {
+  REGISTRATION_INVITE_CREATED: 'Invite sent',
+  BULK_REGISTRATION_INVITES_CREATED: 'Bulk invites sent',
+  REGISTRATION_INVITE_REVOKED: 'Invite revoked',
+  ACCESS_INVITE_CREATED: 'Access invite sent',
+  ROLE_GRANTED: 'Role granted',
+  ROLE_REVOKED: 'Role revoked',
+  ADMIN_CREATED: 'Admin created',
+  ADMIN_PERMISSIONS_UPDATED: 'Admin permissions updated',
+  APPLICATIONS_IMPORTED: 'Applications imported',
+  PROGRAM_CREATED: 'Program created',
+  PROGRAM_UPDATED: 'Program updated',
+  PROGRAM_DELETED: 'Program deleted',
+  PROGRAM_CLONED: 'Program cloned',
+  PROGRAM_ENROLLED: 'Program enrollment',
+};
+
 class SecurityService {
   /**
    * Get user's active sessions
@@ -83,7 +126,66 @@ class SecurityService {
 
     return {
       total: logs.count,
-      logs: logs.rows
+      logs: logs.rows.map((l) => this._formatAuditLog(l))
+    };
+  }
+
+  /**
+   * Turn a raw audit row into something a human can read: a friendly label and a
+   * one-line summary built from the recorded values (who/what), instead of an
+   * ACTION_CONSTANT + an opaque UUID.
+   */
+  _formatAuditLog(l) {
+    const nv = l.newValues || {};
+    const ov = l.oldValues || {};
+    const label = AUDIT_LABELS[l.action] || titleCase(l.action);
+
+    let summary = null;
+    switch (l.action) {
+      case 'REGISTRATION_INVITE_CREATED':
+      case 'ACCESS_INVITE_CREATED':
+        summary = `Invited ${nv.email || 'someone'}${nv.role ? ` as ${String(nv.role).replace(/_/g, ' ')}` : ''}`;
+        break;
+      case 'BULK_REGISTRATION_INVITES_CREATED':
+        summary = `Created ${nv.totalCreated ?? 0} invite${(nv.totalCreated ?? 0) === 1 ? '' : 's'}` +
+          (nv.totalSkipped ? `, skipped ${nv.totalSkipped}` : '');
+        break;
+      case 'REGISTRATION_INVITE_REVOKED':
+        summary = nv.email || ov.email ? `Revoked invite for ${nv.email || ov.email}` : 'Revoked an invite';
+        break;
+      case 'PROGRAM_CREATED':
+      case 'PROGRAM_UPDATED':
+      case 'PROGRAM_CLONED':
+      case 'PROGRAM_DELETED':
+      case 'PROGRAM_ENROLLED':
+        summary = nv.name || ov.name || null;
+        break;
+      case 'ROLE_GRANTED':
+        summary = `Granted ${String(nv.role || 'a role').replace(/_/g, ' ')}${nv.scopeType ? ` (${nv.scopeType})` : ''}`;
+        break;
+      case 'ROLE_REVOKED':
+        summary = `Revoked ${String(ov.role || 'a role').replace(/_/g, ' ')}`;
+        break;
+      case 'ADMIN_CREATED':
+        summary = `Created admin ${nv.email || ''}`.trim();
+        break;
+      case 'APPLICATIONS_IMPORTED':
+        summary = nv.count ? `Imported ${nv.count} application${nv.count === 1 ? '' : 's'}` : 'Imported applications';
+        break;
+      default:
+        summary = nv.name || nv.email || null;
+    }
+
+    return {
+      id: l.id,
+      action: l.action,
+      label,
+      summary,
+      target: titleCase(l.entityType || ''),
+      ipAddress: l.ipAddress || null,
+      userAgent: l.userAgent || null,
+      device: parseDevice(l.userAgent),
+      createdAt: l.createdAt
     };
   }
 

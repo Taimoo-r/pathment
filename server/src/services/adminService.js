@@ -6,6 +6,7 @@ const { AUTH_MESSAGES, USER_MESSAGES } = require('../utils/responses/messages');
 const { generateRandomToken, hashToken } = require('../utils/jwt');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
+const { createAuditLog } = require('../utils/auditContext');
 const inviteEmailQueue = require('../queues/inviteEmailQueue');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -110,7 +111,7 @@ class AdminService {
       cohortId: inviteData.cohortId || null
     });
 
-    await models.AuditLog.create({
+    await createAuditLog({
       userId: createdBy,
       action: 'REGISTRATION_INVITE_CREATED',
       entityType: 'RegistrationInvite',
@@ -259,7 +260,7 @@ class AdminService {
     invite.revokedAt = new Date();
     await invite.save();
 
-    await models.AuditLog.create({
+    await createAuditLog({
       userId: revokedBy,
       action: 'REGISTRATION_INVITE_REVOKED',
       entityType: 'RegistrationInvite',
@@ -314,7 +315,7 @@ class AdminService {
     await models.UserSettings.create({ userId: admin.id });
 
     // Log admin creation
-    await models.AuditLog.create({
+    await createAuditLog({
       userId: createdBy,
       action: 'ADMIN_CREATED',
       entityType: 'User',
@@ -366,7 +367,7 @@ class AdminService {
     });
 
     // Log permission change
-    await models.AuditLog.create({
+    await createAuditLog({
       userId: updatedBy,
       action: 'ADMIN_PERMISSIONS_UPDATED',
       entityType: 'AdminProfile',
@@ -783,7 +784,7 @@ class AdminService {
     }
 
     if (createdRecords.length > 0) {
-      await models.AuditLog.create({
+      await createAuditLog({
         userId: createdBy,
         action: 'BULK_REGISTRATION_INVITES_CREATED',
         entityType: 'RegistrationInvite',

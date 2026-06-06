@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { models } = require('../db');
+const { createAuditLog } = require('../utils/auditContext');
 const { ROLES } = require('../config/roles');
 const { ALL_PERMISSIONS } = require('../config/permissions');
 const { NotFoundError, ValidationError, ConflictError } = require('../utils/errors/errorTypes');
@@ -162,7 +163,7 @@ class AccessService {
 
     const assignment = await models.RoleAssignment.create({ userId, role, scopeType, scopeId: scopeId || null, grantedBy });
 
-    await models.AuditLog.create({
+    await createAuditLog({
       userId: grantedBy, action: 'ROLE_GRANTED', entityType: 'RoleAssignment', entityId: assignment.id,
       newValues: { targetUserId: userId, role, scopeType, scopeId }
     }).catch(() => {});
@@ -175,7 +176,7 @@ class AccessService {
     if (!assignment) throw new NotFoundError('Assignment not found');
     const snapshot = { targetUserId: assignment.userId, role: assignment.role, scopeType: assignment.scopeType, scopeId: assignment.scopeId };
     await assignment.destroy();
-    await models.AuditLog.create({
+    await createAuditLog({
       userId: revokedBy, action: 'ROLE_REVOKED', entityType: 'RoleAssignment', entityId: assignmentId, oldValues: snapshot
     }).catch(() => {});
     return { revoked: true };
@@ -217,7 +218,7 @@ class AccessService {
       metadata: { pendingGrants: [{ role, scopeType, scopeId: scopeId || null }] }
     });
 
-    await models.AuditLog.create({
+    await createAuditLog({
       userId: invitedBy, action: 'ACCESS_INVITE_CREATED', entityType: 'RegistrationInvite', entityId: invite.id,
       newValues: { email: normalizedEmail, baseRole, role, scopeType, scopeId }
     }).catch(() => {});
