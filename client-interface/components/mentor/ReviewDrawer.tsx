@@ -95,11 +95,11 @@ export function ReviewDrawer({
       footer={
         <div className="grid grid-cols-2 gap-2 w-full">
           <button onClick={() => submit('approved')} disabled={!!busy || !allRequiredTicked} title={!allRequiredTicked ? 'Tick the required criteria first' : undefined}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50">
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium disabled:opacity-50">
             {busy === 'approved' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Approve
           </button>
           <button onClick={() => submit('approved_notes')} disabled={!!busy || !allRequiredTicked}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-green-50 hover:bg-green-100 border border-green-300 text-green-700 text-sm font-medium disabled:opacity-50">
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-50 dark:bg-brand-500/15 hover:bg-brand-100 border border-brand-300 dark:border-brand-500/30 text-brand-700 dark:text-brand-300 text-sm font-medium disabled:opacity-50">
             {busy === 'approved_notes' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}Approve w/ notes
           </button>
           <button onClick={() => submit('changes')} disabled={!!busy}

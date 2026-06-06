@@ -16,6 +16,7 @@ const {
   hashToken
 } = require('../utils/jwt');
 const notificationOrchestrator = require('./notificationOrchestrator');
+const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const { mapResponsesToProfile } = require('../config/intakeProfileFields');
 
 class AuthService {
@@ -94,6 +95,9 @@ class AuthService {
 
     const normalizedEmail = email.trim().toLowerCase();
     const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Captured inside the txn so we can notify the clan's mentors after commit.
+    let placedMenteeClan = null; // { id, name } when a mentee is placed into a clan
 
     const result = await sequelize.transaction(async (transaction) => {
       const invite = await this.getActiveInviteByToken(inviteToken, transaction);
@@ -203,6 +207,10 @@ class AuthService {
             role: membershipRole,
             status: 'active'
           }, { transaction });
+
+          if (membershipRole === 'mentee') {
+            placedMenteeClan = { id: clan.id, name: clan.name };
+          }
         }
       }
 
@@ -237,10 +245,43 @@ class AuthService {
       console.warn('welcome email failed:', error.message);
     });
 
+    // Tell the clan's mentors a new mentee actually joined their clan.
+    if (placedMenteeClan) {
+      this._notifyClanMentorsOfNewMentee({ clan: placedMenteeClan, mentee: result.user }).catch((e) =>
+        console.warn('new-mentee notify failed:', e.message)
+      );
+    }
+
     const userResponse = result.user.toJSON();
     delete userResponse.passwordHash;
 
     return { user: userResponse };
+  }
+
+  /** Notify a clan's mentors (lead + co) that a new mentee has joined their clan. */
+  async _notifyClanMentorsOfNewMentee({ clan, mentee }) {
+    const mentors = await models.ClanMembership.findAll({
+      where: { clanId: clan.id, role: ['lead_mentor', 'co_mentor'], status: 'active' },
+      attributes: ['userId']
+    });
+    const recipientIds = [...new Set(mentors.map((m) => m.userId).filter((id) => id && id !== mentee.id))];
+    if (recipientIds.length === 0) return;
+
+    const menteeName = `${mentee.firstName || ''} ${mentee.lastName || ''}`.trim() || mentee.email;
+    await notificationOrchestrator.dispatch({
+      eventKey: NOTIFICATION_EVENTS.NEW_MENTEE_IN_CLAN,
+      recipients: recipientIds.map((userId) => ({ userId })),
+      payload: {
+        title: 'New mentee in your clan',
+        message: `${menteeName} has joined your clan "${clan.name}".`,
+        actionUrl: '/mentor/mentees',
+        actionLabel: 'View mentees',
+        relatedEntityType: 'new_mentee',
+        relatedEntityId: mentee.id,
+        emailSubject: `Pathment: ${menteeName} joined your clan`
+      }
+      // Dedupe falls back to the payload (new_mentee + mentee.id), which is a real UUID.
+    });
   }
 
   /**

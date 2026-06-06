@@ -185,7 +185,7 @@ export default function VerifyEmailPage() {
         {status === 'success' && (
           <button
             onClick={() => router.push('/login')}
-            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             Continue to Login
             <ArrowRight className="w-5 h-5" />

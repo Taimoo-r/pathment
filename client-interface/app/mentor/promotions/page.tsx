@@ -64,7 +64,7 @@ function InterviewModal({ candidate, onClose, onSaved }: { candidate: PromotionC
       footer={
         <>
           <button onClick={() => save(false)} disabled={saving} className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-50 disabled:opacity-50">Save</button>
-          <button onClick={() => save(true)} disabled={saving} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm inline-flex items-center gap-2 disabled:opacity-50">
+          <button onClick={() => save(true)} disabled={saving} className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm inline-flex items-center gap-2 disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Approve
           </button>
         </>

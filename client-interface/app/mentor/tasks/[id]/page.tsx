@@ -402,7 +402,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
               <div className="flex gap-3 pt-2 border-t border-orange-200">
                 <button
                   onClick={() => setExtensionDecision('approve')}
-                  className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+                  className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Approve Extension
@@ -434,7 +434,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
                   <button
                     onClick={() => handleExtension(true, pendingExtension.id)}
                     disabled={isHandlingExtension}
-                    className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isHandlingExtension ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Approving...</>

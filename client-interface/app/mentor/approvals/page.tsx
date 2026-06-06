@@ -108,7 +108,7 @@ export default function MentorApprovals() {
         </div>
       ) : queue.length === 0 ? (
         <div className="bg-card rounded-2xl border border-slate-200 py-16 text-center">
-          <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
+          <CheckCircle2 className="w-12 h-12 text-brand-300 mx-auto mb-3" />
           <p className="text-slate-600">All caught up - nothing waiting on you.</p>
         </div>
       ) : (

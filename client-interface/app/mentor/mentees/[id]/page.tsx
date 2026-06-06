@@ -269,7 +269,7 @@ export default function MenteeDetail() {
               <ThumbsDown className="w-4 h-4" />Send back
             </button>
             <button onClick={handleApproveCompletion} disabled={completionLoading}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50">
+              className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50">
               {completionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}Confirm completion
             </button>
           </div>
@@ -604,7 +604,7 @@ export default function MenteeDetail() {
               <button
                 onClick={async () => { setShowCompleteConfirm(false); await handleApproveCompletion(); }}
                 disabled={completionLoading}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm flex items-center gap-2 disabled:opacity-50">
+                className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm flex items-center gap-2 disabled:opacity-50">
                 {completionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}Yes, complete level
               </button>
             </div>

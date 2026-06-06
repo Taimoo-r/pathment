@@ -344,7 +344,7 @@ export default function EnrollmentOverviewPage() {
             <button
               onClick={() => handleApproveCompletion(id)}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
             >
               {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
               Approve

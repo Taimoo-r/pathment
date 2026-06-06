@@ -5,6 +5,7 @@ const { ConflictError, NotFoundError, ValidationError } = require('../utils/erro
 const { AUTH_MESSAGES, USER_MESSAGES } = require('../utils/responses/messages');
 const { generateRandomToken, hashToken } = require('../utils/jwt');
 const notificationOrchestrator = require('./notificationOrchestrator');
+const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const inviteEmailQueue = require('../queues/inviteEmailQueue');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -136,6 +137,17 @@ class AdminService {
       console.warn('registration invite email not sent:', emailDelivery?.reason || 'unknown_reason');
     }
 
+    // Give the clan's mentors a heads-up that a new mentee is being onboarded into
+    // their clan (they get a second "joined" notification once the mentee registers).
+    if (role === 'mentee' && placement.clanId) {
+      this._notifyClanMentorsOfInvitedMentee({
+        clanId: placement.clanId,
+        clanName: placement.clanName,
+        email: normalizedEmail,
+        inviteId: invite.id
+      }).catch((e) => console.warn('invited-mentee notify failed:', e.message));
+    }
+
     return {
       id: invite.id,
       email: invite.email,
@@ -153,6 +165,32 @@ class AdminService {
         id: emailDelivery?.id || null
       }
     };
+  }
+
+  /** Heads-up to a clan's mentors (lead + co) that a mentee has been invited to their clan. */
+  async _notifyClanMentorsOfInvitedMentee({ clanId, clanName, email, inviteId }) {
+    const mentors = await models.ClanMembership.findAll({
+      where: { clanId, role: ['lead_mentor', 'co_mentor'], status: 'active' },
+      attributes: ['userId']
+    });
+    const recipientIds = [...new Set(mentors.map((m) => m.userId).filter(Boolean))];
+    if (recipientIds.length === 0) return;
+
+    await notificationOrchestrator.dispatch({
+      eventKey: NOTIFICATION_EVENTS.NEW_MENTEE_IN_CLAN,
+      recipients: recipientIds.map((userId) => ({ userId })),
+      payload: {
+        title: 'New mentee invited to your clan',
+        message: `${email} has been invited to join your clan "${clanName || 'your clan'}". You'll be notified again once they register.`,
+        actionUrl: '/mentor/clan-team',
+        actionLabel: 'Open Clan Team',
+        relatedEntityType: 'mentee_invited',
+        relatedEntityId: inviteId
+      },
+      // In-app only at invite time; the "joined" email follows on registration.
+      channelOverrides: { email: false },
+      dedupe: { relatedEntityType: 'mentee_invited', relatedEntityId: inviteId }
+    });
   }
 
   /**
