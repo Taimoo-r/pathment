@@ -22,6 +22,7 @@ const FEATURE_META: { key: AIFeature; label: string; hint: string }[] = [
   { key: 'stall', label: 'Stall warnings', hint: 'Detect stalled progress' },
   { key: 'coaching', label: 'Coaching suggestions', hint: 'Mentor talking points' },
   { key: 'feedback', label: 'Draft feedback', hint: 'Suggest task feedback' },
+  { key: 'roadmap', label: 'Roadmap generation', hint: 'Draft roadmap steps from a brief' },
 ];
 
 const STATUS_META: Record<AIKeyStatus, { label: string; cls: string; Icon: typeof CheckCircle2 }> = {

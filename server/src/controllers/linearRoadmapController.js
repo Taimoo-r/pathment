@@ -84,6 +84,12 @@ const deleteOrg = catchAsync(async (req, res) => {
   res.status(200).json(successResponse('Org roadmap deleted', await linearRoadmapService.deleteOrgRoadmap(req.params.id)));
 });
 
+// ── AI: draft roadmap steps from the brief (optional, author reviews) ─────────
+const generate = catchAsync(async (req, res) => {
+  const steps = await linearRoadmapService.generateSteps(req.body, req.user.id);
+  res.status(200).json(successResponse('Roadmap drafted', { steps }));
+});
+
 // ── Mentee progress view ─────────────────────────────────────────────────────
 const myRoadmaps = catchAsync(async (req, res) => {
   const roadmaps = await linearRoadmapService.getMenteeRoadmaps(req.user.id);
@@ -92,5 +98,5 @@ const myRoadmaps = catchAsync(async (req, res) => {
 
 module.exports = {
   list, getOne, create, updateMeta, addStep, removeStep, importOrg, assign, assignees,
-  listOrg, createOrg, updateOrg, addOrgStep, removeOrgStep, deleteOrg, myRoadmaps
+  listOrg, createOrg, updateOrg, addOrgStep, removeOrgStep, deleteOrg, generate, myRoadmaps
 };

@@ -2,7 +2,7 @@ import { apiClient } from './api-client';
 
 export type AIProvider = 'groq' | 'openai' | 'anthropic' | 'gemini' | 'custom';
 export type AIKeyStatus = 'connected' | 'error' | 'untested';
-export type AIFeature = 'summary' | 'delay' | 'atrisk' | 'nudge' | 'stall' | 'coaching' | 'feedback';
+export type AIFeature = 'summary' | 'delay' | 'atrisk' | 'nudge' | 'stall' | 'coaching' | 'feedback' | 'roadmap';
 export type AIRouting = Record<AIFeature, string | null>;
 
 export interface AIConnection {

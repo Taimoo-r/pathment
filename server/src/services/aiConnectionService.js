@@ -24,7 +24,7 @@ const PROVIDER_BASE = {
   custom: null
 };
 const PROVIDERS = Object.keys(PROVIDER_BASE);
-const FEATURES = ['summary', 'delay', 'atrisk', 'nudge', 'stall', 'coaching', 'feedback'];
+const FEATURES = ['summary', 'delay', 'atrisk', 'nudge', 'stall', 'coaching', 'feedback', 'roadmap'];
 
 const isAdmin = (user) => {
   const caps = Array.isArray(user?.capabilities) && user.capabilities.length ? user.capabilities : [user?.role];

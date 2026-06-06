@@ -7,6 +7,10 @@ const { PERMISSIONS } = require('../config/permissions');
 
 const adminOnly = [authenticate, requirePermission(PERMISSIONS.ROADMAP_AUTHOR)];
 
+// AI-draft roadmap steps from a brief (any authenticated mentor/admin author).
+// Generating a draft is harmless; saving is still gated by the routes below.
+router.post('/generate', authenticate, c.generate);
+
 // Mentee's own roadmap progress (step X/N) for their progress view.
 router.get('/me', authenticate, c.myRoadmaps);
 

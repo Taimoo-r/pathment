@@ -22,6 +22,20 @@ export const orgRoadmapApi = {
   remove: (id: string) => apiClient.delete(`/roadmaps/org/${id}`),
 };
 
+/** AI-draft roadmap steps from the brief (name/description/tags/duration). */
+export interface RoadmapAiInput {
+  name?: string;
+  description?: string;
+  type?: string;
+  durationWeeks?: number;
+  skillTags?: string[];
+  additionalInstructions?: string;
+}
+export const roadmapAiApi = {
+  generate: (data: RoadmapAiInput) =>
+    apiClient.post<{ data: { steps: RoadmapStepInput[] } }>('/roadmaps/generate', data),
+};
+
 /** Mentee's own roadmap progress (step X/N). */
 export const menteeRoadmapApi = {
   mine: () => apiClient.get('/roadmaps/me'),

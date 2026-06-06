@@ -2,10 +2,11 @@
 
 import { useEffect, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { Route, Plus, Trash2, X, Loader2, Eye, EyeOff, Pencil } from 'lucide-react';
+import { Route, Plus, Trash2, X, Loader2, Eye, EyeOff, Pencil, Sparkles } from 'lucide-react';
 import { useOrgRoadmaps, type OrgRoadmap, type OrgRoadmapStep } from '@/lib/hooks/admin/useOrgRoadmaps';
 import { programManagementApi } from '@/lib/services/program-api';
-import type { RoadmapStepInput } from '@/lib/services/roadmap-api';
+import { roadmapAiApi, type RoadmapStepInput } from '@/lib/services/roadmap-api';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 
 const TYPES = ['assignment', 'project', 'quiz', 'reading', 'video', 'discussion'];
 const TYPE_LABEL: Record<string, string> = { assignment: 'Assignment', project: 'Project', quiz: 'Quiz', reading: 'Reading', video: 'Video', discussion: 'Discussion', custom: 'Custom', practical: 'Practical', assessment: 'Assessment' };
@@ -33,14 +34,18 @@ const toStepInput = (s: DraftStep): RoadmapStepInput => ({
 });
 
 /* ── shared rich step editor row ────────────────────────────────────────── */
-function StepEditorRow({ index, step, onChange, onRemove, removable }: {
+function StepEditorRow({ index, step, onChange, onRemove, removable, onEnter, autoFocusTitle }: {
   index: number; step: DraftStep; onChange: (s: DraftStep) => void; onRemove: () => void; removable: boolean;
+  onEnter?: () => void; autoFocusTitle?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 p-3 space-y-2">
       <div className="flex items-center gap-2">
         <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold flex items-center justify-center shrink-0">{index + 1}</span>
-        <input value={step.title} onChange={(e) => onChange({ ...step, title: e.target.value })} placeholder={`Step ${index + 1} title`} className={field} />
+        <input value={step.title} onChange={(e) => onChange({ ...step, title: e.target.value })}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEnter?.(); } }}
+          autoFocus={autoFocusTitle}
+          placeholder={`Step ${index + 1} title  (press Enter to add another)`} className={field} />
         {removable && <button onClick={onRemove} aria-label="Remove step" className="p-1.5 text-slate-400 hover:text-red-600 shrink-0"><Trash2 className="w-4 h-4" /></button>}
       </div>
       <div className="flex flex-wrap items-center gap-2 pl-8">
@@ -187,6 +192,34 @@ function CreateDrawer({ programs, onClose, onCreate }: {
   const [published, setPublishedFlag] = useState(true);
   const [steps, setSteps] = useState<DraftStep[]>([blankStep()]);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  // Optional: let AI draft the steps from the brief above (uses the author's
+  // configured 'Roadmap generation' model in Settings → AI Connections).
+  const generate = async () => {
+    if (!name.trim() && !description.trim()) { toast.error('Add a name or description first'); return; }
+    try {
+      setGenerating(true);
+      const res: any = await roadmapAiApi.generate({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        skillTags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+      });
+      const aiSteps: DraftStep[] = (res?.data?.steps || []).map((s: any) => ({
+        title: s.title || '',
+        type: s.type || 'project',
+        effort: s.effort || 'm',
+        dueOffsetDays: s.dueOffsetDays,
+        description: s.description || '',
+        criteria: Array.isArray(s.criteria) ? s.criteria.join('\n') : (s.criteria || ''),
+      }));
+      if (aiSteps.length === 0) { toast.error('AI returned no steps - try a richer description'); return; }
+      setSteps(aiSteps);
+      toast.success(`Drafted ${aiSteps.length} step${aiSteps.length === 1 ? '' : 's'} - review & tweak before saving`);
+    } catch (e) {
+      toast.error(extractApiErrorMessage(e, 'Could not generate. Set a Roadmap model in Settings → AI Connections.'));
+    } finally { setGenerating(false); }
+  };
 
   const submit = async () => {
     const clean = steps.map(toStepInput).filter((s) => s.title);
@@ -213,7 +246,7 @@ function CreateDrawer({ programs, onClose, onCreate }: {
       <Field label="Description"><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={`${field} resize-none`} /></Field>
       <Field label="Skill tags" hint="(comma-separated)"><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="react, css, testing" className={field} /></Field>
 
-      <StepsSection steps={steps} setSteps={setSteps} />
+      <StepsSection steps={steps} setSteps={setSteps} onGenerate={generate} generating={generating} />
 
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" checked={published} onChange={(e) => setPublishedFlag(e.target.checked)} className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
@@ -291,20 +324,40 @@ function EditDrawer({ roadmap, hub, onClose }: { roadmap: OrgRoadmap; hub: Retur
 }
 
 /* ── small shared bits ──────────────────────────────────────────────────── */
-function StepsSection({ steps, setSteps }: { steps: DraftStep[]; setSteps: Dispatch<SetStateAction<DraftStep[]>> }) {
+function StepsSection({ steps, setSteps, onGenerate, generating }: {
+  steps: DraftStep[]; setSteps: Dispatch<SetStateAction<DraftStep[]>>;
+  onGenerate?: () => void; generating?: boolean;
+}) {
+  const add = () => setSteps((s) => [...s, blankStep()]);
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-slate-700">Steps</span>
-        <button onClick={() => setSteps((s) => [...s, blankStep()])} className="text-xs font-medium text-brand-600 hover:text-brand-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add step</button>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <span className="text-sm font-medium text-slate-700">Steps <span className="text-red-500">*</span></span>
+        <div className="flex items-center gap-2">
+          {onGenerate && (
+            <button type="button" onClick={onGenerate} disabled={generating}
+              className="text-xs font-medium text-brand-700 bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/30 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5 hover:bg-brand-100 disabled:opacity-50">
+              {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {generating ? 'Generating…' : 'Generate with AI'}
+            </button>
+          )}
+          <button type="button" onClick={add} className="text-xs font-medium text-brand-600 hover:text-brand-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add step</button>
+        </div>
       </div>
       <div className="space-y-2">
         {steps.map((s, i) => (
           <StepEditorRow key={i} index={i} step={s} removable={steps.length > 1}
+            onEnter={add}
+            autoFocusTitle={i === steps.length - 1 && steps.length > 1}
             onChange={(ns) => setSteps((prev) => prev.map((x, j) => (j === i ? ns : x)))}
             onRemove={() => setSteps((prev) => prev.filter((_, j) => j !== i))} />
         ))}
       </div>
+      {/* Bottom add button so you never have to scroll back up after a step. */}
+      <button type="button" onClick={add}
+        className="mt-2 w-full rounded-lg border border-dashed border-slate-300 dark:border-slate-700 py-2 text-xs font-medium text-slate-500 hover:border-brand-300 hover:text-brand-700 inline-flex items-center justify-center gap-1">
+        <Plus className="w-3.5 h-3.5" /> Add step
+      </button>
     </div>
   );
 }

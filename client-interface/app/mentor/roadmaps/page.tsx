@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Route, Plus, X, Trash2, Download, Users, Loader2, GripVertical, Tag,
+  Route, Plus, X, Trash2, Download, Users, Loader2, GripVertical, Tag, Sparkles,
 } from 'lucide-react';
 import { useMentorRoadmaps, useMentorPrograms, useMentorCohort, type LinearRoadmap } from '@/lib/hooks/mentor';
 import { mentorApi } from '@/lib/services/mentor-api';
+import { roadmapAiApi } from '@/lib/services/roadmap-api';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 
 const STEP_TYPES = ['project', 'assignment', 'reading', 'video', 'quiz', 'discussion'];
 const EFFORTS = ['xs', 's', 'm', 'l'];
@@ -21,11 +23,33 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const [tags, setTags] = useState('');
   const [steps, setSteps] = useState<DraftStep[]>([{ title: '', type: 'project', criteria: '', effort: 'm', dueOffsetDays: '' }]);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const setStep = (i: number, patch: Partial<DraftStep>) =>
     setSteps((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   const addStep = () => setSteps((prev) => [...prev, { title: '', type: 'project', criteria: '', effort: 'm', dueOffsetDays: '' }]);
   const removeStep = (i: number) => setSteps((prev) => prev.filter((_, idx) => idx !== i));
+
+  // Optional AI draft from the brief (uses the mentor's 'Roadmap generation' model).
+  const generate = async () => {
+    if (!name.trim()) { toast.error('Add a name first'); return; }
+    try {
+      setGenerating(true);
+      const res: any = await roadmapAiApi.generate({ name: name.trim(), skillTags: tags.split(',').map((t) => t.trim()).filter(Boolean) });
+      const aiSteps: DraftStep[] = (res?.data?.steps || []).map((s: any) => ({
+        title: s.title || '',
+        type: s.type || 'project',
+        effort: s.effort || 'm',
+        dueOffsetDays: s.dueOffsetDays != null ? String(s.dueOffsetDays) : '',
+        criteria: Array.isArray(s.criteria) ? s.criteria.join('\n') : (s.criteria || ''),
+      }));
+      if (aiSteps.length === 0) { toast.error('AI returned no steps - try a richer name/tags'); return; }
+      setSteps(aiSteps);
+      toast.success(`Drafted ${aiSteps.length} step${aiSteps.length === 1 ? '' : 's'} - review & tweak`);
+    } catch (e) {
+      toast.error(extractApiErrorMessage(e, 'Could not generate. Set a Roadmap model in Settings → AI Connections.'));
+    } finally { setGenerating(false); }
+  };
 
   const save = async () => {
     const cleanSteps = steps.filter((s) => s.title.trim());
@@ -67,12 +91,12 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Name <span className="text-red-500">*</span></label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Backend Foundations"
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Program</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Program <span className="text-red-500">*</span></label>
             <select value={programId} onChange={(e) => setProgramId(e.target.value)}
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-card">
               <option value="">{progLoading ? 'Loading…' : 'Select a program'}</option>
@@ -85,9 +109,15 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
           </div>
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-slate-700">Steps (in order)</label>
-              <button onClick={addStep} className="text-brand-600 hover:text-brand-700 text-sm inline-flex items-center gap-1"><Plus className="w-4 h-4" />Add step</button>
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <label className="text-sm font-medium text-slate-700">Steps (in order) <span className="text-red-500">*</span></label>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={generate} disabled={generating}
+                  className="text-xs font-medium text-brand-700 bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/30 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5 hover:bg-brand-100 disabled:opacity-50">
+                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}{generating ? 'Generating…' : 'Generate with AI'}
+                </button>
+                <button onClick={addStep} className="text-brand-600 hover:text-brand-700 text-sm inline-flex items-center gap-1"><Plus className="w-4 h-4" />Add step</button>
+              </div>
             </div>
             <div className="space-y-3">
               {steps.map((s, i) => (
@@ -99,7 +129,9 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
                       <button onClick={() => removeStep(i)} className="ml-auto text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     )}
                   </div>
-                  <input value={s.title} onChange={(e) => setStep(i, { title: e.target.value })} placeholder="Step title"
+                  <input value={s.title} onChange={(e) => setStep(i, { title: e.target.value })} placeholder="Step title  (press Enter to add another)"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addStep(); } }}
+                    autoFocus={i === steps.length - 1 && steps.length > 1}
                     className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                   <div className="flex flex-wrap gap-2">
                     <select value={s.type} onChange={(e) => setStep(i, { type: e.target.value })}
@@ -122,6 +154,10 @@ function CreateDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: 
                 </div>
               ))}
             </div>
+            <button type="button" onClick={addStep}
+              className="mt-3 w-full rounded-lg border border-dashed border-slate-300 dark:border-slate-700 py-2 text-xs font-medium text-slate-500 hover:border-brand-300 hover:text-brand-700 inline-flex items-center justify-center gap-1">
+              <Plus className="w-3.5 h-3.5" /> Add step
+            </button>
           </div>
         </div>
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">

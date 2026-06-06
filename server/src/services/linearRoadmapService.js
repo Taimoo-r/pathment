@@ -18,6 +18,50 @@ const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const ACTIVE_ENROLLMENT_STATUSES = ['active', 'matched', 'approved', 'pending_completion', 'level_completed'];
 
 class LinearRoadmapService {
+  /**
+   * AI-draft a roadmap's steps from the brief the author already typed (name,
+   * description, tags, duration). Uses the author's BYO key for the 'roadmap'
+   * feature. Returns FLAT draft steps ready for the editor (weeks→tasks
+   * flattened), so the author can review/tweak before saving.
+   */
+  async generateSteps(input = {}, userId = null) {
+    const groqService = require('./groqService');
+    const weeks = Math.max(1, Math.min(52, Number(input.durationWeeks) || 8));
+    const result = await groqService.generateRoadmap({
+      feature: 'roadmap',
+      userId,
+      programName: input.name || input.programName || 'Program',
+      programDescription: input.description || '',
+      programType: input.type || 'mentorship',
+      levelName: input.name || 'Roadmap',
+      levelDuration: weeks,
+      learningOutcomes: input.outcomes || input.description || '',
+      prerequisites: input.prerequisites || '',
+      tags: Array.isArray(input.skillTags) ? input.skillTags.join(', ') : (input.tags || ''),
+      additionalInstructions: input.additionalInstructions || '',
+    });
+
+    const TYPE_MAP = { reading: 'reading', video: 'video', project: 'project', quiz: 'quiz', assignment: 'assignment', discussion: 'discussion', exercise: 'assignment', practical: 'project' };
+    const effortFromHours = (h) => (h == null || Number.isNaN(h) ? 'm' : h <= 4 ? 's' : h <= 10 ? 'm' : 'l');
+
+    const steps = [];
+    const wkList = Array.isArray(result?.weeks) ? result.weeks : [];
+    wkList.forEach((wk) => {
+      const wkNum = Number(wk.weekNumber) || null;
+      (Array.isArray(wk.tasks) ? wk.tasks : []).forEach((t, i) => {
+        steps.push({
+          title: String(t.title || '').slice(0, 200),
+          type: TYPE_MAP[String(t.type || '').toLowerCase()] || 'project',
+          effort: effortFromHours(Number(t.estimatedHours)),
+          dueOffsetDays: wkNum ? (wkNum - 1) * 7 + (i + 1) : undefined,
+          description: String(t.description || '').slice(0, 500),
+          criteria: Array.isArray(t.acceptanceCriteria) ? t.acceptanceCriteria.filter(Boolean) : [],
+        });
+      });
+    });
+    return steps;
+  }
+
   async getSteps(roadmapId) {
     return models.RoadmapTask.findAll({
       where: { roadmapId },
