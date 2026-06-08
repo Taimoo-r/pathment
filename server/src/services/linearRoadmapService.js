@@ -431,12 +431,25 @@ class LinearRoadmapService {
     return [...new Set(rows.map((r) => r.menteeId))];
   }
 
-  /** Assign a roadmap to a mentee starting at a given step, and assign that step. */
-  async assignToMentee(mentorId, roadmapId, menteeId, startStep = 0, slot = null, dueDate = null) {
+  /**
+   * Assign a roadmap to a mentee. By default assigns a single step (`startStep`),
+   * but `stepIndexes` lets you hand over a BATCH at once (e.g. this week's steps
+   * 3,4,5) — each becomes its own live task. Auto-advance still works after the
+   * batch. With no `dueDate` each step uses its own dueOffsetDays (per-step due);
+   * a `dueDate` applies one shared deadline to the whole batch.
+   */
+  async assignToMentee(mentorId, roadmapId, menteeId, startStep = 0, slot = null, dueDate = null, stepIndexes = null) {
     const roadmap = await models.Roadmap.findByPk(roadmapId);
     const steps = await this.getSteps(roadmapId);
     if (!steps.length) throw new ValidationError('This roadmap has no steps to assign');
-    const idx = Math.max(0, Math.min(startStep, steps.length - 1));
+
+    // Which steps to assign now: an explicit batch, or just the start step.
+    let indexes;
+    if (Array.isArray(stepIndexes) && stepIndexes.length) {
+      indexes = [...new Set(stepIndexes.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < steps.length))].sort((a, b) => a - b);
+    }
+    if (!indexes || !indexes.length) indexes = [Math.max(0, Math.min(startStep, steps.length - 1))];
+    const idx = indexes[0]; // progress sits at the earliest step of the batch
 
     // A date-only deadline (YYYY-MM-DD) is anchored to END OF DAY in the mentee's
     // timezone — "due June 10" means their whole June 10 — matching the task
@@ -466,7 +479,8 @@ class LinearRoadmapService {
     return sequelize.transaction(async (transaction) => {
       let progress = await models.RoadmapProgress.findOne({ where: { roadmapId, menteeId }, transaction });
       if (progress) {
-        progress.currentStep = idx;
+        // Don't drag progress backwards if they're already further along.
+        progress.currentStep = Math.min(progress.currentStep ?? idx, idx);
         progress.completed = false;
         progress.enrollmentId = enrollment.id;
         if (slot) progress.slot = slot;
@@ -478,10 +492,38 @@ class LinearRoadmapService {
       }
       return progress;
     }).then(async (progress) => {
-      // Assign the starting step (outside the txn is fine; idempotent).
-      await this._assignStep(steps[idx], menteeId, mentorId, enrollment.id, resolvedDue);
+      // Assign each step in the batch (outside the txn is fine; idempotent — an
+      // already-assigned step returns its existing task, never a duplicate).
+      for (const i of indexes) {
+        await this._assignStep(steps[i], menteeId, mentorId, enrollment.id, resolvedDue);
+      }
       return progress;
     });
+  }
+
+  /**
+   * Per-step assignment status for one mentee on a roadmap — powers the multi-
+   * select assign UI (which steps are already given, how many active) so a
+   * mentor can hand over a week's batch without double-assigning.
+   */
+  async getMenteeStepStatus(roadmapId, menteeId) {
+    const steps = await this.getSteps(roadmapId);
+    const stepIds = steps.map((s) => s.id);
+    const assigned = stepIds.length
+      ? await models.AssignedTask.findAll({
+        where: { roadmapTaskId: { [Op.in]: stepIds }, menteeId, status: { [Op.ne]: 'cancelled' } },
+        attributes: ['roadmapTaskId', 'status'],
+      })
+      : [];
+    const byTask = {};
+    assigned.forEach((a) => { byTask[a.roadmapTaskId] = a.status; });
+    const ACTIVE = ['assigned', 'not_started', 'in_progress', 'revision_needed', 'submitted'];
+    const steps2 = steps.map((s, i) => ({ index: i, stepId: s.id, title: s.title, type: s.type, status: byTask[s.id] || null }));
+    return {
+      steps: steps2,
+      activeCount: steps2.filter((s) => s.status && ACTIVE.includes(s.status)).length,
+      assignedCount: steps2.filter((s) => s.status).length,
+    };
   }
 
   // ── Reusable chain graph (roadmap_links) ────────────────────────────────────
@@ -634,11 +676,11 @@ class LinearRoadmapService {
     return this.assignToMentee(mentorId, headId, menteeId, Math.max(0, Number(startStep) || 0), slotId);
   }
 
-  async bulkAssign(mentorId, roadmapId, menteeIds = [], startStep = 0, dueDate = null) {
+  async bulkAssign(mentorId, roadmapId, menteeIds = [], startStep = 0, dueDate = null, stepIndexes = null) {
     const results = [];
     for (const menteeId of menteeIds) {
       try {
-        await this.assignToMentee(mentorId, roadmapId, menteeId, startStep, null, dueDate);
+        await this.assignToMentee(mentorId, roadmapId, menteeId, startStep, null, dueDate, stepIndexes);
         results.push({ menteeId, ok: true });
       } catch (error) {
         results.push({ menteeId, ok: false, error: error.message });

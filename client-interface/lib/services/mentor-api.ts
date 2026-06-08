@@ -87,8 +87,11 @@ export const mentorApi = {
   importRoadmap: (orgRoadmapId: string) => apiClient.post('/mentor/roadmaps/import', { orgRoadmapId }),
   // Mentee IDs that already have this roadmap (to disable re-assigning).
   getRoadmapAssignees: (id: string) => apiClient.get(`/mentor/roadmaps/${id}/assignees`),
-  assignRoadmap: (id: string, payload: { menteeId?: string; menteeIds?: string[]; startStep?: number; dueDate?: string }) =>
+  assignRoadmap: (id: string, payload: { menteeId?: string; menteeIds?: string[]; startStep?: number; dueDate?: string; stepIndexes?: number[] }) =>
     apiClient.post(`/mentor/roadmaps/${id}/assign`, payload),
+  // Per-step assignment status for one mentee (powers multi-select batch assign).
+  getRoadmapMenteeSteps: (id: string, menteeId: string) =>
+    apiClient.get<{ data: { steps: { index: number; stepId: string; title: string; type: string; status: string | null }[]; activeCount: number; assignedCount: number } }>(`/mentor/roadmaps/${id}/mentee/${menteeId}/steps`),
   // Roadmap chaining: read/set "what comes next", and manually advance a mentee.
   getRoadmapLinks: (id: string) =>
     apiClient.get<{ data: { links: { id: string; toRoadmapId: string; name: string | null; position: number }[] } }>(`/mentor/roadmaps/${id}/links`),

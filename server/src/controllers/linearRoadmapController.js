@@ -44,13 +44,13 @@ const importOrg = catchAsync(async (req, res) => {
 });
 
 const assign = catchAsync(async (req, res) => {
-  const { menteeId, menteeIds, startStep = 0, dueDate = null } = req.body;
+  const { menteeId, menteeIds, startStep = 0, dueDate = null, stepIndexes = null } = req.body;
   if (Array.isArray(menteeIds) && menteeIds.length) {
-    const results = await linearRoadmapService.bulkAssign(req.user.id, req.params.id, menteeIds, startStep, dueDate);
+    const results = await linearRoadmapService.bulkAssign(req.user.id, req.params.id, menteeIds, startStep, dueDate, stepIndexes);
     const assigned = results.filter((r) => r.ok).length;
     return res.status(200).json(successResponse('Roadmap assigned', { results, assigned, failed: results.length - assigned }));
   }
-  const progress = await linearRoadmapService.assignToMentee(req.user.id, req.params.id, menteeId, startStep, null, dueDate);
+  const progress = await linearRoadmapService.assignToMentee(req.user.id, req.params.id, menteeId, startStep, null, dueDate, stepIndexes);
   res.status(200).json(successResponse('Roadmap assigned', { progress }));
 });
 
@@ -58,6 +58,12 @@ const assign = catchAsync(async (req, res) => {
 const assignees = catchAsync(async (req, res) => {
   const menteeIds = await linearRoadmapService.getAssignees(req.params.id);
   res.status(200).json(successResponse('Roadmap assignees retrieved', { menteeIds }));
+});
+
+// Per-step assignment status for ONE mentee (multi-select batch assign UI).
+const menteeStepStatus = catchAsync(async (req, res) => {
+  const data = await linearRoadmapService.getMenteeStepStatus(req.params.id, req.params.menteeId);
+  res.status(200).json(successResponse('Mentee step status', data));
 });
 
 // ── Admin org-roadmap authoring ──────────────────────────────────────────────
@@ -120,5 +126,5 @@ const advance = catchAsync(async (req, res) => {
 module.exports = {
   list, getOne, create, updateMeta, addStep, removeStep, importOrg, assign, assignees,
   listOrg, createOrg, updateOrg, addOrgStep, removeOrgStep, deleteOrg, generate, myRoadmaps,
-  getLinks, setLinks, advance, replaceSteps
+  getLinks, setLinks, advance, replaceSteps, menteeStepStatus
 };

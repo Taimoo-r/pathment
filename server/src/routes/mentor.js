@@ -63,6 +63,7 @@ router.post('/roadmaps/:id/steps', mentorOnly, linearRoadmapController.addStep);
 router.put('/roadmaps/:id/steps', mentorOnly, linearRoadmapController.replaceSteps);
 router.delete('/roadmaps/:id/steps/:stepId', mentorOnly, linearRoadmapController.removeStep);
 router.get('/roadmaps/:id/assignees', mentorOnly, linearRoadmapController.assignees);
+router.get('/roadmaps/:id/mentee/:menteeId/steps', mentorOnly, linearRoadmapController.menteeStepStatus);
 router.post('/roadmaps/:id/assign', mentorOnly, linearRoadmapController.assign);
 // Roadmap chaining: define what comes next (reusable), + manually advance a mentee.
 router.post('/roadmaps/advance', mentorOnly, linearRoadmapController.advance);

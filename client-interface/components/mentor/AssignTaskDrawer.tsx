@@ -50,11 +50,17 @@ export function AssignTaskDrawer({
   // roadmap mode
   const { local: localRoadmaps, loading: roadmapsLoading } = useMentorRoadmaps();
   const [roadmapId, setRoadmapId] = useState('');
-  const [startStep, setStartStep] = useState(0);
   const selectedRoadmap = localRoadmaps.find((r) => r.id === roadmapId) || null;
   // Mentees who already have the selected roadmap - can't be assigned it again.
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
   const [assigneesLoading, setAssigneesLoading] = useState(false);
+  // Multi-step batch assign: which steps to hand over now + per-mentee status.
+  const [selectedSteps, setSelectedSteps] = useState<Set<number>>(new Set());
+  const [stepStatus, setStepStatus] = useState<{ index: number; stepId: string; title: string; status: string | null }[]>([]);
+  const [stepsLoading, setStepsLoading] = useState(false);
+  const [activeCount, setActiveCount] = useState(0);
+  const toggleStep = (i: number) => setSelectedSteps((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
+  const ACTIVE_TASK = ['assigned', 'not_started', 'in_progress', 'revision_needed', 'submitted'];
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState<string>('assignment');
@@ -102,6 +108,32 @@ export function AssignTaskDrawer({
     return () => { active = false; };
   }, [source, roadmapId]);
 
+  // Load this mentee's per-step status so the mentor can batch-assign without
+  // double-giving steps, and see how many are already active. Single mode only.
+  useEffect(() => {
+    setSelectedSteps(new Set());
+    if (source !== 'roadmap' || !roadmapId) { setStepStatus([]); setActiveCount(0); return; }
+    let active = true;
+    if (mode === 'single' && mentee) {
+      setStepsLoading(true);
+      mentorApi.getRoadmapMenteeSteps(roadmapId, mentee.id)
+        .then((res: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (!active) return;
+          const steps = res?.data?.steps ?? [];
+          setStepStatus(steps);
+          setActiveCount(res?.data?.activeCount ?? 0);
+          const firstFree = steps.find((s: { status: string | null }) => !s.status);
+          setSelectedSteps(firstFree ? new Set([firstFree.index]) : new Set());
+        })
+        .catch(() => { if (active) { setStepStatus([]); setActiveCount(0); } })
+        .finally(() => { if (active) setStepsLoading(false); });
+    } else {
+      // Bulk: no per-mentee status — default to the first step.
+      setStepStatus([]); setActiveCount(0); setSelectedSteps(new Set([0]));
+    }
+    return () => { active = false; };
+  }, [source, roadmapId, mode, mentee?.id]);
+
   // Focus first field on open.
   useEffect(() => { titleRef.current?.focus(); }, []);
 
@@ -143,8 +175,7 @@ export function AssignTaskDrawer({
   const targetCount = targetIds.length;
   const blockedCount = rawTargetIds.length - targetCount;
   // Single-mode roadmap where the one mentee already has this roadmap.
-  const singleAlreadyAssigned = source === 'roadmap' && mode === 'single' && !!roadmapId && !!mentee && assignedIds.has(mentee.id);
-  const canSubmit = targetCount > 0 && (source === 'custom' ? !!title.trim() : !!roadmapId);
+  const canSubmit = targetCount > 0 && (source === 'custom' ? !!title.trim() : (!!roadmapId && selectedSteps.size > 0));
 
   const submit = async () => {
     if (!canSubmit || saving) return;
@@ -153,7 +184,7 @@ export function AssignTaskDrawer({
 
       // ── Assign from a roadmap ────────────────────────────────────────────
       if (source === 'roadmap') {
-        const res: any = await mentorApi.assignRoadmap(roadmapId, { menteeIds: targetIds, startStep, dueDate: dueExact || undefined });
+        const res: any = await mentorApi.assignRoadmap(roadmapId, { menteeIds: targetIds, stepIndexes: [...selectedSteps], dueDate: dueExact || undefined });
         const assigned = res?.data?.assigned ?? targetIds.length;
         const failed = res?.data?.failed ?? 0;
         if (assigned === 0) {
@@ -354,7 +385,7 @@ export function AssignTaskDrawer({
                     ) : (
                       <div className="space-y-2">
                         {localRoadmaps.map((r) => (
-                          <button key={r.id} type="button" onClick={() => { setRoadmapId(r.id); setStartStep(0); }}
+                          <button key={r.id} type="button" onClick={() => { setRoadmapId(r.id); setSelectedSteps(new Set()); }}
                             className={`w-full text-left rounded-xl border p-3 transition-colors ${roadmapId === r.id ? 'border-brand-400 bg-brand-50 dark:bg-brand-500/10' : 'border-slate-200 hover:border-slate-300'}`}>
                             <div className="flex items-center gap-2">
                               <Route className="w-4 h-4 text-brand-500 shrink-0" />
@@ -372,21 +403,41 @@ export function AssignTaskDrawer({
                     <p className="flex items-center gap-1.5 text-xs text-slate-400"><Loader2 className="w-3.5 h-3.5 animate-spin" />Checking who already has this roadmap…</p>
                   )}
 
-                  {singleAlreadyAssigned && (
-                    <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800">
-                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                      <span>{mentee?.name ?? 'This mentee'} already has this roadmap. Re-assigning moves them to the start step you pick below.</span>
-                    </div>
-                  )}
-                  {selectedRoadmap && selectedRoadmap.steps.length > 0 && (
-                    <div>
-                      <label htmlFor="assign-roadmap-start" className="block text-sm font-medium text-slate-700 mb-1">Start at step</label>
-                      <select id="assign-roadmap-start" value={startStep} onChange={(e) => setStartStep(Number(e.target.value))} className={field}>
-                        {selectedRoadmap.steps.map((s, i) => <option key={s.id} value={i}>{i + 1}. {s.title}</option>)}
-                      </select>
-                      <p className="text-xs text-slate-400 mt-1">Skip ahead if they already know the earlier steps.</p>
-                    </div>
-                  )}
+                  {selectedRoadmap && selectedRoadmap.steps.length > 0 && (() => {
+                    // Per-mentee status when single; plain step list when bulk.
+                    const rows = stepStatus.length
+                      ? stepStatus
+                      : selectedRoadmap.steps.map((s, i) => ({ index: i, stepId: s.id, title: s.title, status: null as string | null }));
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="block text-sm font-medium text-slate-700">Steps to assign <span className="text-red-500">*</span></span>
+                          {mode === 'single' && activeCount > 0 && (
+                            <span className="text-xs text-amber-600">{mentee?.name?.split(' ')[0] ?? 'They'} has {activeCount} active task{activeCount === 1 ? '' : 's'}</span>
+                          )}
+                        </div>
+                        <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 dark:divide-slate-700 dark:border-slate-700">
+                          {stepsLoading ? (
+                            <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+                          ) : rows.map((s) => {
+                            const isActive = !!s.status && ACTIVE_TASK.includes(s.status);
+                            const isDone = s.status === 'completed';
+                            const checked = selectedSteps.has(s.index) || isActive;
+                            return (
+                              <label key={s.stepId || s.index} className={`flex items-center gap-2.5 px-3 py-2 text-sm ${isActive ? 'opacity-60' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
+                                <input type="checkbox" disabled={isActive} checked={checked} onChange={() => toggleStep(s.index)}
+                                  className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                                <span className="flex-1 truncate text-slate-700">{s.index + 1}. {s.title}</span>
+                                {isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 shrink-0">assigned</span>}
+                                {isDone && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">done</span>}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">Tick the steps to hand over now — give several at once for the week. Already-assigned steps are locked.</p>
+                      </div>
+                    );
+                  })()}
                   {selectedRoadmap && selectedRoadmap.steps.length > 0 && (
                     <div>
                       <span className="block text-sm font-medium text-slate-700 mb-1.5">Deadline <span className="text-slate-400 font-normal">(optional)</span></span>
