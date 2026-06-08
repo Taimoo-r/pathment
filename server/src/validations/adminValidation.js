@@ -22,10 +22,10 @@ const adminSchemas = {
     email: Joi.string().email().required(),
     password: Joi.string()
       .min(8)
-      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/)
       .required()
       .messages({
-        'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character'
+        'string.pattern.base': 'Password must include an uppercase letter, a lowercase letter, a number, and a special character (e.g. ! @ # $ % & *)'
       }),
     permissions: Joi.array().items(
       Joi.string().valid(

@@ -5,12 +5,17 @@ const Joi = require('joi');
  */
 const patterns = {
   email: Joi.string().email().required(),
+  // Require lower + upper + digit + at least one special (ANY non-alphanumeric),
+  // and allow any characters in the password. The previous rule only accepted
+  // specials from a 7-char set (@$!%*?&), so common picks like `Welcome2024#`
+  // failed server-side even though the client accepted them — the cause of the
+  // widespread "password rejected" confusion.
   password: Joi.string()
     .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/)
     .required()
     .messages({
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
+      'string.pattern.base': 'Password must include an uppercase letter, a lowercase letter, a number, and a special character (e.g. ! @ # $ % & *)',
       'string.min': 'Password must be at least 8 characters long'
     }),
   uuid: Joi.string().uuid().required(),

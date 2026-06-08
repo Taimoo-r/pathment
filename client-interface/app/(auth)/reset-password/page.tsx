@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Mail, Lock, ArrowRight, CheckCircle2, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '@/lib/services/api-client';
 import { apiConfig } from '@/lib/config/api';
+import { validatePassword } from '@/lib/utils/validation';
+import { PasswordRequirements } from '@/components/shared/PasswordRequirements';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -54,8 +56,9 @@ export default function ResetPasswordPage() {
       setError('Passwords do not match.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    const pw = validatePassword(password);
+    if (!pw.valid) {
+      setError(pw.errors[0]);
       return;
     }
     setLoading(true);
@@ -184,7 +187,7 @@ export default function ResetPasswordPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <p className="text-slate-500 text-sm mt-1">Must be at least 8 characters</p>
+              <PasswordRequirements password={password} />
             </div>
 
             <div>

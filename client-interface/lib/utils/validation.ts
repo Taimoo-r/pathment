@@ -8,33 +8,22 @@ export const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
+// Single source of truth for password rules — MUST match the server's Joi rule
+// in server/src/validations/authValidation.js (special = ANY non-alphanumeric).
+export const passwordRules: { label: string; test: (p: string) => boolean }[] = [
+  { label: 'At least 8 characters', test: (p) => p.length >= 8 },
+  { label: 'A lowercase letter (a–z)', test: (p) => /[a-z]/.test(p) },
+  { label: 'An uppercase letter (A–Z)', test: (p) => /[A-Z]/.test(p) },
+  { label: 'A number (0–9)', test: (p) => /[0-9]/.test(p) },
+  { label: 'A special character (e.g. ! @ # $ % & *)', test: (p) => /[^A-Za-z0-9]/.test(p) },
+];
+
+export const PASSWORD_HINT =
+  'Use 8+ characters with an uppercase letter, a lowercase letter, a number, and a special character (e.g. ! @ # $ % & *).';
+
 export const validatePassword = (password: string): { valid: boolean; errors: string[] } => {
-  const errors: string[] = [];
-  
-  if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
-  }
-  
-  if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
-  }
-  
-  if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
-  }
-  
-  if (!/[0-9]/.test(password)) {
-    errors.push('Password must contain at least one number');
-  }
-  
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    errors.push('Password must contain at least one special character');
-  }
-  
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+  const errors = passwordRules.filter((r) => !r.test(password)).map((r) => `Password needs: ${r.label.toLowerCase()}`);
+  return { valid: errors.length === 0, errors };
 };
 
 export const validateUrl = (url: string): boolean => {

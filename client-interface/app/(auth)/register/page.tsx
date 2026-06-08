@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/services/api-client';
 import { apiConfig } from '@/lib/config/api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
+import { validatePassword } from '@/lib/utils/validation';
+import { PasswordRequirements } from '@/components/shared/PasswordRequirements';
 
 type InviteDetails = {
   id: string;
@@ -121,7 +123,8 @@ export default function RegisterPage() {
     if (!formData.firstName) newErrors.firstName = 'First name is required';
     if (!formData.lastName) newErrors.lastName = 'Last name is required';
     if (!formData.email) newErrors.email = 'Email is required';
-    if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
+    const pw = validatePassword(formData.password);
+    if (!pw.valid) newErrors.password = pw.errors[0];
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
@@ -294,6 +297,7 @@ export default function RegisterPage() {
                 {errors.password}
               </p>
             )}
+            <PasswordRequirements password={formData.password} />
           </div>
 
           {/* Confirm Password */}

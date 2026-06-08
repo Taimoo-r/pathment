@@ -25,6 +25,8 @@ import securityService, {
   AuditLog,
 } from '@/lib/services/security-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
+import { validatePassword } from '@/lib/utils/validation';
+import { PasswordRequirements } from './PasswordRequirements';
 import { BackupCodesModal } from './BackupCodesModal';
 
 const formatDate = (dateString: string) => {
@@ -79,8 +81,9 @@ function PasswordChangeForm({ onClose, onSubmit }: PasswordChangeFormProps) {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters');
+    const pw = validatePassword(newPassword);
+    if (!pw.valid) {
+      setError(pw.errors[0]);
       return;
     }
 
@@ -150,6 +153,7 @@ function PasswordChangeForm({ onClose, onSubmit }: PasswordChangeFormProps) {
                 {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <PasswordRequirements password={newPassword} />
           </div>
 
           <div>
