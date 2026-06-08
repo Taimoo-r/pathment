@@ -38,7 +38,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     maxMentees: {
       type: DataTypes.INTEGER,
-      defaultValue: 5,
+      defaultValue: 100,
       field: 'max_mentees'
     },
     currentMenteeCount: {

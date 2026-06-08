@@ -20,7 +20,7 @@ export default function MentorOnboardingPage() {
     linkedinUrl: '',
     githubUrl: '',
     portfolioUrl: '',
-    maxMentees: '5',
+    maxMentees: '100',
     preferredMenteeLevel: [] as string[],
     bio: ''
   });
@@ -75,7 +75,7 @@ export default function MentorOnboardingPage() {
       await apiClient.post('/profile/complete-mentor', {
         ...formData,
         yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
-        maxMentees: parseInt(formData.maxMentees) || 5
+        maxMentees: parseInt(formData.maxMentees) || 100
       });
       toast.success('Profile saved - let\'s add your skills.');
       if (updateUser) updateUser({ ...user, onboardingStep: 1 });
@@ -265,7 +265,7 @@ export default function MentorOnboardingPage() {
               <input
                 type="number"
                 min="1"
-                max="20"
+                max="500"
                 value={formData.maxMentees}
                 onChange={(e) => setFormData({ ...formData, maxMentees: e.target.value })}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"

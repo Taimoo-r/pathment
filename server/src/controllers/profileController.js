@@ -42,7 +42,19 @@ class ProfileController {
       throw new NotFoundError('User not found');
     }
 
-    res.json(successResponse('Profile retrieved successfully', user));
+    const out = user.toJSON();
+    // The stored mentor_profiles.current_mentee_count only ever tracked legacy
+    // 1:1 matches, so it reads 0 for clan-based mentors. Show the REAL cohort
+    // size (clans + matches) so "X of Y mentees" matches the My Mentees page.
+    if (out.mentorProfile) {
+      try {
+        const cohortService = require('../services/cohortService');
+        const ids = await cohortService.resolveMenteeIds(userId);
+        out.mentorProfile.currentMenteeCount = ids.length;
+      } catch { /* fall back to the stored value */ }
+    }
+
+    res.json(successResponse('Profile retrieved successfully', out));
   });
 
   /**
@@ -152,7 +164,7 @@ await user.update({
       linkedinUrl,
       githubUrl,
       portfolioUrl,
-      maxMentees: maxMentees || 5,
+      maxMentees: maxMentees || 100,
       preferredMenteeLevel: Array.isArray(preferredMenteeLevel) ? preferredMenteeLevel : [preferredMenteeLevel]
     };
 

@@ -264,8 +264,8 @@ export default function MentorSettings() {
                 <div className="w-full bg-card rounded-full h-3 overflow-hidden">
                   <div 
                     className="h-full bg-brand-600 transition-all duration-300"
-                    style={{ 
-                      width: `${(availabilitySettings.currentMenteeCount / availabilitySettings.maxMentees) * 100}%` 
+                    style={{
+                      width: `${Math.min(100, (availabilitySettings.currentMenteeCount / Math.max(1, availabilitySettings.maxMentees)) * 100)}%`
                     }}
                   />
                 </div>
@@ -308,7 +308,7 @@ export default function MentorSettings() {
                       maxMentees: Math.max(1, parseInt(e.target.value) || 1)
                     })}
                     min="1"
-                    max="50"
+                    max="500"
                     className="w-32 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <span className="text-slate-600">mentees</span>

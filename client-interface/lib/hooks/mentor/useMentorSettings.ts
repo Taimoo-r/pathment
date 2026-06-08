@@ -136,7 +136,7 @@ export function useMentorSettings(): UseMentorSettingsReturn {
 
         setAvailabilitySettings({
           isAcceptingMentees: data.mentorProfile.isAcceptingMentees ?? true,
-          maxMentees: data.mentorProfile.maxMentees || 5,
+          maxMentees: data.mentorProfile.maxMentees || 100,
           currentMenteeCount: data.mentorProfile.currentMenteeCount || 0,
         });
       }
