@@ -73,6 +73,15 @@ export const taskApi = {
   deleteCustomTask: (taskId: string) =>
     apiClient.delete(`/tasks/${taskId}`),
 
+  // Change an assigned task's deadline (mentor/admin). Accepts a YYYY-MM-DD date
+  // (anchored to end-of-day in the mentee's timezone) or a full ISO instant.
+  updateTaskDueDate: (taskId: string, dueDate: string) =>
+    apiClient.patch(`/tasks/${taskId}/due-date`, { dueDate }),
+
+  // Unassign (delete) an assigned task — roadmap or custom — for a mistaken assignment.
+  unassignTask: (taskId: string) =>
+    apiClient.post(`/tasks/${taskId}/unassign`, {}),
+
   // Roadmap APIs
   getRoadmapTasks: (programId: string, levelId: string, menteeId?: string) =>
     apiClient.get(`/tasks/roadmap/program/${programId}/level/${levelId}`, {

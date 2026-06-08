@@ -3,6 +3,7 @@ const { NotFoundError, ForbiddenError, ValidationError } = require('../utils/err
 const { Op } = require('sequelize');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
+const { endOfDayInZone } = require('../utils/timezone');
 
 class TaskService {
   /**
@@ -842,6 +843,94 @@ class TaskService {
     await this.updateEnrollmentTaskStats(task.enrollmentId);
 
     return task;
+  }
+
+  /**
+   * Mentor/admin sets a new deadline on an assigned task (e.g. "I want this in
+   * 2 days"). Anchors a date-only value to END OF DAY in the mentee's timezone,
+   * matching the extension flow, and re-evaluates lateness. Notifies the mentee.
+   */
+  async updateTaskDueDate(taskId, userId, userRole, dueDate) {
+    const task = await models.AssignedTask.findByPk(taskId, {
+      include: [{ model: models.RoadmapTask, as: 'roadmapTask', attributes: ['title'] }]
+    });
+    if (!task) throw new NotFoundError('Task not found');
+
+    if (userRole === 'mentor') {
+      if (task.mentorId !== userId) throw new ForbiddenError('You can only change deadlines for your own mentees\' tasks');
+    } else if (userRole !== 'admin') {
+      throw new ForbiddenError('Only admins and mentors can change task deadlines');
+    }
+    if (task.status === 'completed') throw new ValidationError('Cannot change the deadline of a completed task');
+    if (!dueDate) throw new ValidationError('A due date is required');
+
+    // Accept either a full ISO instant or a date-only string. Date-only is
+    // anchored to the end of that day in the mentee's timezone (true UTC instant).
+    let finalDueDate;
+    const dateOnly = String(dueDate).split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const menteeSettings = await models.UserSettings.findOne({
+        where: { userId: task.menteeId }, attributes: ['timezone']
+      });
+      const menteeTz = menteeSettings?.timezone || 'UTC';
+      finalDueDate = endOfDayInZone(dateOnly, menteeTz) || new Date(dueDate);
+    } else {
+      finalDueDate = new Date(dueDate);
+    }
+    if (Number.isNaN(new Date(finalDueDate).getTime())) throw new ValidationError('A valid due date is required');
+
+    task.dueDate = finalDueDate;
+    if (task.submittedAt) task.isLate = new Date(task.submittedAt) > new Date(finalDueDate);
+    await task.save();
+
+    const title = task.roadmapTask?.title || 'your task';
+    const dueStr = new Date(finalDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    notificationOrchestrator.dispatch({
+      eventKey: NOTIFICATION_EVENTS.TASK_ASSIGNED,
+      recipients: [{ userId: task.menteeId }],
+      payload: {
+        title: 'Task deadline updated',
+        message: `The deadline for “${title}” is now ${dueStr}.`,
+        actionUrl: `/mentee/tasks/${task.id}`,
+        actionLabel: 'Open task',
+        relatedEntityType: 'assigned_task',
+        relatedEntityId: task.id,
+      },
+    }).catch((e) => console.error('[Task] due-date notification failed:', e.message));
+
+    return task;
+  }
+
+  /**
+   * Unassign (delete) an assigned task — for a mistaken assignment. Works for
+   * BOTH roadmap-step and custom tasks (unlike deleteCustomTask). Refuses once
+   * the mentee has submitted/completed work, so nothing real is lost. If it was
+   * a one-off custom task with no other assignees, its RoadmapTask is cleaned up.
+   */
+  async unassignTask(taskId, userId, userRole) {
+    const task = await models.AssignedTask.findByPk(taskId);
+    if (!task) throw new NotFoundError('Task not found');
+
+    if (userRole === 'mentor') {
+      if (task.mentorId !== userId) throw new ForbiddenError('You can only unassign your own mentees\' tasks');
+    } else if (userRole !== 'admin') {
+      throw new ForbiddenError('Only admins and mentors can unassign tasks');
+    }
+    if (['submitted', 'completed'].includes(task.status)) {
+      throw new ValidationError('This task has been submitted or completed — cancel it instead of unassigning');
+    }
+
+    const { enrollmentId, roadmapTaskId, isCustomTask } = task;
+    await task.destroy();
+
+    // Custom one-off tasks own their RoadmapTask row; remove it when orphaned.
+    if (isCustomTask && roadmapTaskId) {
+      const others = await models.AssignedTask.count({ where: { roadmapTaskId } });
+      if (others === 0) await models.RoadmapTask.destroy({ where: { id: roadmapTaskId } });
+    }
+    if (enrollmentId) await this.updateEnrollmentTaskStats(enrollmentId);
+
+    return { message: 'Task unassigned' };
   }
 
   /**

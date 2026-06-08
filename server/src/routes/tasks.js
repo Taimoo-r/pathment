@@ -160,6 +160,30 @@ router.patch(
 );
 
 /**
+ * @route   PATCH /api/tasks/:taskId/due-date
+ * @desc    Change an assigned task's deadline
+ * @access  Admin, Mentor
+ */
+router.patch(
+  '/:taskId/due-date',
+  authenticate,
+  authorize(['admin', 'mentor']),
+  taskController.updateTaskDueDate
+);
+
+/**
+ * @route   POST /api/tasks/:taskId/unassign
+ * @desc    Unassign (delete) an assigned task — roadmap or custom
+ * @access  Admin, Mentor
+ */
+router.post(
+  '/:taskId/unassign',
+  authenticate,
+  authorize(['admin', 'mentor']),
+  taskController.unassignTask
+);
+
+/**
  * @route   DELETE /api/tasks/:taskId
  * @desc    Delete custom task
  * @access  Mentor

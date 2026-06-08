@@ -621,6 +621,106 @@ Output as JSON:
     });
     return (response.choices?.[0]?.message?.content || '').trim();
   }
+
+  /** Map a raw provider error to a friendly, actionable message. */
+  _friendlyAiError(error) {
+    const msg = String(error?.message || '');
+    if (/413|request too large|too large|context length|maximum context|reduce/i.test(msg)) {
+      return 'That was too much for the AI in one go. Try fewer steps/weeks or shorter instructions.';
+    }
+    if (/429|rate limit/i.test(msg)) return 'The AI is rate-limited right now. Wait a moment and try again.';
+    if (/401|unauthorized|invalid api key/i.test(msg)) return 'AI authentication failed. Check your key in Settings → AI Connections.';
+    if (/5\d\d|temporarily|unavailable|overloaded/i.test(msg)) return 'The AI service is temporarily unavailable. Please try again shortly.';
+    return `AI generation failed: ${msg}`;
+  }
+
+  /**
+   * Draft a roadmap as a FLAT, ordered list of steps (the linear-roadmap model).
+   * Much lighter than generateRoadmap(): a small prompt + a token budget scaled
+   * to the requested step count, so it doesn't trip the provider's per-request /
+   * TPM size limits (the old 413 "request too large"). Returns steps already
+   * shaped for the editor: { title, type, effort, dueOffsetDays, description, criteria[] }.
+   *
+   * @param {object} p
+   * @param {number|null} p.weeks  pace across N weeks (sets dueOffsetDays); null = no weeks
+   * @param {number} p.count       how many steps to produce (1..40)
+   * @param {string} p.instructions free-text author guidance ("include X, avoid Y…")
+   */
+  async generateRoadmapSteps({ feature = 'roadmap', userId = null, name, description, tags, instructions, weeks = null, count = 8 } = {}) {
+    const ai = await this._resolve(feature, userId);
+    if (!ai.enabled) {
+      throw new ValidationError('AI is not configured. Add a provider key in Settings → AI Connections.');
+    }
+
+    const pacing = weeks
+      ? `Pace the work across about ${weeks} week(s): set each step's "dueOffsetDays" to roughly when it is due (days after the mentee starts), spread over ~${weeks * 7} days.`
+      : 'Do NOT organise by weeks — just a sensible ordered list. Leave "dueOffsetDays" as null unless an order clearly implies timing.';
+
+    const prompt = `Design a focused, practical learning roadmap as an ORDERED LIST OF STEPS.
+
+Topic / name: ${name || 'Roadmap'}${description ? `\nContext: ${description}` : ''}${tags ? `\nSkills / tags: ${tags}` : ''}${instructions ? `\nAuthor's specific instructions (follow these closely): ${instructions}` : ''}
+
+Produce up to ${count} steps (fewer only if the topic is genuinely smaller). ${pacing}
+Each step is one concrete unit of work with a SHORT title (≤ 120 chars) and the real detail in "description".
+
+Allowed "type" values ONLY: reading, video, project, quiz, discussion, assignment.
+Allowed "effort" values ONLY: s (≤4h), m (≤10h), l (>10h).
+
+Return ONLY valid JSON in EXACTLY this shape (no markdown, no commentary):
+{"steps":[{"title":"short step title","type":"project","effort":"m","dueOffsetDays":7,"description":"1-3 sentences on what to do","criteria":["acceptance criterion 1","acceptance criterion 2"]}]}`;
+
+    const maxTokens = Math.min(6000, 700 + count * 180);
+    const messages = [
+      { role: 'system', content: 'You return ONLY valid JSON. No markdown fences, no commentary.' },
+      { role: 'user', content: prompt },
+    ];
+
+    let content = '';
+    try {
+      const response = await ai.client.chat.completions.create({
+        model: ai.model, messages, temperature: 0.6, max_tokens: maxTokens,
+        response_format: { type: 'json_object' },
+      });
+      content = response.choices?.[0]?.message?.content || '';
+    } catch (error) {
+      // Some models/providers reject response_format — retry once without it.
+      if (/response_format|json_object|not supported|unrecognized/i.test(error?.message || '')) {
+        const response = await ai.client.chat.completions.create({
+          model: ai.model, messages, temperature: 0.6, max_tokens: maxTokens,
+        });
+        content = response.choices?.[0]?.message?.content || '';
+      } else {
+        throw new ValidationError(this._friendlyAiError(error));
+      }
+    }
+
+    // Parse — tolerate stray prose around the JSON.
+    let parsed = null;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      const s = content.indexOf('{'); const e = content.lastIndexOf('}');
+      if (s !== -1 && e !== -1 && s < e) {
+        try { parsed = JSON.parse(this.sanitizeJSON(content.slice(s, e + 1))); } catch { parsed = null; }
+      }
+    }
+    const raw = Array.isArray(parsed?.steps) ? parsed.steps : (Array.isArray(parsed) ? parsed : []);
+
+    const TYPES = ['reading', 'video', 'project', 'quiz', 'discussion', 'assignment'];
+    return raw.map((t) => {
+      const type = TYPES.includes(String(t.type || '').toLowerCase()) ? String(t.type).toLowerCase() : 'project';
+      const effort = ['s', 'm', 'l'].includes(String(t.effort || '').toLowerCase()) ? String(t.effort).toLowerCase() : 'm';
+      const due = Number(t.dueOffsetDays);
+      return {
+        title: String(t.title || '').trim().slice(0, 200),
+        type,
+        effort,
+        dueOffsetDays: Number.isFinite(due) && due > 0 ? Math.round(due) : undefined,
+        description: String(t.description || '').slice(0, 2000),
+        criteria: Array.isArray(t.criteria) ? t.criteria.map((c) => String(c).trim()).filter(Boolean).slice(0, 20) : [],
+      };
+    }).filter((s) => s.title);
+  }
 }
 
 module.exports = new GroqService();

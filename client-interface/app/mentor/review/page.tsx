@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, SkipForward, Check, Loader2,
   TrendingUp, TrendingDown, Minus, Flag, Clock, ClipboardCheck, Keyboard, CheckCircle2, ArrowUpRight, Send, Plus, ListTodo, CalendarClock,
+  Trash2, X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useMentorCohort, useMentorApprovals, type CohortMentee, type CohortMomentum, type CohortRisk, type ApprovalItem } from '@/lib/hooks/mentor';
@@ -14,6 +15,7 @@ import { mentorApi } from '@/lib/services/mentor-api';
 import { taskApi } from '@/lib/services/task-api';
 import { submissionService } from '@/lib/services/submissionService';
 import { frictionApi } from '@/lib/services/friction-api';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { DualProgress } from '@/components/mentor/DualProgress';
 import { AISummaryPanel } from '@/components/mentor/AISummaryPanel';
 import { NudgeButton } from '@/components/mentor/NudgeButton';
@@ -161,6 +163,34 @@ export default function CohortReview() {
       try { const r: any = await taskApi.getMentorTasks(user.id, { menteeId }); setTasks(r?.data?.tasks ?? []); } catch { /* keep prior */ } // eslint-disable-line @typescript-eslint/no-explicit-any
     }
   }, [refetchQueue, user?.id, menteeId]);
+
+  // Per-task inline controls in "Assigned work": change deadline / unassign.
+  const [editingDue, setEditingDue] = useState<string | null>(null);
+  const [dueVal, setDueVal] = useState('');
+  const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
+  const saveDue = async (taskId: string) => {
+    if (!dueVal) { toast.error('Pick a date'); return; }
+    try {
+      setBusyTaskId(taskId);
+      await taskApi.updateTaskDueDate(taskId, dueVal);
+      toast.success('Deadline updated');
+      setEditingDue(null); setDueVal('');
+      await refresh();
+    } catch (e) {
+      toast.error(extractApiErrorMessage(e, 'Could not update the deadline'));
+    } finally { setBusyTaskId(null); }
+  };
+  const unassignTask = async (taskId: string) => {
+    if (typeof window !== 'undefined' && !window.confirm('Unassign this task from the mentee? It will be removed from their list.')) return;
+    try {
+      setBusyTaskId(taskId);
+      await taskApi.unassignTask(taskId);
+      toast.success('Task unassigned');
+      await refresh();
+    } catch (e) {
+      toast.error(extractApiErrorMessage(e, 'Could not unassign the task'));
+    } finally { setBusyTaskId(null); }
+  };
 
   // Open the review confirm for an extension request (default to requested days).
   const openExtReview = (ext: typeof pendingExtensions[number]) => {
@@ -393,6 +423,10 @@ export default function CohortReview() {
                             const due = t.dueDate ? new Date(t.dueDate) : null;
                             const overdue = due && t.status !== 'completed' && due.getTime() < Date.now();
                             const { note, rating } = reviewOf(t);
+                            const canManage = !['cancelled'].includes(t.status);
+                            const canUnassign = !['submitted', 'completed', 'cancelled'].includes(t.status);
+                            const isEditingDue = editingDue === t.id;
+                            const busy = busyTaskId === t.id;
                             return (
                               <div key={t.id} className="p-2.5 rounded-xl border border-slate-200">
                                 <div className="flex items-center gap-3">
@@ -405,7 +439,32 @@ export default function CohortReview() {
                                     </div>
                                   </div>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${meta.cls}`}>{meta.label}</span>
+                                  {canManage && (
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                      <button onClick={() => { setEditingDue(isEditingDue ? null : t.id); setDueVal(t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : ''); }}
+                                        title="Change deadline" className="p-1 text-slate-400 hover:text-brand-600 disabled:opacity-40" disabled={busy}>
+                                        <CalendarClock className="w-3.5 h-3.5" />
+                                      </button>
+                                      {canUnassign && (
+                                        <button onClick={() => unassignTask(t.id)} title="Unassign task"
+                                          className="p-1 text-slate-400 hover:text-red-500 disabled:opacity-40" disabled={busy}>
+                                          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
+                                {isEditingDue && (
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <input type="date" value={dueVal} onChange={(e) => setDueVal(e.target.value)}
+                                      className="border border-slate-300 rounded-lg px-2 py-1 text-xs bg-card focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                                    <button onClick={() => saveDue(t.id)} disabled={busy || !dueVal}
+                                      className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-medium inline-flex items-center gap-1 disabled:opacity-50">
+                                      {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : null}Save
+                                    </button>
+                                    <button onClick={() => { setEditingDue(null); setDueVal(''); }} className="p-1 text-slate-400 hover:text-slate-700"><X className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                )}
                                 {note && (
                                   <p className={`mt-1.5 text-xs rounded-lg px-2.5 py-1.5 ${t.status === 'revision_needed' ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300' : 'text-slate-500'}`}>
                                     {t.status === 'revision_needed' && <span className="font-medium">Your note: </span>}“{note}”

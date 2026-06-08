@@ -3,6 +3,7 @@ const { models, sequelize } = require('../db');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/errors/errorTypes');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
+const { endOfDayInZone } = require('../utils/timezone');
 
 /**
  * linearRoadmapService - the new design's linear roadmap flow for mentors:
@@ -26,40 +27,31 @@ class LinearRoadmapService {
    */
   async generateSteps(input = {}, userId = null) {
     const groqService = require('./groqService');
-    const weeks = Math.max(1, Math.min(52, Number(input.durationWeeks) || 8));
-    const result = await groqService.generateRoadmap({
+
+    // Two modes:
+    //  - 'weeks': pace the steps across N weeks (sets dueOffsetDays).
+    //  - 'tasks' (default): a plain ordered list, no week scaffolding — smaller
+    //    request, and what most mentors want.
+    const mode = input.mode === 'weeks' ? 'weeks' : 'tasks';
+    const weeks = mode === 'weeks'
+      ? Math.max(1, Math.min(52, Number(input.durationWeeks) || 6))
+      : null;
+
+    // How many steps to ask for. Explicit count wins; else derive from weeks; else 8.
+    let count = Number(input.count ?? input.stepCount);
+    if (!Number.isFinite(count) || count <= 0) count = weeks ? weeks * 3 : 8;
+    count = Math.max(1, Math.min(40, Math.round(count)));
+
+    return groqService.generateRoadmapSteps({
       feature: 'roadmap',
       userId,
-      programName: input.name || input.programName || 'Program',
-      programDescription: input.description || '',
-      programType: input.type || 'mentorship',
-      levelName: input.name || 'Roadmap',
-      levelDuration: weeks,
-      learningOutcomes: input.outcomes || input.description || '',
-      prerequisites: input.prerequisites || '',
+      name: input.name || input.programName || 'Roadmap',
+      description: input.description || '',
       tags: Array.isArray(input.skillTags) ? input.skillTags.join(', ') : (input.tags || ''),
-      additionalInstructions: input.additionalInstructions || '',
+      instructions: input.additionalInstructions || input.instructions || input.prompt || '',
+      weeks,
+      count,
     });
-
-    const TYPE_MAP = { reading: 'reading', video: 'video', project: 'project', quiz: 'quiz', assignment: 'assignment', discussion: 'discussion', exercise: 'assignment', practical: 'project' };
-    const effortFromHours = (h) => (h == null || Number.isNaN(h) ? 'm' : h <= 4 ? 's' : h <= 10 ? 'm' : 'l');
-
-    const steps = [];
-    const wkList = Array.isArray(result?.weeks) ? result.weeks : [];
-    wkList.forEach((wk) => {
-      const wkNum = Number(wk.weekNumber) || null;
-      (Array.isArray(wk.tasks) ? wk.tasks : []).forEach((t, i) => {
-        steps.push({
-          title: String(t.title || '').slice(0, 200),
-          type: TYPE_MAP[String(t.type || '').toLowerCase()] || 'project',
-          effort: effortFromHours(Number(t.estimatedHours)),
-          dueOffsetDays: wkNum ? (wkNum - 1) * 7 + (i + 1) : undefined,
-          description: String(t.description || '').slice(0, 500),
-          criteria: Array.isArray(t.acceptanceCriteria) ? t.acceptanceCriteria.filter(Boolean) : [],
-        });
-      });
-    });
-    return steps;
   }
 
   async getSteps(roadmapId) {
@@ -95,15 +87,50 @@ class LinearRoadmapService {
     return this.withSteps(roadmap);
   }
 
+  // ── Input validation ────────────────────────────────────────────────────────
+  // The DB caps `title` at VARCHAR(255); without these guards an over-long title
+  // surfaces as an opaque 500 (Postgres "value too long"). We validate up front
+  // and return a friendly 400 instead. Long content belongs in `description`
+  // (TEXT), which the rich-text step editor now fills.
+  _assertName(name) {
+    const n = String(name || '').trim();
+    if (!n) throw new ValidationError('A roadmap name is required');
+    if (n.length > 255) throw new ValidationError(`Roadmap name is too long (${n.length}/255 characters)`);
+  }
+
+  _assertSteps(steps) {
+    if (!Array.isArray(steps) || steps.length === 0) throw new ValidationError('At least one step is required');
+    if (steps.length > 100) throw new ValidationError('A roadmap can have at most 100 steps');
+    steps.forEach((s, i) => {
+      const title = String(s?.title || '').trim();
+      if (!title) throw new ValidationError(`Step ${i + 1} needs a title`);
+      if (title.length > 255) {
+        throw new ValidationError(`Step ${i + 1}: the title is too long (${title.length}/255 characters). Put the details in the step description instead.`);
+      }
+      if (s.description != null && String(s.description).length > 20000) {
+        throw new ValidationError(`Step ${i + 1}: the description is too long (max 20000 characters)`);
+      }
+    });
+  }
+
+  /** Strip a TipTap "empty" paragraph so we don't store noise as a description. */
+  _cleanDescription(html) {
+    const v = String(html || '').replace(/<p>\s*<\/p>/gi, '').trim();
+    return v || null;
+  }
+
   _stepToTask(step, roadmapId, order) {
+    const title = String(step.title || '').trim().slice(0, 255);
+    const desc = this._cleanDescription(step.description);
     return {
       roadmapId,
-      title: step.title,
-      description: step.description || step.brief || step.title,
+      title,
+      // description is NOT NULL — fall back to the title when no detail is given.
+      description: desc || step.brief || title,
       type: step.type || 'project',
       difficulty: step.difficulty || 'medium',
       taskOrder: order,
-      deliverable: step.deliverable || step.title,
+      deliverable: step.deliverable || title,
       acceptanceCriteria: Array.isArray(step.criteria) ? step.criteria : (step.acceptanceCriteria || []),
       estimatedHours: step.estimatedHours || null,
       effort: ['xs', 's', 'm', 'l'].includes(step.effort) ? step.effort : null,
@@ -116,8 +143,9 @@ class LinearRoadmapService {
 
   async createRoadmap(mentorId, data) {
     const { name, programId, description, skillTags, steps } = data;
-    if (!name || !programId) throw new ValidationError('name and programId are required');
-    if (!Array.isArray(steps) || steps.length === 0) throw new ValidationError('At least one step is required');
+    if (!programId) throw new ValidationError('A program is required');
+    this._assertName(name);
+    this._assertSteps(steps);
 
     return sequelize.transaction(async (transaction) => {
       const roadmap = await models.Roadmap.create({
@@ -152,6 +180,7 @@ class LinearRoadmapService {
 
   async updateRoadmapMeta(mentorId, roadmapId, updates) {
     const roadmap = await this._assertOwnedLocal(roadmapId, mentorId);
+    if (updates.name !== undefined) this._assertName(updates.name);
     ['name', 'description', 'skillTags'].forEach((k) => {
       if (updates[k] !== undefined) roadmap[k] = updates[k];
     });
@@ -161,6 +190,7 @@ class LinearRoadmapService {
 
   async addStep(mentorId, roadmapId, step) {
     await this._assertOwnedLocal(roadmapId, mentorId);
+    this._assertSteps([step]);
     const max = await models.RoadmapTask.max('taskOrder', { where: { roadmapId } });
     const order = (Number.isFinite(max) ? max : -1) + 1;
     await models.RoadmapTask.create(this._stepToTask(step, roadmapId, order));
@@ -185,7 +215,7 @@ class LinearRoadmapService {
    */
   async replaceSteps(mentorId, roadmapId, steps) {
     await this._assertOwnedLocal(roadmapId, mentorId);
-    if (!Array.isArray(steps) || steps.length === 0) throw new ValidationError('At least one step is required');
+    this._assertSteps(steps);
 
     const existing = await models.RoadmapTask.findAll({ where: { roadmapId } });
     const byId = new Map(existing.map((t) => [t.id, t]));
@@ -246,8 +276,9 @@ class LinearRoadmapService {
 
   async createOrgRoadmap(adminId, data) {
     const { name, programId, description, skillTags, steps, published } = data;
-    if (!name || !programId) throw new ValidationError('name and programId are required');
-    if (!Array.isArray(steps) || steps.length === 0) throw new ValidationError('At least one step is required');
+    if (!programId) throw new ValidationError('A program is required');
+    this._assertName(name);
+    this._assertSteps(steps);
 
     return sequelize.transaction(async (transaction) => {
       const roadmap = await models.Roadmap.create({
@@ -279,6 +310,7 @@ class LinearRoadmapService {
 
   async updateOrgMeta(roadmapId, updates) {
     const roadmap = await this._assertOrg(roadmapId);
+    if (updates.name !== undefined) this._assertName(updates.name);
     ['name', 'description', 'skillTags', 'published'].forEach((k) => {
       if (updates[k] !== undefined) roadmap[k] = updates[k];
     });
@@ -288,6 +320,7 @@ class LinearRoadmapService {
 
   async addOrgStep(roadmapId, step) {
     await this._assertOrg(roadmapId);
+    this._assertSteps([step]);
     const max = await models.RoadmapTask.max('taskOrder', { where: { roadmapId } });
     const order = (Number.isFinite(max) ? max : -1) + 1;
     await models.RoadmapTask.create(this._stepToTask(step, roadmapId, order));
@@ -343,12 +376,21 @@ class LinearRoadmapService {
       || null;
   }
 
-  async _assignStep(step, menteeId, mentorId, enrollmentId) {
+  async _assignStep(step, menteeId, mentorId, enrollmentId, dueOverride = null) {
     const existing = await models.AssignedTask.findOne({ where: { roadmapTaskId: step.id, menteeId } });
     if (existing) return existing;
-    const due = new Date();
-    const offset = Number.isFinite(Number(step.dueOffsetDays)) && step.dueOffsetDays != null ? Number(step.dueOffsetDays) : 7;
-    due.setDate(due.getDate() + offset);
+    // An explicit deadline (mentor picked one at assign time) wins; otherwise fall
+    // back to the step's own dueOffsetDays, then a sensible default of +7 days.
+    let due = null;
+    if (dueOverride) {
+      const d = new Date(dueOverride);
+      if (!Number.isNaN(d.getTime())) due = d;
+    }
+    if (!due) {
+      due = new Date();
+      const offset = Number.isFinite(Number(step.dueOffsetDays)) && step.dueOffsetDays != null ? Number(step.dueOffsetDays) : 7;
+      due.setDate(due.getDate() + offset);
+    }
     const assigned = await models.AssignedTask.create({
       roadmapTaskId: step.id,
       menteeId,
@@ -390,11 +432,26 @@ class LinearRoadmapService {
   }
 
   /** Assign a roadmap to a mentee starting at a given step, and assign that step. */
-  async assignToMentee(mentorId, roadmapId, menteeId, startStep = 0, slot = null) {
+  async assignToMentee(mentorId, roadmapId, menteeId, startStep = 0, slot = null, dueDate = null) {
     const roadmap = await models.Roadmap.findByPk(roadmapId);
     const steps = await this.getSteps(roadmapId);
     if (!steps.length) throw new ValidationError('This roadmap has no steps to assign');
     const idx = Math.max(0, Math.min(startStep, steps.length - 1));
+
+    // A date-only deadline (YYYY-MM-DD) is anchored to END OF DAY in the mentee's
+    // timezone — "due June 10" means their whole June 10 — matching the task
+    // deadline-edit + extension flows. A full ISO instant is used as-is.
+    let resolvedDue = null;
+    if (dueDate) {
+      const raw = String(dueDate);
+      const dateOnly = raw.split('T')[0];
+      if (!raw.includes('T') && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+        const s = await models.UserSettings.findOne({ where: { userId: menteeId }, attributes: ['timezone'] });
+        resolvedDue = endOfDayInZone(dateOnly, s?.timezone || 'UTC') || new Date(raw);
+      } else {
+        resolvedDue = new Date(raw);
+      }
+    }
 
     let enrollment = await this._activeEnrollment(menteeId);
     if (!enrollment) {
@@ -422,7 +479,7 @@ class LinearRoadmapService {
       return progress;
     }).then(async (progress) => {
       // Assign the starting step (outside the txn is fine; idempotent).
-      await this._assignStep(steps[idx], menteeId, mentorId, enrollment.id);
+      await this._assignStep(steps[idx], menteeId, mentorId, enrollment.id, resolvedDue);
       return progress;
     });
   }
@@ -577,11 +634,11 @@ class LinearRoadmapService {
     return this.assignToMentee(mentorId, headId, menteeId, Math.max(0, Number(startStep) || 0), slotId);
   }
 
-  async bulkAssign(mentorId, roadmapId, menteeIds = [], startStep = 0) {
+  async bulkAssign(mentorId, roadmapId, menteeIds = [], startStep = 0, dueDate = null) {
     const results = [];
     for (const menteeId of menteeIds) {
       try {
-        await this.assignToMentee(mentorId, roadmapId, menteeId, startStep);
+        await this.assignToMentee(mentorId, roadmapId, menteeId, startStep, null, dueDate);
         results.push({ menteeId, ok: true });
       } catch (error) {
         results.push({ menteeId, ok: false, error: error.message });

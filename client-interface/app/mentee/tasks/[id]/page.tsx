@@ -63,6 +63,9 @@ export default function TaskDetailsPage({ params }: PageProps) {
 
   const taskTitle = task.roadmapTask?.title || task.title || 'Untitled Task';
   const taskDescription = task.roadmapTask?.description || task.description || '';
+  // Step details are authored in a rich-text editor (HTML); older tasks stored
+  // plain text. Render HTML safely, fall back to plain text for legacy values.
+  const descriptionIsHtml = /<[a-z][\s\S]*>/i.test(taskDescription);
   const taskDeliverable = task.roadmapTask?.deliverable || task.deliverable;
   const acceptanceCriteria = task.roadmapTask?.acceptanceCriteria || task.acceptanceCriteria || [];
   const resources = task.roadmapTask?.resources || [];
@@ -92,7 +95,11 @@ export default function TaskDetailsPage({ params }: PageProps) {
                 </span>
               )}
             </div>
-            <p className="text-slate-600">{taskDescription}</p>
+            {taskDescription && (descriptionIsHtml ? (
+              <div className="prose prose-sm max-w-none text-slate-600" dangerouslySetInnerHTML={{ __html: taskDescription }} />
+            ) : (
+              <p className="text-slate-600 whitespace-pre-wrap">{taskDescription}</p>
+            ))}
           </div>
           <StatusBadge status={task.status} />
         </div>

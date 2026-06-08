@@ -203,8 +203,29 @@ exports.getRoadmapTasks = catchAsync(async (req, res) => {
 exports.deleteCustomTask = catchAsync(async (req, res) => {
   const { taskId } = req.params;
   const mentorId = req.user.id;
-  
+
   const result = await taskService.deleteCustomTask(taskId, mentorId);
+  res.status(200).json(successResponse(result.message, {}));
+});
+
+/**
+ * Change an assigned task's deadline (mentor/admin)
+ * PATCH /api/tasks/:taskId/due-date  { dueDate }
+ */
+exports.updateTaskDueDate = catchAsync(async (req, res) => {
+  const { taskId } = req.params;
+  const { dueDate } = req.body;
+  const task = await taskService.updateTaskDueDate(taskId, req.user.id, req.user.role, dueDate);
+  res.status(200).json(successResponse('Deadline updated', { task }));
+});
+
+/**
+ * Unassign (delete) an assigned task — roadmap or custom (mentor/admin)
+ * POST /api/tasks/:taskId/unassign
+ */
+exports.unassignTask = catchAsync(async (req, res) => {
+  const { taskId } = req.params;
+  const result = await taskService.unassignTask(taskId, req.user.id, req.user.role);
   res.status(200).json(successResponse(result.message, {}));
 });
 

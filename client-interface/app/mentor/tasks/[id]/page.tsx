@@ -1,10 +1,12 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   CheckCircle2,
   Calendar,
+  CalendarClock,
   Clock,
   Star,
   FileText,
@@ -20,8 +22,11 @@ import {
   Loader2,
   Send,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { useMentorTaskDetail } from '@/lib/hooks/mentor';
+import taskApi from '@/lib/services/task-api';
+import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { PageHeader, StatusBadge } from '@/components/admin/ui';
 
 interface PageProps {
@@ -49,6 +54,11 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
     handleCancelTask,
   } = useMentorTaskDetail(resolvedParams.id);
 
+  // Local controls for mentor-driven deadline edits + unassign (not part of the hook).
+  const [dueEdit, setDueEdit] = useState('');
+  const [savingDue, setSavingDue] = useState(false);
+  const [unassigning, setUnassigning] = useState(false);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -68,6 +78,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
 
   const taskTitle = task.roadmapTask?.title || task.title || 'Untitled Task';
   const taskDescription = task.roadmapTask?.description || task.description || '';
+  const descriptionIsHtml = /<[a-z][\s\S]*>/i.test(taskDescription);
   const taskDeliverable = task.roadmapTask?.deliverable || task.deliverable;
   const acceptanceCriteria = task.roadmapTask?.acceptanceCriteria || task.acceptanceCriteria || [];
   const resources = task.roadmapTask?.resources || [];
@@ -76,6 +87,32 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
 
   const canReview = ['submitted', 'revision_needed'].includes(task.status);
   const canCancel = !['completed', 'cancelled'].includes(task.status);
+  const canUnassign = !['submitted', 'completed', 'cancelled'].includes(task.status);
+
+  const saveDueDate = async () => {
+    if (!dueEdit) { toast.error('Pick a date first'); return; }
+    try {
+      setSavingDue(true);
+      await taskApi.updateTaskDueDate(task.id, dueEdit);
+      toast.success('Deadline updated');
+      window.location.reload();
+    } catch (e) {
+      toast.error(extractApiErrorMessage(e, 'Could not update the deadline'));
+      setSavingDue(false);
+    }
+  };
+  const unassign = async () => {
+    if (typeof window !== 'undefined' && !window.confirm('Unassign this task from the mentee? It will be removed from their list.')) return;
+    try {
+      setUnassigning(true);
+      await taskApi.unassignTask(task.id);
+      toast.success('Task unassigned');
+      router.push('/mentor/tasks');
+    } catch (e) {
+      toast.error(extractApiErrorMessage(e, 'Could not unassign the task'));
+      setUnassigning(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -98,7 +135,11 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
                 </span>
               )}
             </div>
-            <p className="text-slate-600">{taskDescription}</p>
+            {taskDescription && (descriptionIsHtml ? (
+              <div className="prose prose-sm max-w-none text-slate-600" dangerouslySetInnerHTML={{ __html: taskDescription }} />
+            ) : (
+              <p className="text-slate-600 whitespace-pre-wrap">{taskDescription}</p>
+            ))}
           </div>
               <StatusBadge status={task.status} />
         </div>
@@ -157,6 +198,28 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
             </div>
           )}
         </div>
+
+        {/* Mentor task controls: change deadline + unassign a mistaken assignment */}
+        {(canCancel || canUnassign) && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <p className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1.5"><CalendarClock className="w-3.5 h-3.5" />Manage deadline</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input type="date" value={dueEdit} onChange={(e) => setDueEdit(e.target.value)}
+                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              <button onClick={saveDueDate} disabled={savingDue || !dueEdit}
+                className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium inline-flex items-center gap-1.5 disabled:opacity-50">
+                {savingDue ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}Set deadline
+              </button>
+              {canUnassign && (
+                <button onClick={unassign} disabled={unassigning}
+                  className="ml-auto px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium inline-flex items-center gap-1.5 disabled:opacity-50">
+                  {unassigning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}Unassign
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1.5">The deadline lands at end of day in the mentee&apos;s timezone, and they&apos;re notified.</p>
+          </div>
+        )}
 
         {/* Rating & Points */}
         {task.status === 'completed' && (task.finalRating || task.pointsAwarded != null) && (

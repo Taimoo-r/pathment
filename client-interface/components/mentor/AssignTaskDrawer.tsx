@@ -19,6 +19,11 @@ const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert'] as const;
 const DUE_PRESETS: { label: string; days: number }[] = [
   { label: 'Today', days: 0 }, { label: '+3 days', days: 3 }, { label: '+1 week', days: 7 }, { label: '+2 weeks', days: 14 },
 ];
+// Roadmap assignment deadline is optional — `null` = "Default" (use step timing).
+const ROADMAP_DUE_PRESETS: { label: string; days: number | null }[] = [
+  { label: 'Default', days: null }, { label: '+3 days', days: 3 }, { label: '+1 week', days: 7 }, { label: '+2 weeks', days: 14 },
+];
+const presetDateStr = (days: number) => { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().split('T')[0]; };
 
 export interface AssignDrawerMentee { id: string; name: string; level?: string; risk?: string }
 
@@ -56,6 +61,8 @@ export function AssignTaskDrawer({
   const [description, setDescription] = useState('');
   const [difficulty, setDifficulty] = useState<string>('medium');
   const [dueDays, setDueDays] = useState<number>(7);
+  // An exact date (free picker) overrides the preset when set; presets clear it.
+  const [dueExact, setDueExact] = useState<string>('');
   const [points, setPoints] = useState<number>(10);
   const [deliverable, setDeliverable] = useState('');
   const [criteria, setCriteria] = useState<string[]>([]);
@@ -121,12 +128,17 @@ export function AssignTaskDrawer({
   });
 
   const filteredCohort = cohort.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()));
-  const dueISO = () => { const d = new Date(); d.setDate(d.getDate() + dueDays); return d.toISOString(); };
+  const dueISO = () => {
+    if (dueExact) return new Date(`${dueExact}T23:59:59`).toISOString();
+    const d = new Date(); d.setDate(d.getDate() + dueDays); return d.toISOString();
+  };
   const cleanCriteria = criteria.map((c) => c.trim()).filter(Boolean);
 
   const rawTargetIds = mode === 'bulk' ? [...selected] : (mentee ? [mentee.id] : []);
-  // In roadmap mode, mentees who already have it are filtered out of the action.
-  const blockSet = source === 'roadmap' ? assignedIds : new Set<string>();
+  // Re-assigning a roadmap a mentee already has is allowed: the server updates
+  // their progress (moves them to the chosen start step) idempotently rather than
+  // duplicating. We surface it as a note, not a hard block.
+  const blockSet = new Set<string>();
   const targetIds = rawTargetIds.filter((id) => !blockSet.has(id));
   const targetCount = targetIds.length;
   const blockedCount = rawTargetIds.length - targetCount;
@@ -141,7 +153,7 @@ export function AssignTaskDrawer({
 
       // ── Assign from a roadmap ────────────────────────────────────────────
       if (source === 'roadmap') {
-        const res: any = await mentorApi.assignRoadmap(roadmapId, { menteeIds: targetIds, startStep });
+        const res: any = await mentorApi.assignRoadmap(roadmapId, { menteeIds: targetIds, startStep, dueDate: dueExact || undefined });
         const assigned = res?.data?.assigned ?? targetIds.length;
         const failed = res?.data?.failed ?? 0;
         if (assigned === 0) {
@@ -269,9 +281,13 @@ export function AssignTaskDrawer({
                   <span className="block text-sm font-medium text-slate-700 mb-1.5">Due</span>
                   <div className="flex flex-wrap gap-1.5">
                     {DUE_PRESETS.map((d) => (
-                      <button key={d.label} type="button" onClick={() => setDueDays(d.days)} className={pill(dueDays === d.days)} aria-pressed={dueDays === d.days}>{d.label}</button>
+                      <button key={d.label} type="button" onClick={() => { setDueDays(d.days); setDueExact(''); }} className={pill(!dueExact && dueDays === d.days)} aria-pressed={!dueExact && dueDays === d.days}>{d.label}</button>
                     ))}
                   </div>
+                  <input type="date" value={dueExact} onChange={(e) => setDueExact(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="mt-1.5 w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                  <p className="text-[11px] text-slate-400 mt-1">Pick a preset or an exact date.</p>
                 </div>
                 <div>
                   <span className="block text-sm font-medium text-slate-700 mb-1.5">Difficulty</span>
@@ -356,18 +372,35 @@ export function AssignTaskDrawer({
                     <p className="flex items-center gap-1.5 text-xs text-slate-400"><Loader2 className="w-3.5 h-3.5 animate-spin" />Checking who already has this roadmap…</p>
                   )}
 
-                  {singleAlreadyAssigned ? (
+                  {singleAlreadyAssigned && (
                     <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800">
                       <Check className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                      <span>{mentee?.name ?? 'This mentee'} already has this roadmap. Pick a different roadmap to assign something new.</span>
+                      <span>{mentee?.name ?? 'This mentee'} already has this roadmap. Re-assigning moves them to the start step you pick below.</span>
                     </div>
-                  ) : selectedRoadmap && selectedRoadmap.steps.length > 0 && (
+                  )}
+                  {selectedRoadmap && selectedRoadmap.steps.length > 0 && (
                     <div>
                       <label htmlFor="assign-roadmap-start" className="block text-sm font-medium text-slate-700 mb-1">Start at step</label>
                       <select id="assign-roadmap-start" value={startStep} onChange={(e) => setStartStep(Number(e.target.value))} className={field}>
                         {selectedRoadmap.steps.map((s, i) => <option key={s.id} value={i}>{i + 1}. {s.title}</option>)}
                       </select>
                       <p className="text-xs text-slate-400 mt-1">Skip ahead if they already know the earlier steps.</p>
+                    </div>
+                  )}
+                  {selectedRoadmap && selectedRoadmap.steps.length > 0 && (
+                    <div>
+                      <span className="block text-sm font-medium text-slate-700 mb-1.5">Deadline <span className="text-slate-400 font-normal">(optional)</span></span>
+                      <div className="flex flex-wrap gap-1.5 mb-1.5">
+                        {ROADMAP_DUE_PRESETS.map((p) => {
+                          const val = p.days == null ? '' : presetDateStr(p.days);
+                          return (
+                            <button key={p.label} type="button" onClick={() => setDueExact(val)} className={pill(dueExact === val)} aria-pressed={dueExact === val}>{p.label}</button>
+                          );
+                        })}
+                      </div>
+                      <input type="date" value={dueExact} onChange={(e) => setDueExact(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]} className={field} />
+                      <p className="text-xs text-slate-400 mt-1">&ldquo;Default&rdquo; uses the step&apos;s own timing (+7 days).</p>
                     </div>
                   )}
                 </div>

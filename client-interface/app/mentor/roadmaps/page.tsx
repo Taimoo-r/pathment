@@ -4,58 +4,143 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Route, Plus, X, Trash2, Download, Users, Loader2, GripVertical, Tag, Sparkles, GitBranch, Check, Pencil,
+  ArrowUp, ArrowDown, CornerDownRight, ChevronDown,
 } from 'lucide-react';
 import { useMentorRoadmaps, useMentorPrograms, useMentorCohort, type LinearRoadmap } from '@/lib/hooks/mentor';
 import { mentorApi } from '@/lib/services/mentor-api';
 import { roadmapAiApi } from '@/lib/services/roadmap-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { Drawer } from '@/components/shared/Drawer';
+import RichTextEditor from '@/components/shared/RichTextEditor';
 
 const STEP_TYPES = ['project', 'assignment', 'reading', 'video', 'quiz', 'discussion'];
 const EFFORTS = ['xs', 's', 'm', 'l'];
+const TITLE_MAX = 255;
 
-interface DraftStep { id?: string; title: string; type: string; criteria: string; effort: string; dueOffsetDays: string }
+// Deadline quick-picks for assignment. `null` days = "Default" (use each step's
+// own timing). Shared shape with the custom-task drawer for consistency.
+const DUE_PRESETS: { label: string; days: number | null }[] = [
+  { label: 'Default', days: null }, { label: '+3 days', days: 3 }, { label: '+1 week', days: 7 }, { label: '+2 weeks', days: 14 },
+];
+const presetDate = (days: number) => { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().split('T')[0]; };
+
+// A stable per-step key so React (and especially the stateful TipTap editor) keeps
+// each step's identity across drag-reorders — mutating by key, never by index.
+const uid = () =>
+  (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+
+interface DraftStep { key: string; id?: string; title: string; type: string; description: string; criteria: string; effort: string; dueOffsetDays: string }
+
+const emptyStep = (): DraftStep => ({ key: uid(), title: '', type: 'project', description: '', criteria: '', effort: 'm', dueOffsetDays: '' });
 
 // ── Create / edit drawer ─────────────────────────────────────────────────────
 function CreateDrawer({ roadmap, onClose, onCreated }: { roadmap?: LinearRoadmap | null; onClose: () => void; onCreated: () => void }) {
   const editing = !!roadmap;
   const { programs, loading: progLoading } = useMentorPrograms();
-  const [name, setName] = useState(roadmap?.name || '');
-  const [programId, setProgramId] = useState(roadmap?.programId || '');
-  const [tags, setTags] = useState((roadmap?.skillTags || []).join(', '));
-  const [steps, setSteps] = useState<DraftStep[]>(
-    editing && roadmap!.steps.length
-      ? roadmap!.steps.map((s) => ({
-          id: s.id, title: s.title, type: s.type || 'project',
-          effort: s.effort || 'm', dueOffsetDays: s.dueOffsetDays != null ? String(s.dueOffsetDays) : '',
-          criteria: (s.acceptanceCriteria || []).join('\n'),
-        }))
-      : [{ title: '', type: 'project', criteria: '', effort: 'm', dueOffsetDays: '' }]
-  );
+
+  // Drafts survive an API error or an accidental refresh: we persist every change
+  // to localStorage and restore it next open, so work is never lost on a failed save.
+  const draftKey = `pathment:roadmap-draft:${roadmap?.id || 'new'}`;
+  const loadDraft = (): Record<string, unknown> | null => {
+    if (typeof window === 'undefined') return null;
+    try { const r = window.localStorage.getItem(draftKey); return r ? JSON.parse(r) : null; } catch { return null; }
+  };
+  const draft = loadDraft();
+
+  const [name, setName] = useState<string>((draft?.name as string) ?? roadmap?.name ?? '');
+  const [programId, setProgramId] = useState<string>((draft?.programId as string) ?? roadmap?.programId ?? '');
+  const [tags, setTags] = useState<string>((draft?.tags as string) ?? (roadmap?.skillTags || []).join(', '));
+  const [steps, setSteps] = useState<DraftStep[]>(() => {
+    if (Array.isArray(draft?.steps) && (draft!.steps as DraftStep[]).length) {
+      // Backfill keys for drafts saved before this field existed.
+      return (draft!.steps as DraftStep[]).map((s) => ({ ...s, key: s.key || uid() }));
+    }
+    if (editing && roadmap!.steps.length) {
+      return roadmap!.steps.map((s) => ({
+        key: s.id, id: s.id, title: s.title, type: s.type || 'project',
+        description: s.description || '',
+        effort: s.effort || 'm', dueOffsetDays: s.dueOffsetDays != null ? String(s.dueOffsetDays) : '',
+        criteria: (s.acceptanceCriteria || []).join('\n'),
+      }));
+    }
+    return [emptyStep()];
+  });
+  const [restored] = useState<boolean>(!!draft);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [openDetails, setOpenDetails] = useState<Set<string>>(new Set());
 
-  const setStep = (i: number, patch: Partial<DraftStep>) =>
-    setSteps((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
-  const addStep = () => setSteps((prev) => [...prev, { title: '', type: 'project', criteria: '', effort: 'm', dueOffsetDays: '' }]);
-  const removeStep = (i: number) => setSteps((prev) => prev.filter((_, idx) => idx !== i));
+  // AI generation options
+  const [genOpen, setGenOpen] = useState(false);
+  const [genMode, setGenMode] = useState<'tasks' | 'weeks'>('tasks');
+  const [genCount, setGenCount] = useState('8');
+  const [genWeeks, setGenWeeks] = useState('6');
+  const [genInstructions, setGenInstructions] = useState('');
 
-  // Optional AI draft from the brief (uses the mentor's 'Roadmap generation' model).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.setItem(draftKey, JSON.stringify({ name, programId, tags, steps })); } catch { /* quota */ }
+  }, [name, programId, tags, steps, draftKey]);
+  const clearDraft = () => { try { if (typeof window !== 'undefined') window.localStorage.removeItem(draftKey); } catch { /* noop */ } };
+
+  // All per-step mutations go through the stable key (see `uid` note above).
+  const setStep = (key: string, patch: Partial<DraftStep>) =>
+    setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  const addStep = () => setSteps((prev) => [...prev, emptyStep()]);
+  const insertAfter = (key: string) => setSteps((prev) => {
+    const i = prev.findIndex((s) => s.key === key);
+    const n = [...prev]; n.splice(i + 1, 0, emptyStep()); return n;
+  });
+  const removeStep = (key: string) => setSteps((prev) => (prev.length > 1 ? prev.filter((s) => s.key !== key) : prev));
+  const move = (key: string, dir: -1 | 1) => setSteps((prev) => {
+    const i = prev.findIndex((s) => s.key === key);
+    const to = i + dir;
+    if (i < 0 || to < 0 || to >= prev.length) return prev;
+    const n = [...prev]; const [m] = n.splice(i, 1); n.splice(to, 0, m); return n;
+  });
+  const toggleDetails = (key: string) => setOpenDetails((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+
+  // Native drag-and-drop reordering (no extra dependency).
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const dropOn = (targetKey: string) => {
+    setSteps((prev) => {
+      if (!dragKey || dragKey === targetKey) return prev;
+      const from = prev.findIndex((s) => s.key === dragKey);
+      const to = prev.findIndex((s) => s.key === targetKey);
+      if (from < 0 || to < 0) return prev;
+      const n = [...prev]; const [m] = n.splice(from, 1); n.splice(to, 0, m); return n;
+    });
+    setDragKey(null);
+  };
+
+  const tooLong = steps.some((s) => s.title.trim().length > TITLE_MAX);
+
   const generate = async () => {
     if (!name.trim()) { toast.error('Add a name first'); return; }
     try {
       setGenerating(true);
-      const res: any = await roadmapAiApi.generate({ name: name.trim(), skillTags: tags.split(',').map((t) => t.trim()).filter(Boolean) });
-      const aiSteps: DraftStep[] = (res?.data?.steps || []).map((s: any) => ({
-        title: s.title || '',
+      const res = await roadmapAiApi.generate({
+        name: name.trim(),
+        skillTags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+        mode: genMode,
+        count: Number(genCount) || undefined,
+        durationWeeks: genMode === 'weeks' ? (Number(genWeeks) || undefined) : undefined,
+        additionalInstructions: genInstructions.trim() || undefined,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aiSteps: DraftStep[] = ((res as any)?.data?.steps || []).map((s: any) => ({
+        key: uid(),
+        title: String(s.title || '').slice(0, TITLE_MAX),
         type: s.type || 'project',
+        description: s.description || '',
         effort: s.effort || 'm',
         dueOffsetDays: s.dueOffsetDays != null ? String(s.dueOffsetDays) : '',
         criteria: Array.isArray(s.criteria) ? s.criteria.join('\n') : (s.criteria || ''),
       }));
-      if (aiSteps.length === 0) { toast.error('AI returned no steps - try a richer name/tags'); return; }
+      if (aiSteps.length === 0) { toast.error('AI returned no steps — try richer instructions'); return; }
       setSteps(aiSteps);
-      toast.success(`Drafted ${aiSteps.length} step${aiSteps.length === 1 ? '' : 's'} - review & tweak`);
+      setGenOpen(false);
+      toast.success(`Drafted ${aiSteps.length} step${aiSteps.length === 1 ? '' : 's'} — review & tweak`);
     } catch (e) {
       toast.error(extractApiErrorMessage(e, 'Could not generate. Set a Roadmap model in Settings → AI Connections.'));
     } finally { setGenerating(false); }
@@ -67,11 +152,13 @@ function CreateDrawer({ roadmap, onClose, onCreated }: { roadmap?: LinearRoadmap
       toast.error('Add a name, a program, and at least one step');
       return;
     }
+    if (tooLong) { toast.error('A step title is too long — shorten it and move the detail into the step description.'); return; }
     const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
     const stepPayload = cleanSteps.map((s) => ({
       id: s.id, // present → updated in place; absent → created
       title: s.title.trim(),
       type: s.type,
+      description: s.description,
       effort: s.effort,
       dueOffsetDays: s.dueOffsetDays.trim() ? Number(s.dueOffsetDays) : undefined,
       criteria: s.criteria.split('\n').map((c) => c.trim()).filter(Boolean),
@@ -86,9 +173,12 @@ function CreateDrawer({ roadmap, onClose, onCreated }: { roadmap?: LinearRoadmap
         await mentorApi.createRoadmap({ name: name.trim(), programId, skillTags: tagList, steps: stepPayload });
         toast.success('Roadmap created');
       }
+      clearDraft();
       onCreated();
       onClose();
     } catch (e) {
+      // Draft is intentionally NOT cleared here — the work stays saved locally so a
+      // failed save can be retried without re-typing anything.
       toast.error(extractApiErrorMessage(e, editing ? 'Could not save the roadmap' : 'Could not create the roadmap'));
     } finally {
       setSaving(false);
@@ -104,6 +194,11 @@ function CreateDrawer({ roadmap, onClose, onCreated }: { roadmap?: LinearRoadmap
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {restored && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              Restored your unsaved draft. <button onClick={() => { clearDraft(); window.location.reload(); }} className="underline font-medium">Discard</button>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Name <span className="text-red-500">*</span></label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Backend Foundations"
@@ -114,7 +209,7 @@ function CreateDrawer({ roadmap, onClose, onCreated }: { roadmap?: LinearRoadmap
             <select value={programId} onChange={(e) => setProgramId(e.target.value)} disabled={editing}
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-card disabled:opacity-60">
               <option value="">{progLoading ? 'Loading…' : 'Select a program'}</option>
-              {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {programs.map((p: { id: string; name: string }) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {editing && <p className="text-xs text-slate-400 mt-1">A roadmap stays in its program.</p>}
           </div>
@@ -123,51 +218,127 @@ function CreateDrawer({ roadmap, onClose, onCreated }: { roadmap?: LinearRoadmap
             <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="node, express, sql"
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
           </div>
+
+          {/* AI generation */}
+          <div className="rounded-xl border border-brand-200 dark:border-brand-500/30 bg-brand-50/50 dark:bg-brand-500/10">
+            <button type="button" onClick={() => setGenOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-medium text-brand-700">
+              <span className="inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" />Generate steps with AI</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${genOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {genOpen && (
+              <div className="px-3.5 pb-3.5 space-y-3 border-t border-brand-200 dark:border-brand-500/30 pt-3">
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setGenMode('tasks')}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium ${genMode === 'tasks' ? 'border-brand-400 bg-brand-100 text-brand-800' : 'border-slate-200 text-slate-600'}`}>
+                    Flat task list
+                  </button>
+                  <button type="button" onClick={() => setGenMode('weeks')}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium ${genMode === 'weeks' ? 'border-brand-400 bg-brand-100 text-brand-800' : 'border-slate-200 text-slate-600'}`}>
+                    Paced by weeks
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <label className="flex-1 text-xs text-slate-500">
+                    Steps
+                    <input type="number" min={1} max={40} value={genCount} onChange={(e) => setGenCount(e.target.value)}
+                      className="mt-1 w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+                  </label>
+                  {genMode === 'weeks' && (
+                    <label className="flex-1 text-xs text-slate-500">
+                      Weeks
+                      <input type="number" min={1} max={52} value={genWeeks} onChange={(e) => setGenWeeks(e.target.value)}
+                        className="mt-1 w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+                    </label>
+                  )}
+                </div>
+                <textarea value={genInstructions} onChange={(e) => setGenInstructions(e.target.value)} rows={3}
+                  placeholder="What to include, prerequisites, specific topics or resources, tone… (optional)"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <button type="button" onClick={generate} disabled={generating}
+                  className="w-full rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium py-2 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {generating ? 'Generating…' : 'Generate'}
+                </button>
+                <p className="text-[11px] text-slate-400">Generating replaces the steps below. Review &amp; tweak before saving.</p>
+              </div>
+            )}
+          </div>
+
           <div>
             <div className="flex items-center justify-between mb-2 gap-2">
               <label className="text-sm font-medium text-slate-700">Steps (in order) <span className="text-red-500">*</span></label>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={generate} disabled={generating}
-                  className="text-xs font-medium text-brand-700 bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/30 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5 hover:bg-brand-100 disabled:opacity-50">
-                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}{generating ? 'Generating…' : 'Generate with AI'}
-                </button>
-                <button onClick={addStep} className="text-brand-600 hover:text-brand-700 text-sm inline-flex items-center gap-1"><Plus className="w-4 h-4" />Add step</button>
-              </div>
+              <button onClick={addStep} className="text-brand-600 hover:text-brand-700 text-sm inline-flex items-center gap-1"><Plus className="w-4 h-4" />Add step</button>
             </div>
             <div className="space-y-3">
-              {steps.map((s, i) => (
-                <div key={i} className="rounded-xl border border-slate-200 p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <GripVertical className="w-4 h-4 text-slate-300" />
-                    <span className="text-xs font-medium text-slate-400">Step {i + 1}</span>
-                    {steps.length > 1 && (
-                      <button onClick={() => removeStep(i)} className="ml-auto text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+              {steps.map((s, i) => {
+                const over = s.title.trim().length > TITLE_MAX;
+                const detailsOpen = openDetails.has(s.key) || !!s.description;
+                return (
+                  <div key={s.key}
+                    onDragOver={(e) => { if (dragKey) e.preventDefault(); }}
+                    onDrop={() => dropOn(s.key)}
+                    className={`rounded-xl border p-3 ${dragKey === s.key ? 'border-brand-400 opacity-60' : 'border-slate-200'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span draggable onDragStart={() => setDragKey(s.key)} onDragEnd={() => setDragKey(null)}
+                        title="Drag to reorder" className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500">
+                        <GripVertical className="w-4 h-4" />
+                      </span>
+                      <span className="text-xs font-medium text-slate-400">Step {i + 1}</span>
+                      <div className="ml-auto flex items-center gap-1">
+                        <button onClick={() => move(s.key, -1)} disabled={i === 0} title="Move up"
+                          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => move(s.key, 1)} disabled={i === steps.length - 1} title="Move down"
+                          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                        {steps.length > 1 && (
+                          <button onClick={() => removeStep(s.key)} title="Remove step" className="p-1 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                        )}
+                      </div>
+                    </div>
+                    <input value={s.title} maxLength={TITLE_MAX + 50} onChange={(e) => setStep(s.key, { title: e.target.value })}
+                      placeholder="Step title (keep it short)"
+                      className={`w-full border rounded-lg px-3 py-1.5 text-sm mb-1 focus:outline-none focus:ring-2 ${over ? 'border-red-400 focus:ring-red-400' : 'border-slate-300 focus:ring-brand-500'}`} />
+                    {over && <p className="text-[11px] text-red-500 mb-1">Title is too long ({s.title.trim().length}/{TITLE_MAX}). Move the detail into the description below.</p>}
+                    <div className="flex flex-wrap gap-2">
+                      <select value={s.type} onChange={(e) => setStep(s.key, { type: e.target.value })}
+                        className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-card capitalize focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        {STEP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <select value={s.effort} onChange={(e) => setStep(s.key, { effort: e.target.value })} title="Effort"
+                        className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-card uppercase focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        {EFFORTS.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
+                      </select>
+                      <input type="number" min={1} value={s.dueOffsetDays} onChange={(e) => setStep(s.key, { dueOffsetDays: e.target.value })}
+                        placeholder="due +days"
+                        className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                    </div>
+
+                    {/* Rich detail — instructions, resources, links. Keyed by stable s.key
+                        and mutated by key so reordering never crosses wires. */}
+                    {detailsOpen ? (
+                      <div className="mt-2">
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Step details</label>
+                        <RichTextEditor content={s.description} onChange={(html) => setStep(s.key, { description: html })}
+                          placeholder="Instructions, resources, links the mentee needs for this step…" minHeight="120px" />
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => toggleDetails(s.key)}
+                        className="mt-2 text-xs font-medium text-brand-600 hover:text-brand-700 inline-flex items-center gap-1">
+                        <Plus className="w-3.5 h-3.5" /> Add details &amp; resources
+                      </button>
                     )}
+
+                    <textarea value={s.criteria} onChange={(e) => setStep(s.key, { criteria: e.target.value })} rows={2}
+                      placeholder="Acceptance criteria, one per line"
+                      className="mt-2 w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500" />
+
+                    <button type="button" onClick={() => insertAfter(s.key)}
+                      className="mt-2 text-[11px] font-medium text-slate-400 hover:text-brand-600 inline-flex items-center gap-1">
+                      <CornerDownRight className="w-3 h-3" /> Insert step below
+                    </button>
                   </div>
-                  <input value={s.title} onChange={(e) => setStep(i, { title: e.target.value })} placeholder="Step title  (press Enter to add another)"
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addStep(); } }}
-                    autoFocus={i === steps.length - 1 && steps.length > 1}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
-                  <div className="flex flex-wrap gap-2">
-                    <select value={s.type} onChange={(e) => setStep(i, { type: e.target.value })}
-                      className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-card capitalize focus:outline-none focus:ring-2 focus:ring-brand-500">
-                      {STEP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <select value={s.effort} onChange={(e) => setStep(i, { effort: e.target.value })}
-                      title="Effort"
-                      className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-card uppercase focus:outline-none focus:ring-2 focus:ring-brand-500">
-                      {EFFORTS.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
-                    </select>
-                    <input type="number" min={1} value={s.dueOffsetDays}
-                      onChange={(e) => setStep(i, { dueOffsetDays: e.target.value })}
-                      placeholder="due +days"
-                      className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-500" />
-                  </div>
-                  <textarea value={s.criteria} onChange={(e) => setStep(i, { criteria: e.target.value })} rows={2}
-                    placeholder="Acceptance criteria, one per line"
-                    className="mt-2 w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500" />
-                </div>
-              ))}
+                );
+              })}
             </div>
             <button type="button" onClick={addStep}
               className="mt-3 w-full rounded-lg border border-dashed border-slate-300 dark:border-slate-700 py-2 text-xs font-medium text-slate-500 hover:border-brand-300 hover:text-brand-700 inline-flex items-center justify-center gap-1">
@@ -177,7 +348,7 @@ function CreateDrawer({ roadmap, onClose, onCreated }: { roadmap?: LinearRoadmap
         </div>
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-50">Cancel</button>
-          <button onClick={save} disabled={saving} className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm inline-flex items-center gap-2 disabled:opacity-50">
+          <button onClick={save} disabled={saving || tooLong} className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm inline-flex items-center gap-2 disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}{editing ? 'Save roadmap' : 'Create roadmap'}
           </button>
         </div>
@@ -191,6 +362,7 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
   const { cohort, loading } = useMentorCohort();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [startStep, setStartStep] = useState(0);
+  const [dueDate, setDueDate] = useState('');
   const [saving, setSaving] = useState(false);
 
   const toggle = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -199,11 +371,12 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
     if (selected.size === 0) { toast.error('Pick at least one mentee'); return; }
     try {
       setSaving(true);
-      const res: any = await mentorApi.assignRoadmap(roadmap.id, { menteeIds: [...selected], startStep });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res: any = await mentorApi.assignRoadmap(roadmap.id, { menteeIds: [...selected], startStep, dueDate: dueDate || undefined });
       const assigned = res?.data?.assigned ?? selected.size;
       const failed = res?.data?.failed ?? 0;
       if (assigned === 0) {
-        const reason = res?.data?.results?.find((r: any) => !r.ok)?.error;
+        const reason = res?.data?.results?.find((r: { ok: boolean; error?: string }) => !r.ok)?.error;
         toast.error(reason || 'Could not assign the roadmap');
         setSaving(false);
         return;
@@ -237,6 +410,25 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
               {roadmap.steps.map((s, i) => <option key={s.id} value={i}>{i + 1}. {s.title}</option>)}
             </select>
             <p className="text-xs text-slate-400 mt-1">Skip steps they already know.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Deadline <span className="text-slate-400 font-normal">(optional)</span></label>
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {DUE_PRESETS.map((p) => {
+                const val = p.days == null ? '' : presetDate(p.days);
+                const active = dueDate === val;
+                return (
+                  <button key={p.label} type="button" onClick={() => setDueDate(val)}
+                    className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${active ? 'border-brand-400 bg-brand-100 text-brand-800' : 'border-slate-200 text-slate-600 hover:border-brand-300'}`}>
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-brand-500" />
+            <p className="text-xs text-slate-400 mt-1">Pick a preset or an exact date. &ldquo;Default&rdquo; uses each step&apos;s own timing (+7 days).</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Mentees</label>
@@ -276,7 +468,7 @@ function ChainDrawer({ roadmap, candidates, onClose, onSaved }: { roadmap: Linea
 
   useEffect(() => {
     mentorApi.getRoadmapLinks(roadmap.id)
-      .then((r: any) => setSelected(new Set((r.data?.links || []).map((l: any) => l.toRoadmapId)))) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((r: { data?: { links?: { toRoadmapId: string }[] } }) => setSelected(new Set((r.data?.links || []).map((l) => l.toRoadmapId))))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [roadmap.id]);

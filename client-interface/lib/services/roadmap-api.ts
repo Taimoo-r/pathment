@@ -27,8 +27,13 @@ export interface RoadmapAiInput {
   name?: string;
   description?: string;
   type?: string;
+  /** 'tasks' (default) = a flat ordered list; 'weeks' = paced across N weeks. */
+  mode?: 'tasks' | 'weeks';
   durationWeeks?: number;
+  /** How many steps to generate (1–40). */
+  count?: number;
   skillTags?: string[];
+  /** Free-text author guidance: what to include, links, tone, etc. */
   additionalInstructions?: string;
 }
 export const roadmapAiApi = {
