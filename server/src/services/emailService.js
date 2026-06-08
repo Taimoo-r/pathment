@@ -181,12 +181,33 @@ class EmailService {
 
     try {
       const result = await this._deliverViaResend(row, toList);
+
+      // The Resend SDK does NOT throw on API errors (e.g. "Domain not verified",
+      // invalid recipient, rate limit) — it RESOLVES with { data, error }. If we
+      // don't inspect result.error we'd mark a rejected send as 'sent' and lie to
+      // analytics. Re-raise it so it flows through the same classify/retry/DLQ
+      // path as a thrown error below.
+      if (result?.error) {
+        const err = new Error(result.error.message || 'resend_send_failed');
+        err.name = result.error.name || 'resend_error';
+        err.statusCode = result.error.statusCode ?? result.statusCode;
+        throw err;
+      }
+      // A success must carry a provider message id; its absence means the send
+      // silently went nowhere — treat that as a failure, not a false 'sent'.
+      const messageId = result?.data?.id || null;
+      if (!messageId) {
+        const err = new Error('resend_no_message_id');
+        err.name = 'resend_error';
+        throw err;
+      }
+
       await row.update({
         status: 'sent', sentAt: new Date(), lastAttemptAt: new Date(), attemptCount: attempt,
-        providerMessageId: result?.data?.id || null, errorCategory: null, lastError: null,
-        metadata: { ...(row.metadata || {}), resendId: result?.data?.id || null, sentTo: toList },
+        providerMessageId: messageId, errorCategory: null, lastError: null,
+        metadata: { ...(row.metadata || {}), resendId: messageId, sentTo: toList },
       });
-      return { sent: true, id: result?.data?.id || null };
+      return { sent: true, id: messageId };
     } catch (error) {
       const category = this.classifyError(error);
       const dead = category === 'permanent' || attempt >= (row.maxAttempts || 5);
