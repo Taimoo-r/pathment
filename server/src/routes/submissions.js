@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const submissionController = require('../controllers/submissionController');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { requirePermission, scope } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 const upload = require('../middlewares/upload');
 
 /**
@@ -61,7 +63,7 @@ router.get(
 router.post(
   '/:submissionId/review',
   authenticate,
-  authorize(['mentor', 'admin']),
+  requirePermission(PERMISSIONS.TASK_REVIEW, scope.submission('submissionId')),
   submissionController.reviewSubmission
 );
 
@@ -73,7 +75,7 @@ router.post(
 router.post(
   '/:submissionId/extension/handle',
   authenticate,
-  authorize(['mentor', 'admin']),
+  requirePermission(PERMISSIONS.TASK_REVIEW, scope.submission('submissionId')),
   submissionController.handleExtension
 );
 

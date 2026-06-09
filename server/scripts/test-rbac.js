@@ -105,6 +105,44 @@ async function mkUser(role, n) {
   await accessService.revokeClanGrant(delegated.id, clan.id, lead.id);
   ok('delegated grant revoked → menteeB loses mentor switch', !(await caps(menteeB)).includes('mentor'));
 
+  // ── Phase 6: legacy-route tightening — permission + scope correctness ──────
+  // Proves the tightened routes keep working for legit mentors/admins and block
+  // partial roles. (mentee=co_mentor of clanA, menteeB=plain mentee in clanA.)
+  const P = require('../src/config/permissions').PERMISSIONS;
+  const clanARes = await authzService.scopeOfClan(clan.id);
+  const clanBRes = await authzService.scopeOfClan(clanB.id);
+  const fLead = await models.User.findByPk(lead.id);
+  const fCo = await models.User.findByPk(mentee.id);
+  const fPlain = await models.User.findByPk(menteeB.id);
+  const fAdmin = await models.User.findByPk(adminUser.id);
+
+  ok('TASK_ASSIGN: lead mentor in own clan', await authzService.can(fLead, P.TASK_ASSIGN, clanARes));
+  ok('TASK_ASSIGN: co-mentor in own clan', await authzService.can(fCo, P.TASK_ASSIGN, clanARes));
+  ok('TASK_ASSIGN: co-mentor BLOCKED in another clan', !(await authzService.can(fCo, P.TASK_ASSIGN, clanBRes)));
+  ok('TASK_ASSIGN: plain mentee BLOCKED', !(await authzService.can(fPlain, P.TASK_ASSIGN, clanARes)));
+  ok('TASK_ASSIGN: admin anywhere', await authzService.can(fAdmin, P.TASK_ASSIGN, clanBRes));
+
+  ok('completion (TASK_REVIEW): lead mentor yes', await authzService.can(fLead, P.TASK_REVIEW, clanARes));
+  ok('completion (TASK_REVIEW): co-mentor yes (preserved)', await authzService.can(fCo, P.TASK_REVIEW, clanARes));
+  ok('completion (TASK_REVIEW): plain mentee NO', !(await authzService.can(fPlain, P.TASK_REVIEW, clanARes)));
+
+  const unionLead = await authzService.getPermissionUnion(fLead);
+  const unionCo = await authzService.getPermissionUnion(fCo);
+  const unionPlain = await authzService.getPermissionUnion(fPlain);
+  ok('LIBRARY_MANAGE (any-scope): lead yes', unionLead.includes(P.LIBRARY_MANAGE));
+  ok('LIBRARY_MANAGE (any-scope): co-mentor yes', unionCo.includes(P.LIBRARY_MANAGE));
+  ok('LIBRARY_MANAGE (any-scope): plain mentee NO', !unionPlain.includes(P.LIBRARY_MANAGE));
+
+  ok('ANNOUNCEMENT_POST@clan: co-mentor yes', await authzService.can(fCo, P.ANNOUNCEMENT_POST, clanARes));
+  ok('ANNOUNCEMENT_POST@clan: plain mentee NO', !(await authzService.can(fPlain, P.ANNOUNCEMENT_POST, clanARes)));
+  ok('COMMUNITY_POST@clan: clan mentee yes (can post in their clan)', await authzService.can(fPlain, P.COMMUNITY_POST, clanARes));
+
+  const sMentee = await authzService.scopeOfMentee(menteeB.id);
+  ok('scopeOfMentee → right clan + program', sMentee.clanId === clan.id && sMentee.programId === program.id && sMentee.userId === menteeB.id);
+  const enrB = await models.Enrollment.findOne({ where: { menteeId: menteeB.id, programId: program.id } });
+  const sEnr = await authzService.scopeOfEnrollment(enrB.id);
+  ok('scopeOfEnrollment → right clan + program', sEnr.clanId === clan.id && sEnr.programId === program.id);
+
   // ── Audit: the grant + revoke were recorded with an actor ──────────────────
   const auditCount = await models.AuditLog.count({ where: { action: ['ROLE_GRANTED', 'ROLE_REVOKED'] } });
   ok('grant/revoke produced audit rows', auditCount >= 2);

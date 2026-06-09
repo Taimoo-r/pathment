@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const frictionController = require('../controllers/frictionController');
-const { authenticate, authorize } = require('../middlewares/auth');
+const { authenticate } = require('../middlewares/auth');
+const { requirePermission, scope } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
 /**
  * Blockers and delay events (mounted at root: /api/blockers, /api/delays).
@@ -17,6 +19,6 @@ router.patch('/blockers/:id/resolve', authenticate, frictionController.resolveBl
 // Delays
 router.get('/delays', authenticate, frictionController.listDelays);
 router.post('/delays', authenticate, frictionController.createDelay);
-router.patch('/delays/:id/accept', authenticate, authorize(['mentor', 'admin']), frictionController.acceptDelay);
+router.patch('/delays/:id/accept', authenticate, requirePermission(PERMISSIONS.TASK_REVIEW, scope.delay('id')), frictionController.acceptDelay);
 
 module.exports = router;

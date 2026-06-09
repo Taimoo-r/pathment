@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const taskController = require('../controllers/taskController');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { requirePermission, requirePermissionAnyScope, scope } = require('../middlewares/authz');
+const { PERMISSIONS } = require('../config/permissions');
 
 /**
  * @route   POST /api/tasks/auto-assign
@@ -11,7 +13,7 @@ const { authenticate, authorize } = require('../middlewares/auth');
 router.post(
   '/auto-assign',
   authenticate,
-  authorize(['admin', 'mentor']),
+  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.taskTarget()),
   taskController.autoAssignWeekTasks
 );
 
@@ -23,7 +25,7 @@ router.post(
 router.post(
   '/custom',
   authenticate,
-  authorize(['mentor']),
+  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.taskTarget()),
   taskController.createCustomTask
 );
 
@@ -35,7 +37,7 @@ router.post(
 router.post(
   '/custom/bulk',
   authenticate,
-  authorize(['mentor']),
+  requirePermissionAnyScope(PERMISSIONS.TASK_ASSIGN),
   taskController.bulkCreateCustomTasks
 );
 
@@ -119,7 +121,7 @@ router.post(
 router.get(
   '/roadmap/program/:programId',
   authenticate,
-  authorize(['admin', 'mentor']),
+  requirePermissionAnyScope(PERMISSIONS.TASK_ASSIGN),
   taskController.getRoadmapTasks
 );
 
@@ -131,7 +133,7 @@ router.get(
 router.post(
   '/:taskId/review',
   authenticate,
-  authorize(['mentor', 'admin']),
+  requirePermission(PERMISSIONS.TASK_REVIEW, scope.task('taskId')),
   taskController.reviewTask
 );
 
@@ -143,7 +145,7 @@ router.post(
 router.post(
   '/:taskId/cancel',
   authenticate,
-  authorize(['admin', 'mentor']),
+  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
   taskController.cancelTask
 );
 
@@ -167,7 +169,7 @@ router.patch(
 router.patch(
   '/:taskId/due-date',
   authenticate,
-  authorize(['admin', 'mentor']),
+  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
   taskController.updateTaskDueDate
 );
 
@@ -179,7 +181,7 @@ router.patch(
 router.post(
   '/:taskId/unassign',
   authenticate,
-  authorize(['admin', 'mentor']),
+  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
   taskController.unassignTask
 );
 
@@ -191,7 +193,7 @@ router.post(
 router.delete(
   '/:taskId',
   authenticate,
-  authorize(['mentor', 'admin']),
+  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
   taskController.deleteCustomTask
 );
 

@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const c = require('../controllers/rewardsController');
-const { authenticate, authorize } = require('../middlewares/auth');
-const { requirePermission } = require('../middlewares/authz');
+const { authenticate } = require('../middlewares/auth');
+const { requirePermission, requirePermissionAnyScope, scope } = require('../middlewares/authz');
 const { PERMISSIONS } = require('../config/permissions');
 const upload = require('../middlewares/upload');
 
-// Catalog + redemptions (mentor/admin).
-router.get('/', authenticate, authorize(['mentor', 'admin']), c.overview);
-router.post('/redeem', authenticate, authorize(['mentor', 'admin']), c.redeem);
-router.get('/balance/:menteeId', authenticate, authorize(['mentor', 'admin']), c.menteeBalance);
+// Catalog + redemptions — needs mentee.view (clan mentors + admins); per-mentee
+// actions are scoped to that mentee, the overview to any clan you mentor.
+router.get('/', authenticate, requirePermissionAnyScope(PERMISSIONS.MENTEE_VIEW), c.overview);
+router.post('/redeem', authenticate, requirePermission(PERMISSIONS.MENTEE_VIEW, scope.menteeBody('menteeId')), c.redeem);
+router.get('/balance/:menteeId', authenticate, requirePermission(PERMISSIONS.MENTEE_VIEW, scope.mentee('menteeId')), c.menteeBalance);
 
 // Catalog management (admin only).
 router.post('/gifts/upload', authenticate, requirePermission(PERMISSIONS.GAMIFICATION_MANAGE), upload.single('file'), c.uploadGiftImage);

@@ -251,6 +251,73 @@ class AuthzService {
     if (membership) out.clanId = membership.clanId;
     return out;
   }
+
+  /** A mentee: their self scope + the clan/program they're currently placed in. */
+  async scopeOfMentee(menteeId) {
+    if (!menteeId) return null;
+    const out = { userId: menteeId };
+    const membership = await models.ClanMembership.findOne({
+      where: { userId: menteeId, status: 'active' }, attributes: ['clanId']
+    });
+    if (membership) {
+      out.clanId = membership.clanId;
+      const clan = await models.Clan.findByPk(membership.clanId, { attributes: ['programId'] });
+      if (clan) out.programId = clan.programId;
+    }
+    return out;
+  }
+
+  /** An enrollment: its program + the mentee (self) + their clan. */
+  async scopeOfEnrollment(enrollmentId) {
+    if (!enrollmentId) return null;
+    const enr = await models.Enrollment.findByPk(enrollmentId, { attributes: ['menteeId', 'programId'] });
+    if (!enr) return null;
+    const out = { userId: enr.menteeId, programId: enr.programId };
+    const membership = await models.ClanMembership.findOne({
+      where: { userId: enr.menteeId, status: 'active' }, attributes: ['clanId']
+    });
+    if (membership) out.clanId = membership.clanId;
+    return out;
+  }
+
+  /** A submission resolves to the clan/program/mentee of its assigned task. */
+  async scopeOfSubmission(submissionId) {
+    if (!submissionId) return null;
+    const sub = await models.TaskSubmission.findByPk(submissionId, { attributes: ['assignedTaskId'] });
+    if (!sub) return null;
+    return this.scopeOfAssignedTask(sub.assignedTaskId);
+  }
+
+  /** A delay/blocker event → its task's scope, or the mentee's scope. */
+  async scopeOfDelay(delayId) {
+    if (!delayId) return null;
+    const d = await models.DelayEvent.findByPk(delayId, { attributes: ['menteeId', 'assignedTaskId'] });
+    if (!d) return null;
+    if (d.assignedTaskId) return this.scopeOfAssignedTask(d.assignedTaskId);
+    return this.scopeOfMentee(d.menteeId);
+  }
+
+  /** An announcement's scope from its audience: clan/program-scoped, else org. */
+  scopeOfAnnouncementAudience(audience, audienceId) {
+    if (audience === 'clan' && audienceId) return this.scopeOfClan(audienceId);
+    if (audience === 'program' && audienceId) return { programId: audienceId };
+    return null; // 'all' / 'mentors' / 'mentees' → org-wide (only org roles cover)
+  }
+
+  async scopeOfAnnouncement(announcementId) {
+    if (!announcementId) return null;
+    const a = await models.Announcement.findByPk(announcementId, { attributes: ['audience', 'audienceId'] });
+    if (!a) return null;
+    return this.scopeOfAnnouncementAudience(a.audience, a.audienceId);
+  }
+
+  /** A track (mentee work lane) → the mentee's scope. */
+  async scopeOfTrack(trackId) {
+    if (!trackId) return null;
+    const t = await models.Track.findByPk(trackId, { attributes: ['menteeId'] });
+    if (!t) return null;
+    return this.scopeOfMentee(t.menteeId);
+  }
 }
 
 module.exports = new AuthzService();

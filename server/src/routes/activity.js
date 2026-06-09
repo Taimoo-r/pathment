@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, authorize } = require('../middlewares/auth');
-const { requirePermission } = require('../middlewares/authz');
+const { authenticate } = require('../middlewares/auth');
+const { requirePermission, scope } = require('../middlewares/authz');
 const { PERMISSIONS } = require('../config/permissions');
 const { verifyAccessToken } = require('../utils/jwt');
 const { models } = require('../db');
@@ -58,8 +58,9 @@ router.post('/page-view', logPageView);
 // ─── Summaries ───────────────────────────────────────────────────────────────
 router.get('/me/summary', getMySummary);
 
-// Mentor or Admin can view a mentee's activity
-router.get('/mentee/:id/summary', authorize(['mentor', 'admin']), getMenteeSummary);
+// Viewing a mentee's activity needs mentee.view at that mentee's scope
+// (their clan's mentors + admins); blocks analysts and other mentees.
+router.get('/mentee/:id/summary', requirePermission(PERMISSIONS.MENTEE_VIEW, scope.mentee('id')), getMenteeSummary);
 
 // Admin-only aggregate overview
 router.get('/admin/overview', requirePermission(PERMISSIONS.ANALYTICS_VIEW), getAdminOverview);

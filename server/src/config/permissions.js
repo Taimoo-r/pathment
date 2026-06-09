@@ -31,9 +31,13 @@ const PERMISSIONS = {
   TASK_ASSIGN: 'task.assign',
   TASK_REVIEW: 'task.review',
 
+  // Shared resource library (org-global documents/links)
+  LIBRARY_MANAGE: 'library.manage',
+
   // Community
   COMMUNITY_POST: 'community.post',
   COMMUNITY_MODERATE: 'community.moderate',
+  ANNOUNCEMENT_POST: 'announcement.post',    // broadcast to a clan/program (mentor+)
 
   // Gamification (badges, challenges, gift catalog)
   GAMIFICATION_MANAGE: 'gamification.manage',
