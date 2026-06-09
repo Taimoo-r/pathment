@@ -5,6 +5,7 @@ const { sequelize, models } = require('../src/db');
 const authzService = require('../src/services/authzService');
 const clanService = require('../src/services/clanService');
 const accessService = require('../src/services/accessService');
+const enrollmentService = require('../src/services/enrollmentService');
 
 let pass = 0, fail = 0;
 const ok = (name, cond) => { (cond ? pass++ : fail++); console.log(`${cond ? '✓' : '✗ FAIL'}  ${name}`); };
@@ -152,6 +153,31 @@ async function mkUser(role, n) {
   ok('minScope: super_admin passes invite.create', await authzService.canAtMinScope(fAdmin, P.INVITE_CREATE, 'program'));
   ok('minScope: lead_mentor BLOCKED from mentee.manage (clan < program)', !(await authzService.canAtMinScope(fLead, P.MENTEE_MANAGE, 'program')));
   ok('minScope: lead_mentor BLOCKED from analytics admin (clan < program)', !(await authzService.canAtMinScope(fLead, P.ANALYTICS_VIEW, 'program')));
+
+  // ── Per-program data scope ─────────────────────────────────────────────────
+  ok('programScope: super_admin → unrestricted (null)', (await authzService.adminProgramScope(fAdmin)) === null);
+  const progScope = await authzService.adminProgramScope(fProg);
+  ok('programScope: program_admin → [their program]', Array.isArray(progScope) && progScope.length === 1 && progScope[0] === program.id);
+  ok('programScope: lead_mentor → [] (not an admin)', JSON.stringify(await authzService.adminProgramScope(fLead)) === '[]');
+  ok('assertProgramInScope: program_admin in-scope OK', await authzService.assertProgramInScope(fProg, program.id));
+  let outOfScopeBlocked = false;
+  try { await authzService.assertProgramInScope(fProg, clanB.id /* a non-program id */); } catch { outOfScopeBlocked = true; }
+  ok('assertProgramInScope: program_admin out-of-scope BLOCKED', outOfScopeBlocked);
+  ok('assertProgramInScope: super_admin any program OK', await authzService.assertProgramInScope(fAdmin, clanB.id));
+
+  // Real cross-program filtering at the service layer (a 2nd program's data).
+  const program2 = await models.Program.create({ createdBy: lead.id, name: 'Test Program', description: 'p2', type: 'mentorship', status: 'published', totalDurationWeeks: 8 });
+  const menteeD = await mkUser('mentee', 9);
+  await models.Enrollment.create({ menteeId: menteeD.id, programId: program2.id, status: 'active', enrolledAt: new Date() });
+  await models.Clan.create({ name: 'Clan C', programId: program2.id, leadMentorId: lead.id, createdBy: lead.id, status: 'active' });
+
+  const scopedEnr = await enrollmentService.getEnrollments({ programIds: [program.id] }, { page: 1, limit: 100 });
+  ok('data-scope: enrollments filtered to program1 (excludes program2)',
+    scopedEnr.enrollments.every((e) => e.programId === program.id) && !scopedEnr.enrollments.some((e) => e.menteeId === menteeD.id));
+  const allEnr = await enrollmentService.getEnrollments({}, { page: 1, limit: 100 });
+  ok('data-scope: unrestricted enrollments include program2', allEnr.enrollments.some((e) => e.menteeId === menteeD.id));
+  const scopedClans = await clanService.listClans({ programIds: [program.id] });
+  ok('data-scope: clans filtered to program1 (excludes Clan C)', scopedClans.every((c) => c.programId === program.id) && scopedClans.length > 0);
 
   // ── Audit: the grant + revoke were recorded with an actor ──────────────────
   const auditCount = await models.AuditLog.count({ where: { action: ['ROLE_GRANTED', 'ROLE_REVOKED'] } });

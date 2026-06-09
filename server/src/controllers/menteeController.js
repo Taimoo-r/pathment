@@ -2,6 +2,7 @@ const { models } = require('../db');
 const { Op } = require('sequelize');
 const { catchAsync } = require('../middlewares/errorHandler');
 const { NotFoundError } = require('../utils/errors/errorTypes');
+const authzService = require('../services/authzService');
 
 /**
  * GET /mentees
@@ -14,6 +15,18 @@ const getAllMentees = catchAsync(async (req, res) => {
   const offset = (pageNum - 1) * limitNum;
 
   const where = { role: 'mentee', status: 'active' };
+
+  // A program_admin sees only mentees enrolled in their programs (org admins: all).
+  const programScope = await authzService.adminProgramScope(req.user, {
+    assignments: req.loadAssignments ? await req.loadAssignments() : undefined
+  });
+  if (Array.isArray(programScope) && programScope.length) {
+    const enr = await models.Enrollment.findAll({
+      where: { programId: { [Op.in]: programScope } }, attributes: ['menteeId']
+    });
+    const ids = [...new Set(enr.map((e) => e.menteeId).filter(Boolean))];
+    where.id = ids.length ? { [Op.in]: ids } : { [Op.in]: ['00000000-0000-0000-0000-000000000000'] };
+  }
 
   const searchConditions = search
     ? {

@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { models } = require('../db');
 const { ROLES, roleGrants } = require('../config/roles');
 const { ALL_PERMISSIONS, PERMISSIONS: P } = require('../config/permissions');
+const { AuthorizationError } = require('../utils/errors/errorTypes');
 
 // Permissions that mean "this person mentors someone" - holding any of these at
 // a clan/program scope grants the mentor switch (drives getCapabilities).
@@ -211,6 +212,37 @@ class AuthzService {
     const custom = await loadCustomRoles();
     const assignments = opts.assignments || (await this.getAssignments(user));
     return assignments.some((a) => grants(a.role, permission, custom) && (SCOPE_RANK[a.scopeType] ?? 0) >= min);
+  }
+
+  /**
+   * Which programs does this admin's view/actions limit to?
+   *   null  → unrestricted (an ORG-tier admin sees everything)
+   *   [ids] → a program_admin: only these program ids
+   *   []    → no admin program scope at all
+   * Used to data-scope admin list endpoints + validate writes, so a program_admin
+   * sees/touches only their program's invites/cohorts/enrollments/clans.
+   */
+  async adminProgramScope(user, opts = {}) {
+    if (!user) return [];
+    const custom = await loadCustomRoles();
+    const assignments = opts.assignments || (await this.getAssignments(user));
+    const isAdminRole = (role) => ADMIN_TIER_ROLES.has(role) || Boolean(custom[role]);
+    // Any org-tier admin role → unrestricted.
+    if (assignments.some((a) => a.scopeType === 'org' && isAdminRole(a.role))) return null;
+    const ids = assignments
+      .filter((a) => a.scopeType === 'program' && a.scopeId && isAdminRole(a.role))
+      .map((a) => a.scopeId);
+    return [...new Set(ids)];
+  }
+
+  /** Throw unless `programId` is within the admin's program scope (org = any). */
+  async assertProgramInScope(user, programId, opts = {}) {
+    const scope = await this.adminProgramScope(user, opts);
+    if (scope === null) return true;
+    if (!programId || !scope.includes(programId)) {
+      throw new AuthorizationError('That program is outside your program scope');
+    }
+    return true;
   }
 
   /** Called by accessService when custom roles change. */

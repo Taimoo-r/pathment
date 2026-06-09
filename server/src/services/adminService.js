@@ -197,9 +197,12 @@ class AdminService {
    * List registration invites with status filter
    */
   async listRegistrationInvites(filters = {}) {
-    const { status = 'active', limit = 50, offset = 0 } = filters;
+    const { status = 'active', limit = 50, offset = 0, programIds } = filters;
     const where = {};
     const now = new Date();
+
+    // A program_admin sees only their programs' invites (org admins: all).
+    if (Array.isArray(programIds)) where.programId = { [Op.in]: programIds };
 
     if (status === 'active') {
       where.usedAt = null;

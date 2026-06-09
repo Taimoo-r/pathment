@@ -9,9 +9,15 @@ const { NotFoundError, ValidationError } = require('../utils/errors/errorTypes')
  * opening a new cohort - historical cohorts stay intact and queryable.
  */
 class CohortIntakeService {
-  async listCohorts({ programId, status } = {}) {
+  async listCohorts({ programId, programIds, status } = {}) {
+    const { Op } = require('sequelize');
     const where = {};
-    if (programId) where.programId = programId;
+    if (Array.isArray(programIds)) {
+      const allowed = programId ? programIds.filter((id) => id === programId) : programIds;
+      where.programId = { [Op.in]: allowed };
+    } else if (programId) {
+      where.programId = programId;
+    }
     if (status) where.status = status;
 
     const cohorts = await models.Cohort.findAll({

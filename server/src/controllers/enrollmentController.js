@@ -36,6 +36,12 @@ exports.getEnrollments = catchAsync(async (req, res) => {
     if (!privileged) filters.menteeId = req.user.id;
   }
 
+  // A program_admin sees only their programs' enrollments (org admins: all).
+  const programScope = await authzService.adminProgramScope(req.user, {
+    assignments: req.loadAssignments ? await req.loadAssignments() : undefined
+  });
+  if (Array.isArray(programScope) && programScope.length) filters.programIds = programScope;
+
   const pagination = { page: parseInt(page) || 1, limit: parseInt(limit) || 20 };
 
   const result = await enrollmentService.getEnrollments(filters, pagination);
@@ -59,6 +65,8 @@ exports.getEnrollmentById = catchAsync(async (req, res) => {
 exports.createEnrollment = catchAsync(async (req, res) => {
   // Admin-initiated enrollment: the target mentee is supplied explicitly.
   const { programId, menteeId } = req.body;
+  // A program_admin may only enroll into programs they administer.
+  await authzService.assertProgramInScope(req.user, programId);
 
   const enrollment = await enrollmentService.createEnrollment(programId, menteeId);
   res.status(201).json(successResponse('Enrolled successfully', { enrollment }, 201));

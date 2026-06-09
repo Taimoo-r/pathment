@@ -29,9 +29,15 @@ class ClanService {
     return user;
   }
 
-  async listClans({ programId, status, userId } = {}) {
+  async listClans({ programId, programIds, status, userId } = {}) {
+    const { Op } = require('sequelize');
     const where = {};
-    if (programId) where.programId = programId;
+    if (Array.isArray(programIds)) {
+      const allowed = programId ? programIds.filter((id) => id === programId) : programIds;
+      where.programId = { [Op.in]: allowed };
+    } else if (programId) {
+      where.programId = programId;
+    }
     if (status) where.status = status;
 
     const clans = await models.Clan.findAll({

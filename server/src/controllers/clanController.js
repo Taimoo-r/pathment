@@ -2,6 +2,7 @@ const { catchAsync } = require('../middlewares/errorHandler');
 const { successResponse } = require('../utils/responses');
 const clanService = require('../services/clanService');
 const clanHealthService = require('../services/clanHealthService');
+const authzService = require('../services/authzService');
 
 /**
  * GET /api/clans/health  (admin)
@@ -27,7 +28,13 @@ const clanInsights = catchAsync(async (req, res) => {
  */
 const listClans = catchAsync(async (req, res) => {
   const { programId, status } = req.query;
-  const clans = await clanService.listClans({ programId, status });
+  // A program_admin sees only their programs' clans (org admins: all).
+  const programScope = await authzService.adminProgramScope(req.user, {
+    assignments: req.loadAssignments ? await req.loadAssignments() : undefined
+  });
+  const filters = { programId, status };
+  if (Array.isArray(programScope) && programScope.length) filters.programIds = programScope;
+  const clans = await clanService.listClans(filters);
   res.status(200).json(successResponse('Clans retrieved', { clans }));
 });
 

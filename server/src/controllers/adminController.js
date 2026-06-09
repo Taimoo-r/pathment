@@ -1,5 +1,6 @@
 const adminService = require('../services/adminService');
 const matchingService = require('../services/matchingService');
+const authzService = require('../services/authzService');
 const { successResponse } = require('../utils/responses');
 const { USER_MESSAGES } = require('../utils/responses/messages');
 const { catchAsync } = require('../middlewares/errorHandler');
@@ -27,6 +28,10 @@ class AdminController {
    * POST /api/admin/invites
    */
   createRegistrationInvite = catchAsync(async (req, res) => {
+    // A program_admin may only invite into programs they administer.
+    await authzService.assertProgramInScope(req.user, req.body.programId, {
+      assignments: req.loadAssignments ? await req.loadAssignments() : undefined
+    });
     const invite = await adminService.createRegistrationInvite(req.body, req.user.id);
 
     res.status(201).json(
@@ -40,7 +45,12 @@ class AdminController {
    */
   listRegistrationInvites = catchAsync(async (req, res) => {
     const { status = 'active', limit = 50, offset = 0 } = req.query;
-    const result = await adminService.listRegistrationInvites({ status, limit, offset });
+    const programScope = await authzService.adminProgramScope(req.user, {
+      assignments: req.loadAssignments ? await req.loadAssignments() : undefined
+    });
+    const filters = { status, limit, offset };
+    if (Array.isArray(programScope) && programScope.length) filters.programIds = programScope;
+    const result = await adminService.listRegistrationInvites(filters);
 
     res.status(200).json(
       successResponse('Registration invites retrieved successfully', result)

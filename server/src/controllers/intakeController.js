@@ -3,12 +3,19 @@ const { successResponse } = require('../utils/responses');
 const cohortIntakeService = require('../services/cohortIntakeService');
 const applicationService = require('../services/applicationService');
 const assessmentService = require('../services/assessmentService');
+const authzService = require('../services/authzService');
 
 // ─── Cohorts ─────────────────────────────────────────────────────────────────
 
 const listCohorts = catchAsync(async (req, res) => {
   const { programId, status } = req.query;
-  const cohorts = await cohortIntakeService.listCohorts({ programId, status });
+  // A program_admin sees only their programs' cohorts (org admins: all).
+  const programScope = await authzService.adminProgramScope(req.user, {
+    assignments: req.loadAssignments ? await req.loadAssignments() : undefined
+  });
+  const filters = { programId, status };
+  if (Array.isArray(programScope) && programScope.length) filters.programIds = programScope;
+  const cohorts = await cohortIntakeService.listCohorts(filters);
   res.status(200).json(successResponse('Cohorts retrieved', { cohorts }));
 });
 

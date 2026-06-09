@@ -24,13 +24,20 @@ class EnrollmentService {
   }
 
   async getEnrollments(filters, pagination) {
-    const { status, programId, menteeId, search } = filters;
+    const { status, programId, programIds, menteeId, search } = filters;
     const { page, limit } = pagination;
     const offset = (page - 1) * limit;
 
     const where = {};
     if (status) where.status = status;
-    if (programId) where.programId = programId;
+    // Program scoping: a program_admin passes programIds (the programs they
+    // administer); intersect with any explicitly-requested programId.
+    if (Array.isArray(programIds)) {
+      const allowed = programId ? programIds.filter((id) => id === programId) : programIds;
+      where.programId = { [Op.in]: allowed }; // [] → no rows
+    } else if (programId) {
+      where.programId = programId;
+    }
     if (menteeId) where.menteeId = menteeId;
 
     // Server-side search across mentee name, email and program name.
