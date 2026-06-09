@@ -63,12 +63,15 @@ exports.getMenteeTasks = catchAsync(async (req, res) => {
 exports.getMentorTasks = catchAsync(async (req, res) => {
   const { mentorId } = req.params;
   const { status, enrollmentId, menteeId, pendingReview } = req.query;
-  
-  // Security: Mentors can only view their own tasks
-  if (req.user.role === 'mentor' && req.user.id !== mentorId) {
+
+  // Security: only an admin may read another mentor's tasks; everyone else
+  // (incl. co-mentors, whose base role isn't 'mentor') is restricted to their
+  // own. Checked on derived capabilities, not the primary role.
+  const isAdmin = req.loadCapabilities ? (await req.loadCapabilities()).includes('admin') : req.user.role === 'admin';
+  if (!isAdmin && req.user.id !== mentorId) {
     return res.status(403).json({ success: false, message: 'Forbidden' });
   }
-  
+
   const tasks = await taskService.getMentorTasks(mentorId, {
     status,
     enrollmentId,
@@ -141,14 +144,14 @@ exports.updateTaskStatus = catchAsync(async (req, res) => {
  */
 exports.getMentorTaskStats = catchAsync(async (req, res) => {
   const { mentorId } = req.params;
-  
-  console.log('getMentorTaskStats - User role:', req.user.role, 'User ID:', req.user.id, 'Mentor ID:', mentorId);
-  
-  // Security: Mentors can only view their own stats
-  if (req.user.role === 'mentor' && req.user.id !== mentorId) {
+
+  // Security: only an admin may read another mentor's stats; everyone else is
+  // restricted to their own (derived capabilities, not primary role).
+  const isAdmin = req.loadCapabilities ? (await req.loadCapabilities()).includes('admin') : req.user.role === 'admin';
+  if (!isAdmin && req.user.id !== mentorId) {
     return res.status(403).json({ success: false, message: 'Forbidden' });
   }
-  
+
   const stats = await taskService.getMentorTaskStats(mentorId);
   res.status(200).json(successResponse('Stats retrieved', { stats }));
 });

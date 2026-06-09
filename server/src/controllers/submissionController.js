@@ -152,8 +152,10 @@ exports.deleteFile = catchAsync(async (req, res) => {
 exports.getPendingSubmissions = catchAsync(async (req, res) => {
   const { mentorId } = req.params;
 
-  // Security check
-  if (req.user.role === 'mentor' && req.user.id !== mentorId) {
+  // Security: only an admin may read another mentor's pending submissions;
+  // everyone else is restricted to their own (derived capabilities, not role).
+  const isAdmin = req.loadCapabilities ? (await req.loadCapabilities()).includes('admin') : req.user.role === 'admin';
+  if (!isAdmin && req.user.id !== mentorId) {
     return res.status(403).json({ success: false, message: 'Forbidden' });
   }
 

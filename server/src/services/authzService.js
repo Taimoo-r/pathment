@@ -58,11 +58,12 @@ class AuthzService {
       assignments.push({ role, scopeType, scopeId });
     };
 
-    // 1a. Capabilities → org/self roles (backward compatible: every admin is a
-    // super_admin, every mentee gets self-scope; mentor power is clan-derived).
-    const caps = Array.isArray(user.capabilities) && user.capabilities.length ? user.capabilities : [user.role];
-    if (caps.includes('admin')) add('super_admin', 'org');
-    if (caps.includes('mentee')) add('mentee', 'self', user.id);
+    // 1a. Base account type → its home assignment. Elevated / cross-role access
+    // comes from explicit RoleAssignments + clan memberships below — NOT the
+    // stored `capabilities` array, which is legacy and no longer authoritative
+    // (a mentee promoted to admin gets a super_admin RoleAssignment, not a cap).
+    if (user.role === 'admin') add('super_admin', 'org');
+    if (user.role === 'mentee') add('mentee', 'self', user.id);
 
     // 1b. Clan memberships → clan-scoped roles (lead_mentor / co_mentor / core_team / mentee).
     const memberships = await models.ClanMembership.findAll({
