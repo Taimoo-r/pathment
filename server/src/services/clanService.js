@@ -234,11 +234,17 @@ class ClanService {
    */
   async listCandidates(clanId, { q } = {}) {
     const { Op } = require('sequelize');
-    const members = await models.ClanMembership.findAll({ where: { clanId, status: 'active' }, attributes: ['userId'] });
-    const memberIds = [...new Set(members.map((m) => m.userId).filter(Boolean))];
+    // Exclude only people who ALREADY hold a mentor role in this clan (lead/co/
+    // core) — keep this clan's MENTEES in the list so they can be promoted to
+    // co-mentor, and of course include everyone outside the clan.
+    const mentors = await models.ClanMembership.findAll({
+      where: { clanId, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor', 'core_team'] } },
+      attributes: ['userId']
+    });
+    const excludeIds = [...new Set(mentors.map((m) => m.userId).filter(Boolean))];
 
     const where = { status: 'active' };
-    if (memberIds.length) where.id = { [Op.notIn]: memberIds };
+    if (excludeIds.length) where.id = { [Op.notIn]: excludeIds };
     if (q && q.trim()) {
       const like = { [Op.iLike]: `%${q.trim()}%` };
       where[Op.and] = [{ [Op.or]: [{ firstName: like }, { lastName: like }, { email: like }] }];

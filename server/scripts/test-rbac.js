@@ -81,7 +81,8 @@ async function mkUser(role, n) {
 
   const cands = await clanService.listCandidates(clan.id);
   const candIds = cands.map((c) => c.id);
-  ok('candidates EXCLUDE existing clan members', !candIds.includes(mentee.id) && !candIds.includes(menteeB.id));
+  ok('candidates EXCLUDE existing clan mentors (lead/co)', !candIds.includes(mentee.id) && !candIds.includes(lead.id));
+  ok('candidates INCLUDE a clan mentee (promotable to co-mentor)', candIds.includes(menteeB.id));
   ok('candidates INCLUDE an outsider (any role)', candIds.includes(menteeC.id));
 
   // Lead mentor delegates co_mentor (clan-scoped) to menteeB — a subset of their powers.
