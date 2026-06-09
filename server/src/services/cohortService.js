@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { models } = require('../db');
+const authzService = require('./authzService');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const { NotFoundError, ValidationError } = require('../utils/errors/errorTypes');
@@ -35,6 +36,19 @@ const ACTIVE_ENROLLMENT_STATUSES = [
 
 class CohortService {
   /** Resolve the distinct mentee userIds a mentor is responsible for. */
+  /**
+   * Clans a mentor runs (id → name) from ALL sources — membership, scoped role
+   * grant, and cross-clan cover. Used everywhere the cohort is assembled, so a
+   * co-mentor added via "Grant role" surfaces the same data as one added to the
+   * clan directly.
+   */
+  async mentorClanMap(mentorId) {
+    const clanIds = await authzService.mentoredClanIds(mentorId);
+    if (!clanIds.length) return { clanIds: [], clanNameById: new Map() };
+    const clans = await models.Clan.findAll({ where: { id: { [Op.in]: clanIds } }, attributes: ['id', 'name'] });
+    return { clanIds, clanNameById: new Map(clans.map((c) => [c.id, c.name || 'Clan'])) };
+  }
+
   async resolveMenteeIds(mentorId) {
     const ids = new Set();
 
@@ -45,12 +59,8 @@ class CohortService {
     });
     matches.forEach((m) => ids.add(m.menteeId));
 
-    // (b) New path: clans where this user is a mentor → their mentee members.
-    const mentorClans = await models.ClanMembership.findAll({
-      where: { userId: mentorId, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor'] } },
-      attributes: ['clanId']
-    });
-    const clanIds = mentorClans.map((c) => c.clanId);
+    // (b) Clans where this user is a mentor (membership / grant / cover) → mentees.
+    const { clanIds } = await this.mentorClanMap(mentorId);
     if (clanIds.length) {
       const menteeMemberships = await models.ClanMembership.findAll({
         where: { clanId: { [Op.in]: clanIds }, status: 'active', role: 'mentee' },
@@ -603,12 +613,7 @@ class CohortService {
 
     // Attach the clan each mentee shares with this mentor (for clan-wise
     // filtering on the My Mentees page). Batched, no per-row queries.
-    const mentorClans = await models.ClanMembership.findAll({
-      where: { userId: mentorId, status: 'active', role: { [Op.in]: ['lead_mentor', 'co_mentor', 'core_team'] } },
-      include: [{ model: models.Clan, as: 'clan', attributes: ['id', 'name'] }],
-    });
-    const clanIds = mentorClans.map((c) => c.clanId);
-    const clanNameById = new Map(mentorClans.map((c) => [c.clanId, c.clan?.name || 'Clan']));
+    const { clanIds, clanNameById } = await this.mentorClanMap(mentorId);
     if (clanIds.length) {
       const menteeMemberships = await models.ClanMembership.findAll({
         where: { clanId: { [Op.in]: clanIds }, status: 'active', role: 'mentee' },

@@ -302,6 +302,37 @@ class AuthzService {
     return out;
   }
 
+  /**
+   * Every clan a user MENTORS, from ALL sources — clan membership (lead/co/core),
+   * an explicit clan-scoped role grant (RoleAssignment), and accepted cross-clan
+   * cover. The mentor data views (cohort, My Mentees) use this so a co-mentor
+   * added via "Grant role" sees the clan's mentees just like one added via the
+   * clan's "Add to team".
+   */
+  async mentoredClanIds(userId) {
+    if (!userId) return [];
+    const MENTOR_CLAN_ROLES = ['lead_mentor', 'co_mentor', 'core_team'];
+    const set = new Set();
+
+    const memberships = await models.ClanMembership.findAll({
+      where: { userId, status: 'active', role: { [Op.in]: MENTOR_CLAN_ROLES } }, attributes: ['clanId'],
+    });
+    memberships.forEach((m) => m.clanId && set.add(m.clanId));
+
+    const grants = await models.RoleAssignment.findAll({
+      where: { userId, scopeType: 'clan', role: { [Op.in]: MENTOR_CLAN_ROLES } }, attributes: ['scopeId'],
+    });
+    grants.forEach((g) => g.scopeId && set.add(g.scopeId));
+
+    if (models.CrossClanAssignment) {
+      const cover = await models.CrossClanAssignment.findAll({
+        where: { userId, status: 'active' }, attributes: ['toClanId'],
+      });
+      cover.forEach((c) => c.toClanId && set.add(c.toClanId));
+    }
+    return [...set];
+  }
+
   /** A mentee: their self scope + the clan/program they're currently placed in. */
   async scopeOfMentee(menteeId) {
     if (!menteeId) return null;

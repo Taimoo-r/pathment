@@ -193,6 +193,18 @@ async function mkUser(role, n) {
   ok('reassign cross-program: old program enrollment wiped', !(await models.Enrollment.findOne({ where: { menteeId: menteeB.id, programId: program.id } })));
   ok('reassign cross-program: new program enrollment created', !!(await models.Enrollment.findOne({ where: { menteeId: menteeB.id, programId: program2.id } })));
 
+  // ── Grant-based co-mentor sees the clan's mentees (the prod "sees nothing" bug) ──
+  const cohortService = require('../src/services/cohortService');
+  const clanX = await models.Clan.create({ name: 'Clan X', programId: program.id, leadMentorId: lead.id, createdBy: lead.id, status: 'active' });
+  const menteeX = await mkUser('mentee', 11);
+  await models.Enrollment.create({ menteeId: menteeX.id, programId: program.id, status: 'active', enrolledAt: new Date() });
+  await clanService.addMember(clanX.id, { userId: menteeX.id, role: 'mentee' });
+  const grantCo = await mkUser('mentee', 12); // a mentee with NO clan mentor membership
+  await accessService.grantRole({ userId: grantCo.id, role: 'co_mentor', scopeType: 'clan', scopeId: clanX.id }, adminUser.id);
+  ok('grant-based co-mentor: mentoredClanIds includes the clan', (await authzService.mentoredClanIds(grantCo.id)).includes(clanX.id));
+  const { cohort: gcCohort } = await cohortService.getCohort(grantCo.id);
+  ok('grant-based co-mentor: getCohort surfaces the clan mentees', gcCohort.some((m) => m.id === menteeX.id));
+
   // ── Audit: the grant + revoke were recorded with an actor ──────────────────
   const auditCount = await models.AuditLog.count({ where: { action: ['ROLE_GRANTED', 'ROLE_REVOKED'] } });
   ok('grant/revoke produced audit rows', auditCount >= 2);
