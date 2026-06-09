@@ -18,11 +18,11 @@ export interface RoadmapStepInput {
 export const orgRoadmapApi = {
   list: () => apiClient.get('/roadmaps/org'),
   create: (data: { name: string; programId: string; description?: string; skillTags?: string[]; steps: RoadmapStepInput[]; published?: boolean }) =>
-    apiClient.post('/roadmaps/org', data),
+    apiClient.post('/roadmaps/org', data, { timeout: 90000 }),
   update: (id: string, data: { name?: string; description?: string; skillTags?: string[]; published?: boolean }) =>
     apiClient.patch(`/roadmaps/org/${id}`, data),
   addStep: (id: string, step: RoadmapStepInput) => apiClient.post(`/roadmaps/org/${id}/steps`, step),
-  replaceSteps: (id: string, steps: RoadmapStepInput[]) => apiClient.put(`/roadmaps/org/${id}/steps`, { steps }),
+  replaceSteps: (id: string, steps: RoadmapStepInput[]) => apiClient.put(`/roadmaps/org/${id}/steps`, { steps }, { timeout: 90000 }),
   removeStep: (id: string, stepId: string) => apiClient.delete(`/roadmaps/org/${id}/steps/${stepId}`),
   remove: (id: string) => apiClient.delete(`/roadmaps/org/${id}`),
 };
@@ -42,8 +42,11 @@ export interface RoadmapAiInput {
   additionalInstructions?: string;
 }
 export const roadmapAiApi = {
+  // AI generation can take a while on big models (esp. 70B via OpenRouter), so
+  // override the default 30s client timeout — otherwise a slow-but-fine response
+  // is killed client-side with "timeout of 30000ms exceeded".
   generate: (data: RoadmapAiInput) =>
-    apiClient.post<{ data: { steps: RoadmapStepInput[] } }>('/roadmaps/generate', data),
+    apiClient.post<{ data: { steps: RoadmapStepInput[] } }>('/roadmaps/generate', data, { timeout: 120000 }),
 };
 
 /** Mentee's own roadmap progress (step X/N). */

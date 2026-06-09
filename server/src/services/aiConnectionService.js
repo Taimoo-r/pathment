@@ -21,9 +21,19 @@ const PROVIDER_BASE = {
   openai: 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com/v1',
   gemini: 'https://generativelanguage.googleapis.com/v1beta',
+  openrouter: 'https://openrouter.ai/api/v1',
   custom: null
 };
 const PROVIDERS = Object.keys(PROVIDER_BASE);
+// Per-provider default model used when a connection doesn't specify one. Each id
+// is valid FOR THAT PROVIDER — never cross a Groq id into OpenRouter/OpenAI/etc.
+const PROVIDER_DEFAULT_MODEL = {
+  groq: 'llama-3.3-70b-versatile',
+  openai: 'gpt-4o-mini',
+  gemini: 'gemini-2.0-flash',
+  openrouter: 'meta-llama/llama-3.3-70b-instruct',
+  // anthropic + custom: no safe default — the connection should set one.
+};
 const FEATURES = ['summary', 'delay', 'atrisk', 'nudge', 'stall', 'coaching', 'feedback', 'roadmap'];
 
 const isAdmin = (user) => {
@@ -166,7 +176,10 @@ class AIConnectionService {
     return {
       apiKey: decrypt(row.keyEncrypted),
       baseURL: row.baseUrl || PROVIDER_BASE[row.provider],
-      model: row.model || null,
+      // A connection with no model set must NOT fall back to the env default
+      // (a Groq model id) — that fails on every other provider ("not a valid
+      // model ID"). Use a provider-appropriate default instead.
+      model: row.model || PROVIDER_DEFAULT_MODEL[row.provider] || null,
       provider: row.provider
     };
   }

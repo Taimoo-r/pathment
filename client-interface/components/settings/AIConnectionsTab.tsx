@@ -11,8 +11,11 @@ const PROVIDER_META: Record<AIProvider, { label: string; hint: string; keyPrefix
   openai: { label: 'OpenAI', hint: 'Strong reasoning for delay analysis.', keyPrefix: 'sk-', models: ['gpt-4o', 'gpt-4o-mini'] },
   anthropic: { label: 'Anthropic', hint: 'Nuanced, careful coaching language.', keyPrefix: 'sk-ant-', models: ['claude-sonnet-4', 'claude-haiku-4'] },
   gemini: { label: 'Google Gemini', hint: 'Long context, low cost.', keyPrefix: 'AIza', models: ['gemini-2.0-flash', 'gemini-1.5-pro'] },
+  openrouter: { label: 'OpenRouter', hint: 'One key, hundreds of models (vendor/model). Type any model id.', keyPrefix: 'sk-or-', models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'google/gemini-flash-1.5', 'meta-llama/llama-3.3-70b-instruct', 'deepseek/deepseek-chat'] },
   custom: { label: 'Custom / self-hosted', hint: 'Any OpenAI-compatible endpoint.', keyPrefix: '', models: ['custom'] },
 };
+// Providers whose model is a free-text id (a fixed dropdown can't list them all).
+const FREE_MODEL_PROVIDERS: AIProvider[] = ['openrouter', 'custom'];
 
 const FEATURE_META: { key: AIFeature; label: string; hint: string }[] = [
   { key: 'summary', label: 'Mentee summaries', hint: 'Per-mentee progress digests' },
@@ -172,10 +175,18 @@ function AddKeyModal({ onClose, onAdd }: { onClose: () => void; onAdd: (d: { pro
         )}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Model <span className="text-slate-400 font-normal">(optional)</span></label>
-          <select value={model} onChange={(e) => setModel(e.target.value)} className={field}>
-            <option value="">Default</option>
-            {meta.models.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
+          {FREE_MODEL_PROVIDERS.includes(provider) ? (
+            <>
+              <input value={model} onChange={(e) => setModel(e.target.value)}
+                placeholder={provider === 'openrouter' ? 'e.g. anthropic/claude-3.5-sonnet' : 'model id'} className={`${field} font-mono`} />
+              {provider === 'openrouter' && <p className="text-xs text-slate-400 mt-1">Any model id from openrouter.ai/models — e.g. {meta.models.slice(0, 3).join(', ')}.</p>}
+            </>
+          ) : (
+            <select value={model} onChange={(e) => setModel(e.target.value)} className={field}>
+              <option value="">Default</option>
+              {meta.models.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          )}
         </div>
       </div>
     </Drawer>

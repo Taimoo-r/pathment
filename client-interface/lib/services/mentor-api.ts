@@ -77,10 +77,11 @@ export const mentorApi = {
     description?: string;
     skillTags?: string[];
     steps: Array<{ title: string; type?: string; brief?: string; description?: string; criteria?: string[]; effort?: string; dueOffsetDays?: number; difficulty?: string; deliverable?: string; pointsBase?: number }>;
-  }) => apiClient.post('/mentor/roadmaps', data),
+    // Many steps = many cross-region DB round-trips; allow longer than the 30s default.
+  }) => apiClient.post('/mentor/roadmaps', data, { timeout: 90000 }),
   updateRoadmapMeta: (id: string, data: { name?: string; description?: string; skillTags?: string[] }) =>
     apiClient.patch(`/mentor/roadmaps/${id}`, data),
-  replaceRoadmapSteps: (id: string, steps: any[]) => apiClient.put(`/mentor/roadmaps/${id}/steps`, { steps }), // eslint-disable-line @typescript-eslint/no-explicit-any
+  replaceRoadmapSteps: (id: string, steps: any[]) => apiClient.put(`/mentor/roadmaps/${id}/steps`, { steps }, { timeout: 90000 }), // eslint-disable-line @typescript-eslint/no-explicit-any
   addRoadmapStep: (id: string, step: { title: string; type?: string; brief?: string; criteria?: string[] }) =>
     apiClient.post(`/mentor/roadmaps/${id}/steps`, step),
   removeRoadmapStep: (id: string, stepId: string) => apiClient.delete(`/mentor/roadmaps/${id}/steps/${stepId}`),

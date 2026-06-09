@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
     provider: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      validate: { isIn: [['groq', 'openai', 'anthropic', 'gemini', 'custom']] }
+      validate: { isIn: [['groq', 'openai', 'anthropic', 'gemini', 'openrouter', 'custom']] }
     },
     label: { type: DataTypes.STRING(120), allowNull: false },
     model: { type: DataTypes.STRING(120), allowNull: true },
