@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Route, Plus, X, Download, Users, Loader2, Tag, GitBranch, Check, Pencil,
+  Route, Plus, X, Download, Users, Loader2, Tag, GitBranch, Check, Pencil, Search, CheckCheck,
 } from 'lucide-react';
 import { useMentorRoadmaps, useMentorPrograms, useMentorCohort, type LinearRoadmap } from '@/lib/hooks/mentor';
 import { mentorApi } from '@/lib/services/mentor-api';
@@ -24,9 +24,20 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [startStep, setStartStep] = useState(0);
   const [dueDate, setDueDate] = useState('');
+  const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
   const toggle = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const q = search.trim().toLowerCase();
+  const filtered = q ? cohort.filter((m) => m.name.toLowerCase().includes(q)) : cohort;
+  const allFilteredSelected = filtered.length > 0 && filtered.every((m) => selected.has(m.id));
+  const toggleAllFiltered = () => setSelected((p) => {
+    const n = new Set(p);
+    if (allFilteredSelected) filtered.forEach((m) => n.delete(m.id));
+    else filtered.forEach((m) => n.add(m.id));
+    return n;
+  });
 
   const assign = async () => {
     if (selected.size === 0) { toast.error('Pick at least one mentee'); return; }
@@ -92,21 +103,42 @@ function AssignDrawer({ roadmap, onClose, onAssigned }: { roadmap: LinearRoadmap
             <p className="text-xs text-slate-400 mt-1">Pick a preset or an exact date. &ldquo;Default&rdquo; uses each step&apos;s own timing (+7 days).</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Mentees</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-slate-700">Mentees</label>
+              {selected.size > 0 && <span className="text-xs font-medium text-brand-600">{selected.size} selected</span>}
+            </div>
             {loading ? (
               <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
             ) : cohort.length === 0 ? (
               <p className="text-sm text-slate-500">No mentees in your cohort yet.</p>
             ) : (
-              <div className="space-y-1">
-                {cohort.map((m) => (
-                  <label key={m.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
-                    <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)}
-                      className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-                    <span className="text-sm text-slate-700">{m.name}</span>
-                  </label>
-                ))}
-              </div>
+              <>
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search mentees…"
+                    className="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                  {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>}
+                </div>
+                <div className="flex items-center justify-between px-1 pb-1.5">
+                  <button type="button" onClick={toggleAllFiltered} disabled={filtered.length === 0}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-40">
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    {allFilteredSelected ? 'Clear' : `Select all${q ? ' matching' : ''}`} ({filtered.length})
+                  </button>
+                  {q && <span className="text-[11px] text-slate-400">{filtered.length} of {cohort.length}</span>}
+                </div>
+                <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                  {filtered.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-4">No mentees match &ldquo;{search}&rdquo;.</p>
+                  ) : filtered.map((m) => (
+                    <label key={m.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                      <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)}
+                        className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                      <span className="text-sm text-slate-700 truncate">{m.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
