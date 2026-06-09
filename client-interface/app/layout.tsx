@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import '../styles/globals.css';
 import { AuthProvider } from '@/lib/context/AuthContext';
 import { ThemeProvider } from '@/lib/context/ThemeContext';
+import { ClanProvider } from '@/lib/context/ClanContext';
 import { Toaster } from '@/components/ui/sonner';
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' });
@@ -23,8 +24,10 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>
-            {children}
-            <Toaster />
+            <ClanProvider>
+              {children}
+              <Toaster />
+            </ClanProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

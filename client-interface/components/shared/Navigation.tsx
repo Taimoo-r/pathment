@@ -23,6 +23,8 @@ import {
 import { NavLink } from '@/lib/config/navigation';
 import { useNavPreferences } from '@/lib/hooks/shared';
 import { usePermissions } from '@/lib/hooks/usePermissions';
+import { useClan, ALL_CLANS } from '@/lib/context/ClanContext';
+import { SelectMenu } from './SelectMenu';
 import { CommandPalette } from './CommandPalette';
 import { NotificationDrawer } from './NotificationDrawer';
 import { UserProfileCard } from './UserProfileCard';
@@ -45,6 +47,7 @@ export default function Navigation({ role }: NavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user, availableRoles, setActiveRole } = useAuth();
+  const { clans, activeClanId, setActiveClanId } = useClan();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -168,6 +171,25 @@ export default function Navigation({ role }: NavigationProps) {
           </button>
         ))}
       </div>
+    );
+  };
+
+  // ── Clan scope (multi-clan mentors) ───────────────────────────────────────
+  // Only meaningful in the mentor view, and only when the user mentors 2+ clans.
+  const renderClanScope = () => {
+    if (role !== 'mentor' || clans.length < 2) return null;
+    const options = [
+      { value: ALL_CLANS, label: 'All clans' },
+      ...clans.map((c) => ({ value: c.id, label: c.name })),
+    ];
+    return (
+      <SelectMenu
+        value={activeClanId}
+        onChange={setActiveClanId}
+        options={options}
+        ariaLabel="Filter by clan"
+        className="w-full"
+      />
     );
   };
 
@@ -344,6 +366,9 @@ export default function Navigation({ role }: NavigationProps) {
             <div className="px-3 pt-3">{renderRoleSwitcher()}</div>
           )}
 
+          {/* Clan scope (multi-clan mentors) — sits right under the role switch */}
+          {renderClanScope() && <div className="px-3 pt-2">{renderClanScope()}</div>}
+
           {/* Quick search (⌘K) */}
           <div className="px-3 pt-3">
             <button
@@ -425,6 +450,7 @@ export default function Navigation({ role }: NavigationProps) {
               {availableRoles && availableRoles.length > 1 && (
                 <div className="pb-2">{renderRoleSwitcher()}</div>
               )}
+              {renderClanScope() && <div className="pb-2">{renderClanScope()}</div>}
               {renderNavItems(() => setMobileMenuOpen(false))}
               <button
                 onClick={handleLogout}

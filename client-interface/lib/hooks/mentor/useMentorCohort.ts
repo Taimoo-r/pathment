@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { mentorApi } from '@/lib/services/mentor-api';
+import { useClan, ALL_CLANS } from '@/lib/context/ClanContext';
 
 export type CohortMomentum = 'up' | 'flat' | 'down';
 export type CohortRisk = 'low' | 'watch' | 'high';
@@ -47,22 +48,23 @@ export interface UseMentorCohortReturn {
 }
 
 export function useMentorCohort(): UseMentorCohortReturn {
-  const [cohort, setCohort] = useState<CohortMentee[]>([]);
-  const [totals, setTotals] = useState<CohortTotals | null>(null);
+  const [allCohort, setAllCohort] = useState<CohortMentee[]>([]);
+  const [rawTotals, setRawTotals] = useState<CohortTotals | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { activeClanId } = useClan();
 
   const fetchCohort = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await mentorApi.getCohort();
-      setCohort(res?.data?.cohort ?? []);
-      setTotals(res?.data?.totals ?? null);
+      setAllCohort(res?.data?.cohort ?? []);
+      setRawTotals(res?.data?.totals ?? null);
     } catch (err) {
       setError('Failed to load your cohort');
-      setCohort([]);
-      setTotals(null);
+      setAllCohort([]);
+      setRawTotals(null);
     } finally {
       setLoading(false);
     }
@@ -71,6 +73,26 @@ export function useMentorCohort(): UseMentorCohortReturn {
   useEffect(() => {
     fetchCohort();
   }, [fetchCohort]);
+
+  // Scope to the active clan (multi-clan mentors). 'all' = the merged view.
+  const cohort = useMemo(
+    () => (activeClanId === ALL_CLANS ? allCohort : allCohort.filter((m) => m.clan?.id === activeClanId)),
+    [allCohort, activeClanId]
+  );
+
+  // Recompute the summary totals for the scoped set so headline numbers match
+  // what's on screen; the unscoped view keeps the server's totals as-is.
+  const totals = useMemo<CohortTotals | null>(() => {
+    if (activeClanId === ALL_CLANS) return rawTotals;
+    if (!cohort.length && !allCohort.length) return rawTotals;
+    return {
+      mentees: cohort.length,
+      pendingApprovals: cohort.reduce((n, m) => n + (m.pendingApprovals || 0), 0),
+      openBlockers: cohort.reduce((n, m) => n + (m.openBlockers || 0), 0),
+      atRisk: cohort.filter((m) => m.risk !== 'low').length,
+      onTimeRate: cohort.length ? Math.round(cohort.reduce((n, m) => n + (m.onTimeRate || 0), 0) / cohort.length) : 0,
+    };
+  }, [cohort, allCohort, activeClanId, rawTotals]);
 
   return { cohort, totals, loading, error, refetch: fetchCohort };
 }
