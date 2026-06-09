@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { CalendarClock, Plus, Trash2, X, Loader2, Pencil, Clock } from 'lucide-react';
+import { CalendarClock, Plus, Trash2, X, Loader2, Pencil, Clock, FileJson } from 'lucide-react';
 import { scheduleApi, type ScheduleBlock } from '@/lib/services/schedule-api';
+import { ScheduleJsonPanel } from '@/components/shared/ScheduleJsonPanel';
+import { downloadScheduleTemplateJson } from '@/lib/utils/schedule-json';
 
 interface OrgTemplate { id: string; name: string; description?: string | null; blocks: ScheduleBlock[] }
 interface DraftBlock { label: string; time: string; days: string; bookable: boolean }
@@ -62,6 +64,7 @@ export default function AdminSchedulesPage() {
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button onClick={() => setEditing(t)} aria-label="Edit" className="p-1.5 text-slate-400 hover:text-brand-600"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => downloadScheduleTemplateJson(t)} aria-label="Export as JSON" title="Export as JSON" className="p-1.5 text-slate-400 hover:text-brand-600"><FileJson className="w-4 h-4" /></button>
                   <button onClick={() => remove(t.id)} disabled={busy === t.id} aria-label="Delete" className="p-1.5 text-slate-400 hover:text-red-600 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -130,6 +133,10 @@ function TemplateDrawer({ template, onClose, onSaved }: { template: OrgTemplate 
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={`${field} resize-none`} />
           </div>
+          <ScheduleJsonPanel
+            current={{ name, description, blocks }}
+            onLoad={(p) => { if (p.name != null) setName(p.name); if (p.description != null) setDescription(p.description); setBlocks(p.blocks); }}
+          />
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-slate-700">Time blocks</span>

@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  CalendarClock, Plus, Trash2, Loader2, Check, X, Clock, User, LayoutGrid, Users, Route, Repeat, Download, Search, Pencil,
+  CalendarClock, Plus, Trash2, Loader2, Check, X, Clock, User, LayoutGrid, Users, Route, Repeat, Download, Search, Pencil, FileJson,
 } from 'lucide-react';
 import { useMentorSchedule, useScheduleTemplates, useMentorCohort, useMentorRoadmaps, type ScheduleTemplate } from '@/lib/hooks/mentor';
 import { meetingsApi } from '@/lib/services/meetings-api';
 import { scheduleApi, type ScheduleSlot } from '@/lib/services/schedule-api';
 import { Drawer } from '@/components/shared/Drawer';
+import { ScheduleJsonPanel } from '@/components/shared/ScheduleJsonPanel';
+import { downloadScheduleTemplateJson } from '@/lib/utils/schedule-json';
 import { getBrowserTimeZone, formatMeeting } from '@/lib/utils/datetime';
 
 const DURATIONS = [15, 30, 45, 60];
@@ -55,6 +57,7 @@ function TemplatesTab() {
                       <h4 className="font-medium text-slate-900">{t.name}</h4>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => setEditing(t)} aria-label="Edit schedule" className="p-1.5 text-slate-400 hover:text-brand-600"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => downloadScheduleTemplateJson(t)} aria-label="Export as JSON" title="Export as JSON" className="p-1.5 text-slate-400 hover:text-brand-600"><FileJson className="w-4 h-4" /></button>
                         <button onClick={async () => { if (!confirm(`Delete "${t.name}"?`)) return; setBusy(t.id); try { await scheduleApi.deleteTemplate(t.id); refetch(); } finally { setBusy(null); } }} aria-label="Delete schedule" className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
@@ -73,7 +76,10 @@ function TemplatesTab() {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {org.map((t) => (
                   <div key={t.id} className="bg-card rounded-2xl border border-slate-200 p-4">
-                    <h4 className="font-medium text-slate-900">{t.name}</h4>
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-medium text-slate-900">{t.name}</h4>
+                      <button onClick={() => downloadScheduleTemplateJson(t)} aria-label="Export as JSON" title="Export as JSON" className="p-1 text-slate-400 hover:text-brand-600 shrink-0"><FileJson className="w-4 h-4" /></button>
+                    </div>
                     <p className="text-xs text-slate-500 mt-0.5">{t.blocks.length} blocks</p>
                     <button onClick={async () => { setBusy(t.id); try { await scheduleApi.importTemplate(t.id); toast.success('Imported - now an editable copy under My schedules'); refetch(); } catch { toast.error('Failed'); } finally { setBusy(null); } }} disabled={busy === t.id}
                       className="mt-3 w-full px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:border-brand-300 inline-flex items-center justify-center gap-1.5">{busy === t.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Import &amp; edit</button>
@@ -142,6 +148,10 @@ function ScheduleDrawer({ template, onClose, onSaved }: { template: ScheduleTemp
           <label className="block text-sm font-medium text-slate-700 mb-1">Description <span className="text-slate-400 font-normal">(optional)</span></label>
           <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="What this day-shape is for." className={`${field} w-full resize-none`} />
         </div>
+        <ScheduleJsonPanel
+          current={{ name, description: desc, blocks }}
+          onLoad={(p) => { if (p.name != null) setName(p.name); if (p.description != null) setDesc(p.description); setBlocks(p.blocks); }}
+        />
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-slate-700">Time blocks <span className="text-red-500">*</span></label>
