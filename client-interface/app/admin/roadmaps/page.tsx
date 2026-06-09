@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Route, Plus, Trash2, Loader2, Eye, EyeOff, Pencil } from 'lucide-react';
+import { Route, Plus, Trash2, Loader2, Eye, EyeOff, Pencil, FileJson } from 'lucide-react';
 import { useOrgRoadmaps, type OrgRoadmap, type OrgRoadmapStep } from '@/lib/hooks/admin/useOrgRoadmaps';
 import { programManagementApi } from '@/lib/services/program-api';
 import { RoadmapEditorDrawer } from '@/components/mentor/RoadmapEditorDrawer';
+import { downloadRoadmapJson } from '@/lib/utils/roadmap-json';
 
 const TYPE_LABEL: Record<string, string> = { assignment: 'Assignment', project: 'Project', quiz: 'Quiz', reading: 'Reading', video: 'Video', discussion: 'Discussion', custom: 'Custom', practical: 'Practical', assessment: 'Assessment' };
 
@@ -98,6 +99,10 @@ export default function AdminRoadmapsPage() {
                 <button onClick={() => setEditing(r)}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                   <Pencil className="w-3.5 h-3.5" /> Edit
+                </button>
+                <button onClick={() => downloadRoadmapJson(r)} title="Export as JSON"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                  <FileJson className="w-3.5 h-3.5" /> JSON
                 </button>
                 <button onClick={async () => { setBusy(r.id); try { await setPublished(r.id, !r.published); } catch { toast.error('Could not update'); } finally { setBusy(null); } }}
                   disabled={busy === r.id}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Plus, X, Trash2, Loader2, GripVertical, Sparkles, ChevronDown, ArrowUp, ArrowDown, CornerDownRight,
+  FileJson, Copy, Download, Upload,
 } from 'lucide-react';
 import { roadmapAiApi, type RoadmapStepInput } from '@/lib/services/roadmap-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
@@ -16,6 +17,38 @@ const TITLE_MAX = 255;
 
 const uid = () =>
   (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+
+// A copy-paste starter for the JSON import. type ∈ project|assignment|reading|
+// video|quiz|discussion · effort ∈ xs|s|m|l · difficulty ∈ easy|medium|hard|expert.
+const JSON_TEMPLATE = `{
+  "name": "My Roadmap",
+  "description": "What this roadmap covers.",
+  "skillTags": ["javascript", "react"],
+  "steps": [
+    {
+      "title": "JS Fundamentals",
+      "type": "video",
+      "effort": "m",
+      "difficulty": "medium",
+      "points": 10,
+      "dueOffsetDays": 7,
+      "description": "Watch the fundamentals and take notes.",
+      "criteria": ["Can explain closures", "Built 2 small demos"],
+      "deliverable": "Link to your notes repo"
+    },
+    {
+      "title": "React Basics",
+      "type": "project",
+      "effort": "l",
+      "difficulty": "medium",
+      "points": 20,
+      "dueOffsetDays": 14,
+      "description": "Build a small app from scratch.",
+      "criteria": ["Components + props", "useState / useEffect"],
+      "deliverable": "Deployed demo URL"
+    }
+  ]
+}`;
 
 interface DraftStep {
   key: string; id?: string; title: string; type: string; description: string; criteria: string;
@@ -107,6 +140,85 @@ export function RoadmapEditorDrawer({
   const [genCount, setGenCount] = useState('8');
   const [genWeeks, setGenWeeks] = useState('6');
   const [genInstructions, setGenInstructions] = useState('');
+
+  // ── JSON import / export ─────────────────────────────────────────────────
+  const [jsonOpen, setJsonOpen] = useState(false);
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  const loadFromJson = () => {
+    setJsonError(null);
+    let parsed: unknown;
+    try { parsed = JSON.parse(jsonText); } catch { setJsonError("That isn't valid JSON — check for missing commas or quotes."); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = parsed as any;
+    const rawSteps = Array.isArray(p) ? p : (Array.isArray(p?.steps) ? p.steps : null);
+    if (!rawSteps) { setJsonError('Expected an object with a "steps" array (or an array of steps).'); return; }
+    if (!Array.isArray(p)) {
+      if (typeof p.name === 'string') setName(p.name);
+      if (typeof p.description === 'string') setDescription(p.description);
+      if (Array.isArray(p.skillTags)) setTags(p.skillTags.join(', '));
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const drafts: DraftStep[] = rawSteps.filter((s: any) => s && s.title != null).map((s: any) => ({
+      key: uid(),
+      title: String(s.title || '').slice(0, TITLE_MAX),
+      type: STEP_TYPES.includes(String(s.type)) ? String(s.type) : 'project',
+      effort: EFFORTS.includes(String(s.effort)) ? String(s.effort) : 'm',
+      difficulty: DIFFICULTIES.includes(String(s.difficulty)) ? String(s.difficulty) : 'medium',
+      points: s.points != null ? String(s.points) : (s.pointsBase != null ? String(s.pointsBase) : '10'),
+      dueOffsetDays: s.dueOffsetDays != null && s.dueOffsetDays !== '' ? String(s.dueOffsetDays) : '',
+      description: typeof s.description === 'string' ? s.description : '',
+      criteria: Array.isArray(s.criteria) ? s.criteria.join('\n')
+        : Array.isArray(s.acceptanceCriteria) ? s.acceptanceCriteria.join('\n')
+          : (typeof s.criteria === 'string' ? s.criteria : ''),
+      deliverable: String(s.deliverable || ''),
+    }));
+    if (drafts.length === 0) { setJsonError('No steps with a "title" were found.'); return; }
+    setSteps(drafts);
+    setJsonOpen(false);
+    toast.success(`Loaded ${drafts.length} step${drafts.length === 1 ? '' : 's'} from JSON — review & save`);
+  };
+
+  const currentAsJson = () => JSON.stringify({
+    name: name.trim() || 'Untitled roadmap',
+    description: description.trim() || undefined,
+    skillTags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+    steps: steps.filter((s) => s.title.trim()).map((s) => ({
+      title: s.title.trim(),
+      type: s.type,
+      effort: s.effort,
+      difficulty: s.difficulty,
+      points: s.points.trim() ? Number(s.points) : undefined,
+      dueOffsetDays: s.dueOffsetDays.trim() ? Number(s.dueOffsetDays) : undefined,
+      description: s.description || undefined,
+      criteria: s.criteria.split('\n').map((c) => c.trim()).filter(Boolean),
+      deliverable: s.deliverable.trim() || undefined,
+    })),
+  }, null, 2);
+
+  const copyJson = async () => {
+    try { await navigator.clipboard.writeText(currentAsJson()); toast.success('Roadmap JSON copied'); }
+    catch { setJsonText(currentAsJson()); setJsonOpen(true); toast.message('Copied into the box below — select & copy'); }
+  };
+  const downloadJson = () => {
+    if (typeof window === 'undefined') return;
+    const blob = new Blob([currentAsJson()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(name.trim() || 'roadmap').replace(/[^a-z0-9-_]+/gi, '-').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const onUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { setJsonText(String(reader.result || '')); setJsonError(null); setJsonOpen(true); };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -279,6 +391,33 @@ export function RoadmapEditorDrawer({
                   {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}{generating ? 'Generating…' : 'Generate'}
                 </button>
                 <p className="text-[11px] text-slate-400">Generating replaces the steps below. Review &amp; tweak before saving.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Import / export JSON */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700">
+            <button type="button" onClick={() => setJsonOpen((v) => !v)} className="w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-medium text-slate-700">
+              <span className="inline-flex items-center gap-1.5"><FileJson className="w-4 h-4" />Import / export JSON</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${jsonOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {jsonOpen && (
+              <div className="px-3.5 pb-3.5 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => { setJsonText(JSON_TEMPLATE); setJsonError(null); }} className="text-xs font-medium text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-50">Insert template</button>
+                  <label className="text-xs font-medium text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 inline-flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5" />Upload .json
+                    <input type="file" accept="application/json,.json" onChange={onUploadFile} className="hidden" />
+                  </label>
+                  <button type="button" onClick={copyJson} className="ml-auto text-xs font-medium text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 inline-flex items-center gap-1.5"><Copy className="w-3.5 h-3.5" />Copy current</button>
+                  <button type="button" onClick={downloadJson} className="text-xs font-medium text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" />Download</button>
+                </div>
+                <textarea value={jsonText} onChange={(e) => { setJsonText(e.target.value); setJsonError(null); }} rows={6}
+                  placeholder='Paste roadmap JSON here, or click "Insert template" / "Upload .json"…'
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono resize-y focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                {jsonError && <p className="text-xs text-red-500">{jsonError}</p>}
+                <button type="button" onClick={loadFromJson} disabled={!jsonText.trim()} className="w-full rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium py-2 disabled:opacity-50">Load into editor</button>
+                <p className="text-[11px] text-slate-400">Loading replaces the fields above. Review, then Save to create the roadmap.</p>
               </div>
             )}
           </div>

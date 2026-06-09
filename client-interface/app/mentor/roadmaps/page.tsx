@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Route, Plus, X, Download, Users, Loader2, Tag, GitBranch, Check, Pencil, Search, CheckCheck,
+  Route, Plus, X, Download, Users, Loader2, Tag, GitBranch, Check, Pencil, Search, CheckCheck, FileJson,
 } from 'lucide-react';
+import { downloadRoadmapJson } from '@/lib/utils/roadmap-json';
 import { useMentorRoadmaps, useMentorPrograms, useMentorCohort, type LinearRoadmap } from '@/lib/hooks/mentor';
 import { mentorApi } from '@/lib/services/mentor-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
@@ -224,7 +225,11 @@ function RoadmapCard({ r, action }: { r: LinearRoadmap; action: React.ReactNode 
           <h3 className="font-medium text-slate-900 truncate">{r.name}</h3>
           <p className="text-xs text-slate-500 mt-0.5">{r.steps.length} step{r.steps.length === 1 ? '' : 's'}</p>
         </div>
-        {action}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button onClick={() => downloadRoadmapJson(r)} title="Export as JSON"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-brand-600 hover:border-brand-300"><FileJson className="w-3.5 h-3.5" /></button>
+          {action}
+        </div>
       </div>
       {r.description && <p className="text-sm text-slate-500 mt-2 line-clamp-2">{r.description}</p>}
       {r.skillTags?.length > 0 && (
