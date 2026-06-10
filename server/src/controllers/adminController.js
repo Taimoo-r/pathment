@@ -44,12 +44,15 @@ class AdminController {
    * GET /api/admin/invites
    */
   listRegistrationInvites = catchAsync(async (req, res) => {
-    const { status = 'active', limit = 50, offset = 0 } = req.query;
+    const { status = 'active', limit = 50, offset = 0, programId, clanId, search } = req.query;
     const programScope = await authzService.adminProgramScope(req.user, {
       assignments: req.loadAssignments ? await req.loadAssignments() : undefined
     });
     const filters = { status, limit, offset };
     if (Array.isArray(programScope) && programScope.length) filters.programIds = programScope;
+    if (programId) filters.programId = programId;
+    if (clanId) filters.clanId = clanId;
+    if (search && String(search).trim()) filters.search = String(search).trim();
     const result = await adminService.listRegistrationInvites(filters);
 
     res.status(200).json(

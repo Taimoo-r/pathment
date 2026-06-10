@@ -55,7 +55,10 @@ const adminSchemas = {
   inviteListQuery: Joi.object({
     status: Joi.string().valid('all', 'active', 'used', 'expired', 'revoked').optional(),
     limit: Joi.number().integer().min(1).max(100).optional(),
-    offset: Joi.number().integer().min(0).optional()
+    offset: Joi.number().integer().min(0).optional(),
+    programId: Joi.string().uuid().optional().allow(null, ''),
+    clanId: Joi.string().uuid().optional().allow(null, ''),
+    search: Joi.string().trim().max(120).optional().allow('')
   }),
 
   bulkInvite: Joi.object({

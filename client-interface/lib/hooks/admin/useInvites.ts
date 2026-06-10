@@ -5,6 +5,8 @@ import { apiConfig } from '@/lib/config/api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { programsApi } from '@/lib/services/program-api';
 import { clanApi } from '@/lib/services/clan-api';
+import { usePagination } from '@/lib/hooks/shared/usePagination';
+import { useDebounce } from '@/lib/hooks/shared/useDebounce';
 
 export type InviteStatusFilter = 'all' | 'active' | 'used' | 'expired' | 'revoked';
 
@@ -98,6 +100,14 @@ export function useInvites() {
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<InviteStatusFilter>('active');
   const [invites, setInvites] = useState<InviteRecord[]>([]);
+  // Server-side filters + pagination (true totals come from the API, not the page).
+  const pagination = usePagination({ initialPage: 1, initialLimit: 20 });
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 400);
+  const [programFilter, setProgramFilter] = useState('');
+  const [clanFilter, setClanFilter] = useState('');
+  // Changing the program resets the clan (clans are program-scoped).
+  const selectProgramFilter = useCallback((id: string) => { setProgramFilter(id); setClanFilter(''); }, []);
   const [createdInviteUrl, setCreatedInviteUrl] = useState<string>('');
   const [form, setForm] = useState({
     email: '',
@@ -143,21 +153,37 @@ export function useInvites() {
       }
 
       const response = await apiClient.get<any>(apiConfig.endpoints.adminInvites, {
-        params: { status, limit: 100, offset: 0 },
+        params: {
+          status,
+          limit: pagination.limit,
+          offset: pagination.offset,
+          ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
+          ...(programFilter && { programId: programFilter }),
+          ...(clanFilter && { clanId: clanFilter }),
+        },
       });
       const rows = response?.data?.invites || response?.invites || [];
       setInvites(rows);
+      const total = response?.data?.total;
+      if (typeof total === 'number') pagination.setTotal(total);
     } catch (error: any) {
       toast.error(extractApiErrorMessage(error, 'Failed to load invites'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [status]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, pagination.limit, pagination.offset, debouncedSearch, programFilter, clanFilter]);
 
   useEffect(() => {
     fetchInvites();
   }, [fetchInvites]);
+
+  // Any filter change returns to page 1 (offset 0) so results aren't off-page.
+  useEffect(() => {
+    pagination.reset();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, debouncedSearch, programFilter, clanFilter]);
 
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,9 +248,10 @@ export function useInvites() {
   };
 
   const inviteCountLabel = useMemo(() => {
-    if (status === 'all') return `${invites.length} invites`;
-    return `${invites.length} ${status} invite${invites.length === 1 ? '' : 's'}`;
-  }, [invites.length, status]);
+    const n = pagination.total;
+    if (status === 'all') return `${n} invite${n === 1 ? '' : 's'}`;
+    return `${n} ${status} invite${n === 1 ? '' : 's'}`;
+  }, [pagination.total, status]);
 
   const handleFileSelected = (file: File) => {
     if (!file.name.endsWith('.csv')) {
@@ -336,6 +363,13 @@ export function useInvites() {
     status,
     setStatus,
     invites,
+    pagination,
+    search,
+    setSearch,
+    programFilter,
+    setProgramFilter: selectProgramFilter,
+    clanFilter,
+    setClanFilter,
     createdInviteUrl,
     form,
     setForm,

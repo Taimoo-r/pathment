@@ -14,8 +14,11 @@ import {
   UserPlus,
   XCircle,
 } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useInvites, isRowValid, EMAIL_REGEX, VALID_ROLES, CSV_TEMPLATE, type InviteStatusFilter } from '@/lib/hooks/admin';
 import { DataTable, type DataTableColumn } from '@/components/shared/DataTable';
+import { SelectMenu } from '@/components/shared/SelectMenu';
+import { TablePagination } from '@/components/shared/TablePagination';
 
 export default function AdminInvitesPage() {
   const {
@@ -25,6 +28,13 @@ export default function AdminInvitesPage() {
     status,
     setStatus,
     invites,
+    pagination,
+    search,
+    setSearch,
+    programFilter,
+    setProgramFilter,
+    clanFilter,
+    setClanFilter,
     createdInviteUrl,
     form,
     setForm,
@@ -508,6 +518,40 @@ export default function AdminInvitesPage() {
           </div>
         </div>
 
+        {/* Filters: search by email, narrow by program → clan (clan list follows the chosen program) */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by email…"
+              className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <SelectMenu
+            value={programFilter}
+            onChange={setProgramFilter}
+            options={[{ value: '', label: 'All programs' }, ...programs.map((p) => ({ value: p.id, label: p.name }))]}
+            placeholder="All programs"
+            ariaLabel="Filter by program"
+            className="sm:w-52"
+          />
+          <SelectMenu
+            value={clanFilter}
+            onChange={setClanFilter}
+            options={[{ value: '', label: 'All clans' }, ...clans.filter((c) => !programFilter || c.programId === programFilter).map((c) => ({ value: c.id, label: c.name }))]}
+            placeholder="All clans"
+            ariaLabel="Filter by clan"
+            className="sm:w-52"
+          />
+        </div>
+
         {invites.length === 0 && (
           <div className="border border-dashed border-slate-300 rounded-xl p-8 text-center text-slate-600">
             No invites found for this filter.
@@ -573,6 +617,10 @@ export default function AdminInvitesPage() {
               );
             })}
           </div>
+        )}
+
+        {pagination.total > pagination.limit && (
+          <TablePagination pagination={pagination} isLoading={loading || refreshing} className="pt-1" />
         )}
       </div>
 

@@ -197,12 +197,24 @@ class AdminService {
    * List registration invites with status filter
    */
   async listRegistrationInvites(filters = {}) {
-    const { status = 'active', limit = 50, offset = 0, programIds } = filters;
+    const { status = 'active', limit = 50, offset = 0, programIds, programId, clanId, search } = filters;
     const where = {};
     const now = new Date();
 
     // A program_admin sees only their programs' invites (org admins: all).
     if (Array.isArray(programIds)) where.programId = { [Op.in]: programIds };
+
+    // Explicit program filter — but never widen a program_admin's scope: an
+    // out-of-scope programId yields no rows rather than leaking other programs.
+    if (programId) {
+      if (Array.isArray(programIds) && !programIds.includes(programId)) {
+        where.programId = '00000000-0000-0000-0000-000000000000';
+      } else {
+        where.programId = programId;
+      }
+    }
+    if (clanId) where.clanId = clanId;
+    if (search) where.email = { [Op.iLike]: `%${search}%` };
 
     if (status === 'active') {
       where.usedAt = null;
