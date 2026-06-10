@@ -5,6 +5,34 @@ const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const { endOfDayInZone } = require('../utils/timezone');
 
+/** Guess a resource's kind from its URL (mirrors the roadmap step normalizer). */
+function inferResourceType(url) {
+  const u = String(url || '').toLowerCase();
+  if (/youtube\.com|youtu\.be/.test(u)) return 'video';
+  if (/docs\.google|drive\.google/.test(u)) return 'document';
+  if (/github\.com/.test(u)) return 'repo';
+  if (/freecodecamp|udemy|coursera|edx|scrimba|course/.test(u)) return 'course';
+  return 'link';
+}
+
+/** Normalize an incoming resources array → TaskResource field objects. Drops
+ *  entries without a URL; caps at 40. Same shape roadmap steps use. */
+function normalizeResources(resources) {
+  if (!Array.isArray(resources)) return [];
+  return resources.map((r, i) => {
+    const url = String(r?.url || '').trim();
+    if (!url) return null;
+    const title = (String(r?.title || r?.label || '').trim() || url).slice(0, 255);
+    return {
+      title,
+      url,
+      resourceType: r?.resourceType ? String(r.resourceType).slice(0, 50) : inferResourceType(url),
+      description: r?.description ? String(r.description) : null,
+      displayOrder: i,
+    };
+  }).filter(Boolean).slice(0, 40);
+}
+
 /**
  * Merge a mentee's per-assignment overrides over the shared RoadmapTask so the
  * mentee/mentor see the tailored copy. Overrides are null by default → roadmap
@@ -58,7 +86,8 @@ class TaskService {
       dueDate,
       pointsBase,
       deliverable,
-      acceptanceCriteria
+      acceptanceCriteria,
+      resources // Optional: learning resources (links) attached to the task
     } = data;
     let { enrollmentId } = data;
 
@@ -101,6 +130,12 @@ class TaskService {
         isCustomTask: true,
         pointsBase: pointsBase || 10
       });
+
+      // Attach any learning resources (links) to the one-off task.
+      const resRows = normalizeResources(resources);
+      if (resRows.length) {
+        await models.TaskResource.bulkCreate(resRows.map((r) => ({ ...r, roadmapTaskId: roadmapTask.id })));
+      }
     }
 
     // Create assigned task

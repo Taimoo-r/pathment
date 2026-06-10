@@ -42,6 +42,7 @@ export const taskApi = {
     pointsBase?: number;
     deliverable?: string;
     acceptanceCriteria?: string[];
+    resources?: { title: string; url: string; resourceType?: string }[];
   }) =>
     apiClient.post('/tasks/custom', data),
 
@@ -56,6 +57,7 @@ export const taskApi = {
     pointsBase?: number;
     deliverable?: string;
     acceptanceCriteria?: string[];
+    resources?: { title: string; url: string; resourceType?: string }[];
   }) =>
     apiClient.post('/tasks/custom/bulk', data),
 

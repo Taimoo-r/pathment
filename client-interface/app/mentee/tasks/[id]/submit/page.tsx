@@ -17,6 +17,7 @@ import { submissionService } from '@/lib/services/submissionService';
 import { useTaskDetail } from '@/lib/hooks/mentee';
 import { PageHeader } from '@/components/admin/ui';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
+import { looksLikeHtml } from '@/lib/utils/html';
 import { useActivityTracker } from '@/lib/hooks/shared/useActivityTracker';
 
 interface PageProps {
@@ -210,7 +211,9 @@ export default function TaskSubmission({ params }: PageProps) {
                 {task.difficulty}
               </span>
             </div>
-            <p className="text-slate-600">{taskDescription}</p>
+            {taskDescription && (looksLikeHtml(taskDescription)
+              ? <div className="prose prose-sm max-w-none text-slate-600" dangerouslySetInnerHTML={{ __html: taskDescription }} />
+              : <p className="text-slate-600 whitespace-pre-wrap">{taskDescription}</p>)}
             {taskDeliverable && (
               <div className="mt-3 p-3 bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 rounded-lg">
                 <p className="text-sm text-brand-900"><strong>Deliverable:</strong> {taskDeliverable}</p>

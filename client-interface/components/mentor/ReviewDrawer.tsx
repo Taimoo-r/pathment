@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Check, Star, ExternalLink, Loader2, Clock, ShieldCheck } from 'lucide-react';
 import { submissionService } from '@/lib/services/submissionService';
 import { Drawer } from '@/components/shared/Drawer';
+import { looksLikeHtml } from '@/lib/utils/html';
 import type { ApprovalItem } from '@/lib/hooks/mentor';
 
 type Decision = 'approved' | 'approved_notes' | 'changes' | 'rejected';
@@ -124,7 +125,9 @@ export function ReviewDrawer({
             {item.brief && (
               <div>
                 <p className="text-xs font-medium text-slate-500 mb-0.5">The task</p>
-                <p className="text-sm text-slate-700">{item.brief}</p>
+                {looksLikeHtml(item.brief)
+                  ? <div className="prose prose-sm max-w-none text-slate-700" dangerouslySetInnerHTML={{ __html: item.brief }} />
+                  : <p className="text-sm text-slate-700 whitespace-pre-wrap">{item.brief}</p>}
               </div>
             )}
             {item.deliverable && (

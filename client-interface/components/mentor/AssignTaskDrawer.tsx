@@ -10,6 +10,8 @@ import { useMentorRoadmaps } from '@/lib/hooks/mentor';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { RoadmapStepsDrawer } from '@/components/mentor/RoadmapStepsDrawer';
 import { StepCustomizeModal } from '@/components/mentor/StepCustomizeModal';
+import RichTextEditor from '@/components/shared/RichTextEditor';
+import { cleanHtml } from '@/lib/utils/html';
 
 type AssignSource = 'custom' | 'roadmap';
 
@@ -78,6 +80,7 @@ export function AssignTaskDrawer({
   const [points, setPoints] = useState<number>(10);
   const [deliverable, setDeliverable] = useState('');
   const [criteria, setCriteria] = useState<string[]>([]);
+  const [resources, setResources] = useState<{ title: string; url: string }[]>([]);
   const [trackId, setTrackId] = useState<string>('');
   const [tracks, setTracks] = useState<Track[]>([]);
 
@@ -207,15 +210,20 @@ export function AssignTaskDrawer({
       }
 
       // ── Assign a custom task ─────────────────────────────────────────────
+      const cleanResources = resources
+        .map((r) => ({ title: r.title.trim(), url: r.url.trim() }))
+        .filter((r) => r.url)
+        .map((r) => ({ title: r.title || r.url, url: r.url }));
       const base = {
         title: title.trim(),
-        description: description.trim() || title.trim(),
+        description: cleanHtml(description) || title.trim(),
         type,
         difficulty,
         dueDate: dueISO(),
         pointsBase: points,
         deliverable: deliverable.trim() || undefined,
         acceptanceCriteria: cleanCriteria,
+        resources: cleanResources.length ? cleanResources : undefined,
       };
       if (mode === 'bulk') {
         const res: any = await taskApi.bulkCreateCustomTasks({ ...base, menteeIds: [...selected] });
@@ -310,8 +318,8 @@ export function AssignTaskDrawer({
               </div>
 
               <div>
-                <label htmlFor="assign-task-brief" className="block text-sm font-medium text-slate-700 mb-1">Brief</label>
-                <textarea id="assign-task-brief" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="What should they do? (defaults to the title)" className={`${field} resize-none`} />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Brief</label>
+                <RichTextEditor content={description} onChange={setDescription} placeholder="What should they do? (defaults to the title)" minHeight="120px" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -375,6 +383,25 @@ export function AssignTaskDrawer({
                         className={field}
                       />
                       <button type="button" onClick={() => setCriteria((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove criterion" className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-medium text-slate-700">Resources</span>
+                  <button type="button" onClick={() => setResources((r) => [...r, { title: '', url: '' }])} className="text-xs font-medium text-brand-600 hover:text-brand-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add resource</button>
+                </div>
+                <div className="space-y-2">
+                  {resources.length === 0 && <p className="text-xs text-slate-400">No resources yet — add helpful links (docs, videos, repos).</p>}
+                  {resources.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input value={r.title} onChange={(e) => setResources((prev) => prev.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
+                        placeholder="Label" aria-label={`Resource ${i + 1} label`} className={`${field} flex-1`} />
+                      <input value={r.url} onChange={(e) => setResources((prev) => prev.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
+                        placeholder="https://…" aria-label={`Resource ${i + 1} URL`} className={`${field} flex-[2]`} />
+                      <button type="button" onClick={() => setResources((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove resource" className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   ))}
                 </div>

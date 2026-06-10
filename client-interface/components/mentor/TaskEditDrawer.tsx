@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Plus, X } from 'lucide-react';
 import { Drawer } from '@/components/shared/Drawer';
+import RichTextEditor from '@/components/shared/RichTextEditor';
 import taskApi from '@/lib/services/task-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
+import { cleanHtml } from '@/lib/utils/html';
 
 interface ResourceItem { title: string; url: string; resourceType?: string }
 
@@ -51,7 +53,7 @@ export function TaskEditDrawer({
   const save = async () => {
     const payload: Record<string, unknown> = {};
     if (title !== initial.title) payload.titleOverride = title.trim() || null;
-    if (description !== initial.description) payload.descriptionOverride = description.trim() || null;
+    if (cleanHtml(description) !== cleanHtml(initial.description)) payload.descriptionOverride = cleanHtml(description) || null;
     if (deliverable !== initial.deliverable) payload.deliverableOverride = deliverable.trim() || null;
     if (criteria !== initial.criteria) {
       const arr = criteria.split('\n').map((s: string) => s.trim()).filter(Boolean);
@@ -97,7 +99,7 @@ export function TaskEditDrawer({
         </div>
         <div>
           <label className={label}>Description</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className={field} />
+          <RichTextEditor content={description} onChange={setDescription} placeholder="Describe the task for this mentee…" minHeight="140px" />
         </div>
         <div>
           <label className={label}>Deliverable</label>
