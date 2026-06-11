@@ -27,6 +27,7 @@ import { useClan, ALL_CLANS } from '@/lib/context/ClanContext';
 import { SelectMenu } from './SelectMenu';
 import { CommandPalette } from './CommandPalette';
 import { NotificationDrawer } from './NotificationDrawer';
+import { ChangelogDrawer } from './ChangelogDrawer';
 import { UserProfileCard } from './UserProfileCard';
 import { messagingApi } from '@/lib/services/messaging-api';
 import { io } from 'socket.io-client';
@@ -329,36 +330,46 @@ export default function Navigation({ role }: NavigationProps) {
       <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-card border-r border-slate-100">
         <div className="flex flex-col flex-1 overflow-y-auto">
 
-          {/* Logo + quick actions (notifications & settings, always visible) */}
-          <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-100">
-            <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-xl shadow-sm shadow-brand-200 shrink-0">
-              <span className="text-white font-bold text-sm">P</span>
+          {/* Brand — own row so the logo reads cleanly */}
+          <div className="px-4 pt-5 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl shadow-sm shadow-brand-300/50 shrink-0">
+                <svg viewBox="0 0 512 512" className="w-6 h-6" fill="none" aria-hidden="true">
+                  <path d="M196 388 V176 C 196 126 346 126 346 216 C 346 300 256 306 196 264" stroke="#fff" strokeWidth="44" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="196" cy="388" r="28" fill="#fff" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-slate-900 text-base leading-tight truncate">Pathment</div>
+                <div className="text-slate-400 text-xs capitalize truncate">{role} portal</div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="font-semibold text-slate-900 text-sm truncate">Pathment</div>
-              <div className="text-slate-400 text-xs capitalize truncate">{role} portal</div>
-            </div>
-            <div className="ml-auto flex items-center gap-0.5 shrink-0">
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('pathment:start-tour'))}
-                title="Take a tour"
-                aria-label="Take a tour"
-                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-              >
-                <HelpCircle className="w-5 h-5" />
-              </button>
-              <span data-tour="notifications" className="inline-flex">
-                {user?.id && <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} />}
-              </span>
-              <Link
-                href={`/${role}/settings`}
-                title="Settings"
-                aria-label="Settings"
-                className={`p-2 rounded-xl transition-colors ${pathname.startsWith(`/${role}/settings`) ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-              >
-                <Settings className="w-5 h-5" />
-              </Link>
-            </div>
+          </div>
+
+          {/* Quick actions — all four, evenly spaced below the logo */}
+          <div className="flex items-center gap-1 px-3 pb-3 mb-1 border-b border-slate-100">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('pathment:start-tour'))}
+              title="Take a tour"
+              aria-label="Take a tour"
+              className="flex-1 flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </button>
+            <span data-tour="whats-new" className="flex-1 flex justify-center">
+              <ChangelogDrawer role={role} />
+            </span>
+            <span data-tour="notifications" className="flex-1 flex justify-center">
+              {user?.id && <NotificationDrawer userId={user.id} apiBaseUrl={apiBaseUrl} />}
+            </span>
+            <Link
+              href={`/${role}/settings`}
+              title="Settings"
+              aria-label="Settings"
+              className={`flex-1 flex items-center justify-center p-2 rounded-xl transition-colors ${pathname.startsWith(`/${role}/settings`) ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
           </div>
 
           {/* Role switcher (only for users who hold more than one role view) */}
@@ -405,8 +416,11 @@ export default function Navigation({ role }: NavigationProps) {
       <div className="lg:hidden fixed top-0 left-0 right-0 glass border-b border-slate-100 dark:border-slate-700 z-60">
         <div className="flex items-center justify-between px-4 py-3.5">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-xl shadow-sm shadow-brand-200">
-              <span className="text-white font-bold text-sm">P</span>
+            <div className="flex items-center justify-center w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl shadow-sm shadow-brand-300/50">
+              <svg viewBox="0 0 512 512" className="w-5 h-5" fill="none" aria-hidden="true">
+                <path d="M196 388 V176 C 196 126 346 126 346 216 C 346 300 256 306 196 264" stroke="#fff" strokeWidth="44" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="196" cy="388" r="28" fill="#fff" />
+              </svg>
             </div>
             <div>
               <div className="font-semibold text-slate-900 text-sm">Pathment</div>

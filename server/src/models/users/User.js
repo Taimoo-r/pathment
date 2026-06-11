@@ -110,6 +110,11 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: false,
       field: 'two_factor_enabled'
     },
+    // When the user last opened the "What's New" changelog — drives the unread badge.
+    lastSeenChangelogAt: {
+      type: DataTypes.DATE,
+      field: 'last_seen_changelog_at'
+    },
     deletedAt: {
       type: DataTypes.DATE,
       field: 'deleted_at'

@@ -159,6 +159,10 @@ or CORS will block the browser.
 
 ## 8. Day-2 operations
 
+> **Shipping a release (staging → main → prod)?** Follow the repeatable runbook in
+> [`RELEASE.md`](./RELEASE.md) — it covers the migration ordering that this raw
+> `git pull` does NOT handle.
+
 ```bash
 # Deploy new code
 git pull && docker compose up -d --build

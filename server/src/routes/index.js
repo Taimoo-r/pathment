@@ -35,6 +35,7 @@ const publicRoutes = require('./public');
 const accessRoutes = require('./access');
 const aiConnectionRoutes = require('./aiConnections');
 const programReviewRoutes = require('./programReviews');
+const changelogRoutes = require('./changelog');
 
 /**
  * API Routes
@@ -102,6 +103,9 @@ router.use('/meetings', meetingRoutes);
 
 // Org announcements
 router.use('/announcements', announcementRoutes);
+
+// In-app "What's New" changelog (role-filtered feed + admin authoring)
+router.use('/changelog', changelogRoutes);
 
 // Mentee cohort community feed
 router.use('/community', communityRoutes);
