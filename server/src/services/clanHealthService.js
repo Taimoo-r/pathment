@@ -15,6 +15,26 @@ function nameOf(user) {
   return `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
 }
 
+/**
+ * The lean `listClans()` no longer eager-loads memberships (hasMany + limit
+ * multiplies rows), so we fetch active memberships for these clans in one
+ * grouped query and return a Map<clanId, [{ userId, role }]>.
+ */
+async function membershipsByClan(clans) {
+  const byClan = new Map(clans.map((c) => [c.id, []]));
+  const ids = clans.map((c) => c.id);
+  if (!ids.length) return byClan;
+  const rows = await models.ClanMembership.findAll({
+    where: { clanId: { [Op.in]: ids }, status: 'active' },
+    attributes: ['clanId', 'userId', 'role'],
+    raw: true,
+  });
+  for (const r of rows) {
+    if (byClan.has(r.clanId)) byClan.get(r.clanId).push({ userId: r.userId, role: r.role });
+  }
+  return byClan;
+}
+
 function initialsOf(user) {
   if (!user) return '-';
   const a = (user.firstName || '').charAt(0);
@@ -54,11 +74,12 @@ class ClanHealthService {
    */
   async programHealth() {
     const clans = await clanService.listClans();
+    const byClan = await membershipsByClan(clans);
 
     // Collect every distinct mentee across clans, then build each row once.
     const menteeIds = new Set();
     for (const clan of clans) {
-      for (const m of clan.memberships || []) {
+      for (const m of byClan.get(clan.id) || []) {
         if (m.role === 'mentee') menteeIds.add(m.userId);
       }
     }
@@ -72,7 +93,7 @@ class ClanHealthService {
     const orgRows = [];
 
     for (const clan of clans) {
-      const memberships = clan.memberships || [];
+      const memberships = byClan.get(clan.id) || [];
       const menteeMemberships = memberships.filter((m) => m.role === 'mentee');
       const mentorMemberships = memberships.filter((m) => MENTOR_ROLES.includes(m.role));
 
@@ -174,10 +195,11 @@ class ClanHealthService {
    */
   async orgInsights() {
     const clans = await clanService.listClans();
+    const byClan = await membershipsByClan(clans);
 
     const menteeIds = new Set();
     for (const clan of clans) {
-      for (const m of clan.memberships || []) if (m.role === 'mentee') menteeIds.add(m.userId);
+      for (const m of byClan.get(clan.id) || []) if (m.role === 'mentee') menteeIds.add(m.userId);
     }
     const ids = [...menteeIds];
     const rowList = await Promise.all(ids.map((id) => cohortService.buildMenteeRow(id)));
@@ -197,7 +219,7 @@ class ClanHealthService {
     const clanRows = [];
     const orgRows = [];
     for (const clan of clans) {
-      const menteeMemberships = (clan.memberships || []).filter((m) => m.role === 'mentee');
+      const menteeMemberships = (byClan.get(clan.id) || []).filter((m) => m.role === 'mentee');
       const rows = menteeMemberships.map((m) => rowById.get(m.userId)).filter(Boolean);
       orgRows.push(...rows);
 
