@@ -212,6 +212,7 @@ class NotificationOrchestrator {
     // Transactional security email: always send regardless of notification preferences.
     return emailService.sendEmail({
       to: user.email,
+      emailType: 'password_reset',
       subject: 'Reset your Pathment password',
       text: `Hi ${user.firstName || ''}, use this secure link to reset your password: ${resetUrl}`,
       html: `
@@ -244,6 +245,7 @@ class NotificationOrchestrator {
     // Transactional auth email: always send regardless of notification preferences.
     return emailService.sendEmail({
       to: user.email,
+      emailType: 'email_verification',
       subject: 'Verify your Pathment email',
       text: `Hi ${user.firstName || ''}, verify your email by opening this link: ${verifyUrl}`,
       html: `
@@ -281,8 +283,10 @@ class NotificationOrchestrator {
 
     return emailService.enqueue({
       to: email,
+      // Account-access: an invited user can't log in until they set up via this
+      // link, so it's treated as critical (top priority, bypasses the daily cap).
       emailType: 'registration_invite',
-      priority: 3,
+      priority: 1,
       idempotencyKey: `invite:${email.toLowerCase()}:${inviteUrl.split('invite=')[1] || inviteUrl}`,
       subject: `Set up your Pathment account`,
       text,

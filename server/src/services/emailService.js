@@ -2,6 +2,24 @@ const { Resend } = require('resend');
 const { Op } = require('sequelize');
 const { models, sequelize } = require('../db');
 
+/**
+ * Account-access mail: the user literally cannot get into their account without
+ * it (forgot/reset password, verify email, magic links). These ALWAYS send at
+ * top priority and bypass the daily send cap — a burst of bulk/invite mail must
+ * never be able to starve them. Classified by emailType so it can't depend on a
+ * caller remembering to pass priority:1.
+ */
+const CRITICAL_EMAIL_TYPES = new Set([
+  'password_reset',
+  'email_verification',
+  'magic_link',
+  'login_code',
+  'two_factor',
+  'account_access',
+  'intake_application', // applicant's magic link to resume/track their application
+  'registration_invite' // invited user can't log in until they set up via this link
+]);
+
 class EmailService {
   constructor() {
     this.client = null;
@@ -69,6 +87,11 @@ class EmailService {
     return String(value || '').trim().toLowerCase();
   }
 
+  /** Account-access mail: top priority + skips the daily cap (by type OR priority<=1). */
+  isCritical(row) {
+    return (row?.priority ?? 5) <= 1 || CRITICAL_EMAIL_TYPES.has(row?.emailType);
+  }
+
   /** Is this address on the suppression list? Returns the reason or null. */
   async isSuppressed(email) {
     const row = await models.SuppressedEmail.findOne({
@@ -117,6 +140,10 @@ class EmailService {
     const toList = (Array.isArray(to) ? to : [to]).map((x) => String(x).trim()).filter(Boolean);
     const primary = this.normalizeEmail(toList[0]);
     if (!primary) return { queued: false, reason: 'invalid_payload' };
+
+    // Account-access mail always sorts first in the queue, regardless of the
+    // priority a caller happened to pass.
+    if (CRITICAL_EMAIL_TYPES.has(emailType) && (priority == null || priority > 1)) priority = 1;
 
     if (idempotencyKey) {
       const existing = await models.EmailQueue.findOne({ where: { idempotencyKey }, attributes: ['id', 'status'] });
@@ -172,11 +199,16 @@ class EmailService {
       return { sent: false, reason: 'resend_not_configured', dead: true };
     }
 
-    // Soft daily cap: defer to tomorrow rather than fail.
-    const limit = await this.isWithinDailyLimits(primary);
-    if (!limit.allowed) {
-      await row.update({ status: 'pending', errorCategory: 'transient', lastError: limit.reason, nextAttemptAt: this.getUtcStartOfDay(new Date(Date.now() + 86400000)) });
-      return { sent: false, reason: limit.reason, deferred: true };
+    // Soft daily cap: defer to tomorrow rather than fail — but NEVER throttle
+    // account-access mail (password reset, email verification, magic links).
+    // Otherwise a burst of bulk/invite email can silently starve the emails a
+    // user needs in order to get into their account, which must always go out.
+    if (!this.isCritical(row)) {
+      const limit = await this.isWithinDailyLimits(primary);
+      if (!limit.allowed) {
+        await row.update({ status: 'pending', errorCategory: 'transient', lastError: limit.reason, nextAttemptAt: this.getUtcStartOfDay(new Date(Date.now() + 86400000)) });
+        return { sent: false, reason: limit.reason, deferred: true };
+      }
     }
 
     try {
