@@ -27,8 +27,8 @@ grants. `CustomRole` (admin-defined permission bundles). Derived grants come fro
 ## Role flows
 - **Admin (super_admin):** grants scoped roles, invites teammates with a role pre-assigned, builds custom roles, sees everything.
 - **Sub-role admin** (e.g. `intake_manager`, `program_admin`): reaches only their part of the admin area (nav filtered, landing chosen for them); enforced per request.
-- **Lead mentor:** holds `clan.manage_members` on their clan → adds co-mentors/core-team via the [Clan Team](./programs-cohorts-clans.md) page (clan membership = the grant).
-- **Co-mentor / Core team / Mentee:** clan-/self-scoped permissions only.
+- **Lead mentor:** holds `clan.manage_members` on their clan → adds co-mentors/core-team via the [Clan Team](./programs-cohorts-clans.md) page (clan membership = the grant). Can toggle per-co-mentor task permissions (`task.assign`, `task.edit`, `task.review`, `task.extension`) stored on `ClanMembership.coMentorPermissions` (null = all defaults enabled).
+- **Co-mentor / Core team / Mentee:** clan-/self-scoped permissions only. Co-mentors default to full mentor task powers within their clan (assign, edit, review, handle extensions); lead mentors may disable individual toggles per co-mentor. Task authorization uses clan-scoped RBAC (`canOnAssignedTask`), not `AssignedTask.mentorId` ownership.
 
 ## Rules & edge cases
 - Org scope covers everything beneath it; program covers its programId; clan its clanId; self the matching user.

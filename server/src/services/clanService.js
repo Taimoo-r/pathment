@@ -1,6 +1,8 @@
 const { models, sequelize } = require('../db');
 const { NotFoundError, ValidationError, ConflictError } = require('../utils/errors/errorTypes');
 const { createAuditLog } = require('../utils/auditContext');
+const authzService = require('./authzService');
+const { CO_MENTOR_TASK_PERMISSIONS } = require('../config/permissions');
 
 /**
  * Clan service - clans are mentor-led groups inside a Program. A mentee is
@@ -449,6 +451,63 @@ class ClanService {
       clanCount: p.clans.length,
       menteeCount: p.clans.reduce((s, c) => s + c.menteeCount, 0)
     }));
+  }
+
+  /** Attach effective co-mentor task permissions to a membership payload. */
+  async formatMembership(membership) {
+    const raw = typeof membership.toJSON === 'function' ? membership.toJSON() : { ...membership };
+    if (raw.role === 'co_mentor') {
+      raw.effectiveCoMentorPermissions = await authzService.getEffectiveCoMentorPermissions(raw.userId, raw.clanId);
+    }
+    return raw;
+  }
+
+  async formatMemberships(memberships) {
+    return Promise.all(memberships.map((m) => this.formatMembership(m)));
+  }
+
+  /**
+   * Lead mentor updates per-co-mentor task permission toggles.
+   */
+  async updateCoMentorPermissions(clanId, userId, permissions, granter) {
+    if (!permissions || typeof permissions !== 'object') {
+      throw new ValidationError('permissions object is required');
+    }
+
+    const membership = await models.ClanMembership.findOne({
+      where: { clanId, userId, status: 'active', role: 'co_mentor' }
+    });
+    if (!membership) throw new NotFoundError('Co-mentor membership not found');
+
+    const resource = await authzService.scopeOfClan(clanId);
+    const sanitized = {};
+    for (const key of Object.keys(permissions)) {
+      if (!CO_MENTOR_TASK_PERMISSIONS.includes(key)) {
+        throw new ValidationError(`Invalid permission key: ${key}`);
+      }
+      if (permissions[key]) {
+        const canGrant = await authzService.can(granter, key, resource);
+        if (!canGrant) {
+          throw new ValidationError("You can't grant a permission you don't hold here");
+        }
+      }
+      sanitized[key] = Boolean(permissions[key]);
+    }
+
+    const oldValues = membership.coMentorPermissions;
+    membership.coMentorPermissions = sanitized;
+    await membership.save();
+
+    await createAuditLog({
+      userId: granter.id,
+      action: 'CO_MENTOR_PERMISSIONS_UPDATED',
+      entityType: 'ClanMembership',
+      entityId: membership.id,
+      oldValues,
+      newValues: sanitized
+    }).catch(() => {});
+
+    return this.formatMembership(membership);
   }
 }
 

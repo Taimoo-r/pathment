@@ -28,6 +28,7 @@ import {
   StickyNote,
 } from 'lucide-react';
 import { useMentorTaskDetail } from '@/lib/hooks/mentor';
+import { PERMISSIONS } from '@/lib/config/permissions';
 import taskApi from '@/lib/services/task-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { PageHeader, StatusBadge } from '@/components/admin/ui';
@@ -103,9 +104,14 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
   const latestSubmission = task.submissions?.[task.submissions.length - 1] || null;
   const feedback = latestSubmission?.feedback || [];
 
-  const canReview = ['submitted', 'revision_needed'].includes(task.status);
-  const canCancel = !['completed', 'cancelled'].includes(task.status);
-  const canUnassign = !['submitted', 'completed', 'cancelled'].includes(task.status);
+  const perms = (task.myTaskPermissions || {}) as Record<string, boolean>;
+  const canEdit = perms[PERMISSIONS.TASK_EDIT] !== false;
+  const canReviewPerm = perms[PERMISSIONS.TASK_REVIEW] !== false;
+  const canExtension = perms[PERMISSIONS.TASK_EXTENSION] !== false;
+
+  const canReview = canReviewPerm && ['submitted', 'revision_needed'].includes(task.status);
+  const canCancel = canEdit && !['completed', 'cancelled'].includes(task.status);
+  const canUnassign = canEdit && !['submitted', 'completed', 'cancelled'].includes(task.status);
 
   const saveDueDate = async () => {
     if (!dueEdit) { toast.error('Pick a date first'); return; }
@@ -232,7 +238,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
         </div>
 
         {/* Mentor task controls: change deadline + unassign a mistaken assignment */}
-        {(canCancel || canUnassign) && (
+        {(canEdit && (canCancel || canUnassign)) && (
           <div className="mt-4 pt-4 border-t border-slate-100">
             <p className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1.5"><CalendarClock className="w-3.5 h-3.5" />Manage deadline</p>
             <div className="flex flex-wrap items-center gap-2">
@@ -294,7 +300,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
         )}
 
         {/* Edit (per-mentee) + Reassign (if cancelled) */}
-        {task.status !== 'completed' && (
+        {canEdit && task.status !== 'completed' && (
           <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center gap-2">
             <button onClick={() => setEditing(true)}
               className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium inline-flex items-center gap-1.5">
@@ -474,7 +480,7 @@ export default function MentorTaskDetailsPage({ params }: PageProps) {
         const pendingExtension = task.submissions?.find(
           (s: any) => s.extensionRequested && s.extensionStatus === 'pending'
         );
-        if (!pendingExtension) return null;
+        if (!pendingExtension || !canExtension) return null;
         return (
           <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-6 space-y-4">
             <div className="flex items-start gap-3">

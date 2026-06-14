@@ -2,6 +2,8 @@ const { Op } = require('sequelize');
 const { models } = require('../db');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
+const authzService = require('./authzService');
+const { PERMISSIONS: P } = require('../config/permissions');
 
 class NotificationScheduler {
   start() {
@@ -101,10 +103,12 @@ class NotificationScheduler {
         }
       });
 
-      // Full channels for mentor
+      // Full channels for mentors who can review this task
+      const mentorRecipients = (await authzService.getTaskNotificationRecipients(task, P.TASK_REVIEW))
+        .map((userId) => ({ userId }));
       await notificationOrchestrator.dispatch({
         eventKey: NOTIFICATION_EVENTS.SUBMISSION_DEADLINE_PASSED,
-        recipients: [{ userId: task.mentorId }],
+        recipients: mentorRecipients,
         payload: {
           title: 'Task deadline passed',
           message: `Deadline passed for "${task.roadmapTask?.title || 'Task'}".`,

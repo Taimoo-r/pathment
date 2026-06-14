@@ -47,6 +47,12 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW,
       field: 'joined_at'
     },
+    // Per-co-mentor task permission overrides (lead mentor toggles). null = all defaults enabled.
+    coMentorPermissions: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: 'co_mentor_permissions'
+    },
     leftAt: {
       type: DataTypes.DATE,
       allowNull: true,

@@ -54,7 +54,8 @@ const listClans = catchAsync(async (req, res) => {
  */
 const myMemberships = catchAsync(async (req, res) => {
   const memberships = await clanService.getMembershipsForUser(req.user.id);
-  res.status(200).json(successResponse('Memberships retrieved', { memberships }));
+  const formatted = await clanService.formatMemberships(memberships);
+  res.status(200).json(successResponse('Memberships retrieved', { memberships: formatted }));
 });
 
 /**
@@ -71,7 +72,11 @@ const mentorPrograms = catchAsync(async (req, res) => {
  */
 const getClan = catchAsync(async (req, res) => {
   const clan = await clanService.getClanById(req.params.id);
-  res.status(200).json(successResponse('Clan retrieved', { clan }));
+  const payload = typeof clan.toJSON === 'function' ? clan.toJSON() : { ...clan };
+  if (payload.memberships) {
+    payload.memberships = await clanService.formatMemberships(payload.memberships);
+  }
+  res.status(200).json(successResponse('Clan retrieved', { clan: payload }));
 });
 
 /**
@@ -185,6 +190,20 @@ const inviteToClan = catchAsync(async (req, res) => {
   res.status(201).json(successResponse('Invite sent', { invite }, 201));
 });
 
+/**
+ * PATCH /api/clans/:id/members/:userId/permissions  (lead mentor / admin)
+ * Toggle per-co-mentor task permissions.
+ */
+const updateMemberPermissions = catchAsync(async (req, res) => {
+  const membership = await clanService.updateCoMentorPermissions(
+    req.params.id,
+    req.params.userId,
+    req.body.permissions,
+    req.user
+  );
+  res.status(200).json(successResponse('Co-mentor permissions updated', { membership }));
+});
+
 module.exports = {
   listClans,
   clanHealth,
@@ -201,5 +220,6 @@ module.exports = {
   reassignClan,
   grantClanRole,
   revokeClanRole,
-  inviteToClan
+  inviteToClan,
+  updateMemberPermissions
 };

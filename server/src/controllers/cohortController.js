@@ -60,7 +60,7 @@ const getMenteeProfile = catchAsync(async (req, res) => {
  * The mentor's pending-review queue across their cohort.
  */
 const getApprovals = catchAsync(async (req, res) => {
-  const queue = await submissionService.getMentorApprovalsQueue(req.user.id);
+  const queue = await submissionService.getMentorApprovalsQueue(req.user);
   res.status(200).json(successResponse('Approvals queue retrieved', { queue }));
 });
 
@@ -70,7 +70,7 @@ const getApprovals = catchAsync(async (req, res) => {
  */
 const bulkApprove = catchAsync(async (req, res) => {
   const { submissionIds } = req.body;
-  const results = await submissionService.bulkApprove(req.user.id, Array.isArray(submissionIds) ? submissionIds : []);
+  const results = await submissionService.bulkApprove(req.user, Array.isArray(submissionIds) ? submissionIds : []);
   res.status(200).json(successResponse('Bulk approval processed', { results }));
 });
 

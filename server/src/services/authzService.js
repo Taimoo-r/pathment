@@ -1,12 +1,13 @@
 const { Op } = require('sequelize');
 const { models } = require('../db');
 const { ROLES, roleGrants } = require('../config/roles');
-const { ALL_PERMISSIONS, PERMISSIONS: P } = require('../config/permissions');
+const { ALL_PERMISSIONS, PERMISSIONS: P, CO_MENTOR_TASK_PERMISSIONS } = require('../config/permissions');
 const { AuthorizationError } = require('../utils/errors/errorTypes');
 
 // Permissions that mean "this person mentors someone" - holding any of these at
 // a clan/program scope grants the mentor switch (drives getCapabilities).
-const MENTOR_PERMISSIONS = [P.MENTEE_VIEW, P.MENTEE_MANAGE, P.TASK_ASSIGN, P.TASK_REVIEW];
+const MENTOR_PERMISSIONS = [P.MENTEE_VIEW, P.MENTEE_MANAGE, P.TASK_ASSIGN, P.TASK_EDIT, P.TASK_REVIEW, P.TASK_EXTENSION];
+const TASK_VIEW_PERMISSIONS = [P.TASK_ASSIGN, P.TASK_EDIT, P.TASK_REVIEW, P.TASK_EXTENSION, P.MENTEE_VIEW];
 
 // In-memory cache of admin-defined custom roles (key → { permissions[], scope }).
 // Invalidated by accessService whenever a custom role changes.
@@ -117,7 +118,127 @@ class AuthzService {
     if (!user) return false;
     const custom = await loadCustomRoles();
     const assignments = opts.assignments || (await this.getAssignments(user));
-    return assignments.some((a) => grants(a.role, permission, custom) && this._covers(a, resource));
+
+    for (const a of assignments) {
+      if (!grants(a.role, permission, custom)) continue;
+      if (!this._covers(a, resource)) continue;
+      if (a.role === 'co_mentor' && a.scopeType === 'clan' && a.scopeId) {
+        const clanId = resource?.clanId || a.scopeId;
+        if (clanId === a.scopeId) {
+          const overrides = await this.getCoMentorPermissionOverrides(user.id, a.scopeId);
+          if (overrides && overrides[permission] === false) continue;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /** Load stored co-mentor permission overrides for a clan membership (null = all defaults). */
+  async getCoMentorPermissionOverrides(userId, clanId) {
+    if (!userId || !clanId) return null;
+    const membership = await models.ClanMembership.findOne({
+      where: { userId, clanId, status: 'active', role: 'co_mentor' },
+      attributes: ['coMentorPermissions']
+    });
+    return membership?.coMentorPermissions || null;
+  }
+
+  /** Effective task permission map for a co-mentor in a clan (for client UX). */
+  async getEffectiveCoMentorPermissions(userId, clanId) {
+    const overrides = await this.getCoMentorPermissionOverrides(userId, clanId);
+    const result = {};
+    for (const perm of CO_MENTOR_TASK_PERMISSIONS) {
+      const roleDefault = roleGrants('co_mentor', perm);
+      if (overrides && Object.prototype.hasOwnProperty.call(overrides, perm)) {
+        result[perm] = Boolean(overrides[perm]);
+      } else {
+        result[perm] = roleDefault;
+      }
+    }
+    return result;
+  }
+
+  /** Clan ids where the user holds `permission` (respecting co-mentor overrides). */
+  async getClansWithPermission(user, permission, opts = {}) {
+    if (!user) return [];
+    const custom = await loadCustomRoles();
+    const assignments = opts.assignments || (await this.getAssignments(user));
+    const clanIds = new Set();
+    for (const a of assignments) {
+      if (a.scopeType !== 'clan' || !a.scopeId) continue;
+      if (!grants(a.role, permission, custom)) continue;
+      if (a.role === 'co_mentor') {
+        const overrides = await this.getCoMentorPermissionOverrides(user.id, a.scopeId);
+        if (overrides && overrides[permission] === false) continue;
+      }
+      clanIds.add(a.scopeId);
+    }
+    return [...clanIds];
+  }
+
+  /** Can the user perform `permission` on an assigned task (clan-scoped RBAC)? */
+  async canOnAssignedTask(user, permission, taskId, opts = {}) {
+    if (!user || !taskId) return false;
+    if (await this.hasAdminAccess(user, opts)) return true;
+    const resource = await this.scopeOfAssignedTask(taskId);
+    if (!resource) return false;
+    return this.can(user, permission, resource, opts);
+  }
+
+  /** Can the user view an assigned task (any task perm or mentee.view at clan)? */
+  async canViewAssignedTask(user, taskId, opts = {}) {
+    if (!user || !taskId) return false;
+    if (await this.hasAdminAccess(user, opts)) return true;
+    const resource = await this.scopeOfAssignedTask(taskId);
+    if (!resource) return false;
+    const assignments = opts.assignments || (await this.getAssignments(user));
+    for (const perm of TASK_VIEW_PERMISSIONS) {
+      if (await this.can(user, perm, resource, { assignments })) return true;
+    }
+    return false;
+  }
+
+  /** Mentee user ids in clans where user holds `permission`. */
+  async getMenteeIdsInClansWithPermission(user, permission, opts = {}) {
+    const clanIds = await this.getClansWithPermission(user, permission, opts);
+    if (!clanIds.length) return [];
+    const rows = await models.ClanMembership.findAll({
+      where: { clanId: { [Op.in]: clanIds }, status: 'active', role: 'mentee' },
+      attributes: ['userId']
+    });
+    return [...new Set(rows.map((r) => r.userId))];
+  }
+
+  /**
+   * Who should be notified about a task event? All clan lead/co-mentors who hold
+   * `permission` at the task's clan (respecting co-mentor toggles), plus the
+   * assigner when not already included.
+   */
+  async getTaskNotificationRecipients(task, permission) {
+    const userIds = new Set();
+    if (task?.mentorId) userIds.add(task.mentorId);
+
+    const resource = task?.id ? await this.scopeOfAssignedTask(task.id) : null;
+    if (!resource?.clanId) return [...userIds];
+
+    const memberships = await models.ClanMembership.findAll({
+      where: {
+        clanId: resource.clanId,
+        status: 'active',
+        role: { [Op.in]: ['lead_mentor', 'co_mentor'] }
+      },
+      attributes: ['userId']
+    });
+
+    for (const m of memberships) {
+      const user = await models.User.findByPk(m.userId, { attributes: ['id', 'role', 'status'] });
+      if (!user || user.status !== 'active') continue;
+      // eslint-disable-next-line no-await-in-loop
+      if (await this.can(user, permission, resource)) userIds.add(m.userId);
+    }
+
+    return [...userIds];
   }
 
   /** The set of permissions the user has for a resource - drives client UI. */
@@ -126,7 +247,7 @@ class AuthzService {
     const assignments = opts.assignments || (await this.getAssignments(user));
     const granted = new Set();
     for (const perm of ALL_PERMISSIONS) {
-      if (assignments.some((a) => grants(a.role, perm, custom) && this._covers(a, resource))) granted.add(perm);
+      if (await this.can(user, perm, resource, { assignments })) granted.add(perm);
     }
     return [...granted];
   }

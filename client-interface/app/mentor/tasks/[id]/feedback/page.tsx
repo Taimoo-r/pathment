@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import RichTextEditor from '@/components/shared/RichTextEditor';
+import { PERMISSIONS } from '@/lib/config/permissions';
 import { useMentorTaskFeedback } from '@/lib/hooks/mentor';
 import { PageHeader } from '@/components/admin/ui';
 
@@ -78,6 +79,19 @@ export default function FeedbackProvision({ params }: PageProps) {
   }
 
   const taskTitle = task.roadmapTask?.title || task.title;
+  const perms = (task.myTaskPermissions || {}) as Record<string, boolean>;
+  const canReview = perms[PERMISSIONS.TASK_REVIEW] !== false;
+
+  if (!canReview) {
+    return (
+      <div className="space-y-6 max-w-4xl">
+        <PageHeader backHref={`/mentor/tasks/${resolvedParams.id}`} backLabel="Back to Task" />
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <p className="text-amber-900">You don&apos;t have permission to review submissions for this task.</p>
+        </div>
+      </div>
+    );
+  }
   const taskDescription = task.roadmapTask?.description || task.description;
   const taskDeliverable = task.roadmapTask?.deliverable || task.deliverable;
   const acceptanceCriteria = task.roadmapTask?.acceptanceCriteria || task.acceptanceCriteria || [];

@@ -1,11 +1,18 @@
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUpload');
+const { Op } = require('sequelize');
 const { models } = require('../db');
 const { NotFoundError, ForbiddenError, ValidationError } = require('../utils/errors/errorTypes');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const { endOfDayInZone } = require('../utils/timezone');
+const authzService = require('./authzService');
+const { PERMISSIONS: P } = require('../config/permissions');
 
 class SubmissionService {
+  async _assertTaskPermission(user, taskId, permission) {
+    const allowed = await authzService.canOnAssignedTask(user, permission, taskId);
+    if (!allowed) throw new ForbiddenError('You are not authorized for this task');
+  }
   /**
    * Submit task with files and rich text content
    */
@@ -117,7 +124,8 @@ class SubmissionService {
 
     await notificationOrchestrator.dispatch({
       eventKey: NOTIFICATION_EVENTS.TASK_SUBMITTED,
-      recipients: [{ userId: task.mentorId }],
+      recipients: (await authzService.getTaskNotificationRecipients(task, P.TASK_REVIEW))
+        .map((userId) => ({ userId })),
       payload: {
         title: `${submitterName} submitted work to review`,
         message: `${submitterName} ${isResubmission ? 'resubmitted' : 'submitted'} “${submittedTitle}”${isResubmission ? ` (v${newVersion})` : ''}. Review it when you can.`,
@@ -184,7 +192,8 @@ class SubmissionService {
     //  ADD: Send notification to mentor
     await notificationOrchestrator.dispatch({
       eventKey: NOTIFICATION_EVENTS.EXTENSION_REQUESTED,
-      recipients: [{ userId: task.mentorId }],
+      recipients: (await authzService.getTaskNotificationRecipients(task, P.TASK_EXTENSION))
+        .map((userId) => ({ userId })),
       payload: {
         title: 'Extension request received',
         message: `${fullSubmission.assignedTask?.mentee?.firstName || 'Mentee'} requested an extension for "${fullSubmission.assignedTask?.roadmapTask?.title || 'a task'}" for ${extensionData.days || 'additional'} days.`,
@@ -205,7 +214,7 @@ class SubmissionService {
   /**
    * Approve or reject extension request
    */
-  async handleExtensionRequest(submissionId, mentorId, approved, newDueDate = null) {
+  async handleExtensionRequest(submissionId, user, approved, newDueDate = null) {
     const submission = await models.TaskSubmission.findByPk(submissionId, {
       include: [{
         model: models.AssignedTask,
@@ -217,9 +226,7 @@ class SubmissionService {
       throw new NotFoundError('Submission not found');
     }
 
-    if (submission.assignedTask.mentorId !== mentorId) {
-      throw new ForbiddenError('You are not the mentor for this task');
-    }
+    await this._assertTaskPermission(user, submission.assignedTask.id, P.TASK_EXTENSION);
 
     if (!submission.extensionRequested) {
       throw new ValidationError('This is not an extension request');
@@ -284,7 +291,7 @@ class SubmissionService {
   /**
    * Review task submission with detailed feedback
    */
-  async reviewSubmission(submissionId, mentorId, reviewData) {
+  async reviewSubmission(submissionId, user, reviewData) {
     const submission = await models.TaskSubmission.findByPk(submissionId, {
       include: [{
         model: models.AssignedTask,
@@ -302,9 +309,7 @@ class SubmissionService {
 
     const task = submission.assignedTask;
 
-    if (task.mentorId !== mentorId) {
-      throw new ForbiddenError('You are not the mentor for this task');
-    }
+    await this._assertTaskPermission(user, task.id, P.TASK_REVIEW);
 
     if (submission.status !== 'pending' && submission.status !== 'reviewing') {
       throw new ValidationError('Submission cannot be reviewed in current status');
@@ -355,7 +360,7 @@ class SubmissionService {
     await models.TaskFeedback.create({
       assignedTaskId: task.id,
       submissionId: submission.id,
-      mentorId,
+      mentorId: user.id,
       feedbackText,
       inlineFeedback: inlineFeedback || null,
       rating,
@@ -441,7 +446,7 @@ class SubmissionService {
     }
 
     // Update mentor stats
-    await this.updateMentorReviewStats(mentorId);
+    await this.updateMentorReviewStats(user.id);
 
     const reviewedSubmission = await this.getSubmissionById(submissionId);
 
@@ -470,7 +475,7 @@ class SubmissionService {
     });
 
     if (feedbackText && String(feedbackText).trim()) {
-      const reviewer = await models.User.findByPk(mentorId, { attributes: ['firstName', 'lastName'] });
+      const reviewer = await models.User.findByPk(user.id, { attributes: ['firstName', 'lastName'] });
       const reviewerName = reviewer ? `${reviewer.firstName} ${reviewer.lastName}`.trim() : 'Your mentor';
       await notificationOrchestrator.dispatch({
         eventKey: NOTIFICATION_EVENTS.FEEDBACK_SENT,
@@ -546,19 +551,17 @@ class SubmissionService {
   /**
    * Get all submissions for a task
    */
-  async getTaskSubmissions(taskId, userId, userRole) {
+  async getTaskSubmissions(taskId, user) {
     const task = await models.AssignedTask.findByPk(taskId);
 
     if (!task) {
       throw new NotFoundError('Task not found');
     }
 
-    // Check permissions
-    if (userRole === 'mentee' && task.menteeId !== userId) {
-      throw new ForbiddenError('Not authorized');
-    }
-    if (userRole === 'mentor' && task.mentorId !== userId) {
-      throw new ForbiddenError('Not authorized');
+    const isOwnMenteeTask = task.menteeId === user.id;
+    if (!isOwnMenteeTask) {
+      const allowed = await authzService.canViewAssignedTask(user, taskId);
+      if (!allowed) throw new ForbiddenError('Not authorized');
     }
 
     const submissions = await models.TaskSubmission.findAll({
@@ -694,17 +697,20 @@ class SubmissionService {
   }
 
   /**
-   * The mentor's approvals queue: pending submissions across their assigned
-   * tasks, shaped for the review UI (criteria checklist + submission content).
+   * The mentor's approvals queue: pending submissions across clan mentees
+   * where the user holds task.review (respecting co-mentor overrides).
    */
-  async getMentorApprovalsQueue(mentorId) {
+  async getMentorApprovalsQueue(user) {
+    const menteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_REVIEW);
+    if (!menteeIds.length) return [];
+
     const submissions = await models.TaskSubmission.findAll({
       where: { status: 'pending' },
       include: [{
         model: models.AssignedTask,
         as: 'assignedTask',
         required: true,
-        where: { mentorId, status: 'submitted' },
+        where: { menteeId: { [Op.in]: menteeIds }, status: 'submitted' },
         include: [
           { model: models.RoadmapTask, as: 'roadmapTask', attributes: ['title', 'type', 'description', 'deliverable', 'acceptanceCriteria', 'pointsBase'] },
           { model: models.User, as: 'mentee', attributes: ['id', 'firstName', 'lastName', 'profilePictureUrl'] }
@@ -744,11 +750,11 @@ class SubmissionService {
    * through the normal review path so points/notifications/stats all fire.
    * Returns per-submission results so the caller can report partial failure.
    */
-  async bulkApprove(mentorId, submissionIds = []) {
+  async bulkApprove(user, submissionIds = []) {
     const results = [];
     for (const submissionId of submissionIds) {
       try {
-        await this.reviewSubmission(submissionId, mentorId, {
+        await this.reviewSubmission(submissionId, user, {
           rating: 5,
           feedbackText: 'Approved.',
           isApproved: true,

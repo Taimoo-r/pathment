@@ -119,6 +119,8 @@ async function mkUser(role, n) {
 
   ok('TASK_ASSIGN: lead mentor in own clan', await authzService.can(fLead, P.TASK_ASSIGN, clanARes));
   ok('TASK_ASSIGN: co-mentor in own clan', await authzService.can(fCo, P.TASK_ASSIGN, clanARes));
+  ok('TASK_EDIT: co-mentor in own clan', await authzService.can(fCo, P.TASK_EDIT, clanARes));
+  ok('TASK_EXTENSION: co-mentor in own clan', await authzService.can(fCo, P.TASK_EXTENSION, clanARes));
   ok('TASK_ASSIGN: co-mentor BLOCKED in another clan', !(await authzService.can(fCo, P.TASK_ASSIGN, clanBRes)));
   ok('TASK_ASSIGN: plain mentee BLOCKED', !(await authzService.can(fPlain, P.TASK_ASSIGN, clanARes)));
   ok('TASK_ASSIGN: admin anywhere', await authzService.can(fAdmin, P.TASK_ASSIGN, clanBRes));
@@ -222,13 +224,29 @@ async function mkUser(role, n) {
   ok('edit task: hasOverrides flag set', edited.hasOverrides === true);
 
   // cancel → not counted; reassign → reactivated
-  await taskService.cancelTask(at.id, lead.id, 'mentor', 'wrong link');
+  await taskService.cancelTask(at.id, fLead, 'wrong link');
   const stats = await taskService.getMenteeTaskStats(menteeX.id);
   ok('stats: cancelled task excluded from total', stats.total === 0);
   const reactivated = await taskService.reactivateTask(at.id, lead.id, 'mentor', {});
   ok('reassign: cancelled task reactivated to assigned', reactivated.status === 'assigned');
   ok('reassign: cancellation cleared', !reactivated.cancellationReason && !reactivated.cancelledAt);
   ok('reassign: edits preserved through reactivation', reactivated.mentorNote === 'Use this resource instead');
+
+  // ── Co-mentor task permissions (defaults + lead-mentor overrides) ───────────
+  ok('TASK_EDIT: co-mentor default yes', await authzService.can(fCo, P.TASK_EDIT, clanARes));
+  ok('TASK_EXTENSION: co-mentor default yes', await authzService.can(fCo, P.TASK_EXTENSION, clanARes));
+  ok('canOnAssignedTask: co-mentor can act on lead-assigned task', await authzService.canOnAssignedTask(fCo, P.TASK_REVIEW, at.id));
+
+  await clanService.updateCoMentorPermissions(clan.id, mentee.id, {
+    [P.TASK_ASSIGN]: true,
+    [P.TASK_EDIT]: true,
+    [P.TASK_REVIEW]: false,
+    [P.TASK_EXTENSION]: true,
+  }, fLead);
+  const fCoLimited = await models.User.findByPk(mentee.id);
+  ok('co-mentor override: TASK_REVIEW disabled', !(await authzService.can(fCoLimited, P.TASK_REVIEW, clanARes)));
+  ok('co-mentor override: TASK_ASSIGN still enabled', await authzService.can(fCoLimited, P.TASK_ASSIGN, clanARes));
+  ok('canOnAssignedTask: review blocked when disabled', !(await authzService.canOnAssignedTask(fCoLimited, P.TASK_REVIEW, at.id)));
 
   // ── Audit: the grant + revoke were recorded with an actor ──────────────────
   const auditCount = await models.AuditLog.count({ where: { action: ['ROLE_GRANTED', 'ROLE_REVOKED'] } });

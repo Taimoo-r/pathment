@@ -1,4 +1,5 @@
 const submissionService = require('../services/submissionService');
+const authzService = require('../services/authzService');
 const { successResponse } = require('../utils/responses');
 const { catchAsync } = require('../middlewares/errorHandler');
 
@@ -51,11 +52,7 @@ exports.getTaskSubmissions = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
 
-  const submissions = await submissionService.getTaskSubmissions(
-    taskId,
-    userId,
-    userRole
-  );
+  const submissions = await submissionService.getTaskSubmissions(taskId, req.user);
 
   res.status(200).json(
     successResponse('Submissions retrieved', { submissions })
@@ -72,11 +69,11 @@ exports.getSubmission = catchAsync(async (req, res) => {
   const submission = await submissionService.getSubmissionById(submissionId);
 
   // Check permissions
-  if (req.user.role === 'mentee' && submission.assignedTask.menteeId !== req.user.id) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
-  }
-  if (req.user.role === 'mentor' && submission.assignedTask.mentorId !== req.user.id) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
+  if (req.user.id !== submission.assignedTask.menteeId) {
+    const canView = await authzService.canViewAssignedTask(req.user, submission.assignedTask.id);
+    if (!canView) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
   }
 
   res.status(200).json(
@@ -94,7 +91,7 @@ exports.reviewSubmission = catchAsync(async (req, res) => {
 
   const submission = await submissionService.reviewSubmission(
     submissionId,
-    mentorId,
+    req.user,
     req.body
   );
 
@@ -114,7 +111,7 @@ exports.handleExtension = catchAsync(async (req, res) => {
 
   const submission = await submissionService.handleExtensionRequest(
     submissionId,
-    mentorId,
+    req.user,
     approved,
     newDueDate
   );

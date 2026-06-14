@@ -4,6 +4,8 @@ const { Op } = require('sequelize');
 const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const { endOfDayInZone } = require('../utils/timezone');
+const authzService = require('./authzService');
+const { PERMISSIONS: P } = require('../config/permissions');
 
 /** Guess a resource's kind from its URL (mirrors the roadmap step normalizer). */
 function inferResourceType(url) {
@@ -62,6 +64,16 @@ function applyTaskOverrides(taskInstance) {
 }
 
 class TaskService {
+  async _assertTaskPermission(user, taskId, permission) {
+    const allowed = await authzService.canOnAssignedTask(user, permission, taskId);
+    if (!allowed) throw new ForbiddenError('You are not authorized for this task');
+  }
+
+  async _assertViewTask(user, taskId) {
+    const allowed = await authzService.canViewAssignedTask(user, taskId);
+    if (!allowed) throw new ForbiddenError('You are not authorized to view this task');
+  }
+
   /**
    * Deprecated: week-curriculum auto-assignment was removed. Onboarding is now
    * fully mentor-driven (mentor assigns roadmaps + tasks). Kept as a safe no-op
@@ -297,10 +309,26 @@ class TaskService {
   }
 
   /**
-   * Get tasks for a mentor (to review)
+   * Get tasks for a mentor (clan-scoped: all tasks for mentees in clans where
+   * the user holds any task permission). Optional `assignedToMe` filters to
+   * tasks where mentorId matches the requester.
    */
-  async getMentorTasks(mentorId, filters = {}) {
-    const where = { mentorId };
+  async getMentorTasks(user, filters = {}) {
+    const isAdmin = await authzService.hasAdminAccess(user);
+    let where = {};
+
+    if (isAdmin && filters.mentorId) {
+      where.mentorId = filters.mentorId;
+    } else if (filters.assignedToMe) {
+      where.mentorId = user.id;
+    } else {
+      const menteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_ASSIGN);
+      const reviewMenteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_REVIEW);
+      const editMenteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_EDIT);
+      const allMenteeIds = [...new Set([...menteeIds, ...reviewMenteeIds, ...editMenteeIds])];
+      if (!allMenteeIds.length) return [];
+      where.menteeId = { [Op.in]: allMenteeIds };
+    }
     
     if (filters.status) {
       where.status = filters.status;
@@ -476,7 +504,7 @@ class TaskService {
   /**
    * Review task submission
    */
-  async reviewTask(taskId, mentorId, reviewData) {
+  async reviewTask(taskId, user, reviewData) {
     const task = await models.AssignedTask.findByPk(taskId, {
       include: [
         {
@@ -492,9 +520,7 @@ class TaskService {
       throw new NotFoundError('Task not found');
     }
 
-    if (task.mentorId !== mentorId) {
-      throw new ForbiddenError('You are not the mentor for this task');
-    }
+    await this._assertTaskPermission(user, taskId, P.TASK_REVIEW);
 
     if (task.status !== 'submitted') {
       throw new ValidationError('Task is not in submitted state');
@@ -511,7 +537,7 @@ class TaskService {
     await models.TaskFeedback.create({
       assignedTaskId: taskId,
       submissionId: latestSubmission.id,
-      reviewerId: mentorId,
+      reviewerId: user.id,
       rating: rating || 0,
       comments: feedback,
       feedbackType: status === 'completed' ? 'approval' : 'revision',
@@ -547,20 +573,20 @@ class TaskService {
   /**
    * Update task status (start, cancel, etc.)
    */
-  async updateTaskStatus(taskId, userId, userRole, status) {
+  async updateTaskStatus(taskId, user, status) {
     const task = await models.AssignedTask.findByPk(taskId);
 
     if (!task) {
       throw new NotFoundError('Task not found');
     }
 
-    // Check permissions
-    if (userRole !== 'admin') {
-      if (userRole === 'mentee' && task.menteeId !== userId) {
-        throw new ForbiddenError('Not authorized');
-      }
-      if (userRole === 'mentor' && task.mentorId !== userId) {
-        throw new ForbiddenError('Not authorized');
+    const isAdmin = await authzService.hasAdminAccess(user);
+    if (!isAdmin) {
+      const isOwnMenteeTask = task.menteeId === user.id;
+      if (isOwnMenteeTask) {
+        // Mentee updating their own task (start, etc.)
+      } else {
+        await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
       }
     }
 
@@ -819,7 +845,7 @@ class TaskService {
   /**
    * Delete custom task (mentor only)
    */
-  async deleteCustomTask(taskId, mentorId) {
+  async deleteCustomTask(taskId, user) {
     const task = await models.AssignedTask.findByPk(taskId, {
       include: [{ model: models.RoadmapTask, as: 'roadmapTask' }]
     });
@@ -832,9 +858,7 @@ class TaskService {
       throw new ValidationError('Only custom tasks can be deleted');
     }
 
-    if (task.mentorId !== mentorId) {
-      throw new ForbiddenError('You can only delete your own custom tasks');
-    }
+    await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
 
     if (task.status === 'completed' || task.status === 'submitted') {
       throw new ValidationError('Cannot delete submitted or completed tasks');
@@ -926,7 +950,7 @@ class TaskService {
     return this.getAssignedTaskById(taskId);
   }
 
-  async cancelTask(taskId, userId, userRole, reason = null) {
+  async cancelTask(taskId, user, reason = null) {
     const task = await models.AssignedTask.findByPk(taskId, {
       include: [
         { model: models.RoadmapTask, as: 'roadmapTask' },
@@ -944,13 +968,9 @@ class TaskService {
       throw new NotFoundError('Task not found');
     }
 
-    // Authorization: Admin can cancel any task, mentor can only cancel their own mentee's tasks
-    if (userRole === 'mentor') {
-      if (task.mentorId !== userId) {
-        throw new ForbiddenError('You can only cancel tasks for your own mentees');
-      }
-    } else if (userRole !== 'admin') {
-      throw new ForbiddenError('Only admins and mentors can cancel tasks');
+    const isAdmin = await authzService.hasAdminAccess(user);
+    if (!isAdmin) {
+      await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
     }
 
     // Cannot cancel already completed tasks
@@ -960,7 +980,7 @@ class TaskService {
 
     // Update task status to cancelled
     task.status = 'cancelled';
-    task.cancelledBy = userId;
+    task.cancelledBy = user.id;
     task.cancelledAt = new Date();
     task.cancellationReason = reason;
     await task.save();
@@ -976,16 +996,15 @@ class TaskService {
    * 2 days"). Anchors a date-only value to END OF DAY in the mentee's timezone,
    * matching the extension flow, and re-evaluates lateness. Notifies the mentee.
    */
-  async updateTaskDueDate(taskId, userId, userRole, dueDate) {
+  async updateTaskDueDate(taskId, user, dueDate) {
     const task = await models.AssignedTask.findByPk(taskId, {
       include: [{ model: models.RoadmapTask, as: 'roadmapTask', attributes: ['title'] }]
     });
     if (!task) throw new NotFoundError('Task not found');
 
-    if (userRole === 'mentor') {
-      if (task.mentorId !== userId) throw new ForbiddenError('You can only change deadlines for your own mentees\' tasks');
-    } else if (userRole !== 'admin') {
-      throw new ForbiddenError('Only admins and mentors can change task deadlines');
+    const isAdmin = await authzService.hasAdminAccess(user);
+    if (!isAdmin) {
+      await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
     }
     if (task.status === 'completed') throw new ValidationError('Cannot change the deadline of a completed task');
     if (!dueDate) throw new ValidationError('A due date is required');
@@ -1033,14 +1052,13 @@ class TaskService {
    * the mentee has submitted/completed work, so nothing real is lost. If it was
    * a one-off custom task with no other assignees, its RoadmapTask is cleaned up.
    */
-  async unassignTask(taskId, userId, userRole) {
+  async unassignTask(taskId, user) {
     const task = await models.AssignedTask.findByPk(taskId);
     if (!task) throw new NotFoundError('Task not found');
 
-    if (userRole === 'mentor') {
-      if (task.mentorId !== userId) throw new ForbiddenError('You can only unassign your own mentees\' tasks');
-    } else if (userRole !== 'admin') {
-      throw new ForbiddenError('Only admins and mentors can unassign tasks');
+    const isAdmin = await authzService.hasAdminAccess(user);
+    if (!isAdmin) {
+      await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
     }
     if (['submitted', 'completed'].includes(task.status)) {
       throw new ValidationError('This task has been submitted or completed — cancel it instead of unassigning');

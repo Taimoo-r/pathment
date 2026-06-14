@@ -75,7 +75,7 @@ router.post(
 router.post(
   '/:submissionId/extension/handle',
   authenticate,
-  requirePermission(PERMISSIONS.TASK_REVIEW, scope.submission('submissionId')),
+  requirePermission(PERMISSIONS.TASK_EXTENSION, scope.submission('submissionId')),
   submissionController.handleExtension
 );
 

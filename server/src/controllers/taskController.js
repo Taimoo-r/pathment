@@ -1,4 +1,6 @@
 const taskService = require('../services/taskService');
+const authzService = require('../services/authzService');
+const { CO_MENTOR_TASK_PERMISSIONS } = require('../config/permissions');
 const { successResponse } = require('../utils/responses');
 const { catchAsync } = require('../middlewares/errorHandler');
 
@@ -42,9 +44,12 @@ exports.getMenteeTasks = catchAsync(async (req, res) => {
   const { menteeId } = req.params;
   const { status, enrollmentId, isCustomTask } = req.query;
   
-  // Security: Mentees can only view their own tasks
-  if (req.user.role === 'mentee' && req.user.id !== menteeId) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
+  // Security: own mentee tasks, or clan-scoped mentor/co-mentor access
+  if (req.user.id !== menteeId) {
+    const canView = await authzService.canViewMentee(req.user, menteeId);
+    if (!canView) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
   }
   
   const tasks = await taskService.getMenteeTasks(menteeId, {
@@ -72,11 +77,12 @@ exports.getMentorTasks = catchAsync(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Forbidden' });
   }
 
-  const tasks = await taskService.getMentorTasks(mentorId, {
+  const tasks = await taskService.getMentorTasks(req.user, {
     status,
     enrollmentId,
     menteeId,
-    pendingReview: pendingReview === 'true'
+    pendingReview: pendingReview === 'true',
+    mentorId: isAdmin ? mentorId : undefined
   });
   
   res.status(200).json(successResponse('Tasks retrieved', { tasks }));
@@ -91,15 +97,26 @@ exports.getTaskById = catchAsync(async (req, res) => {
   
   const task = await taskService.getAssignedTaskById(taskId);
   
-  // Security check
-  if (req.user.role === 'mentee' && task.menteeId !== req.user.id) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
+  // Security: own task, or clan-scoped mentor/co-mentor access (incl. mentee-platform co-mentors)
+  const isOwnMenteeTask = task.menteeId === req.user.id;
+  if (!isOwnMenteeTask) {
+    const canView = await authzService.canViewAssignedTask(req.user, taskId);
+    if (!canView) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
   }
-  if (req.user.role === 'mentor' && task.mentorId !== req.user.id) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
+
+  const resource = await authzService.scopeOfAssignedTask(taskId);
+  const myTaskPermissions = {};
+  for (const perm of CO_MENTOR_TASK_PERMISSIONS) {
+    myTaskPermissions[perm] = await authzService.can(req.user, perm, resource);
   }
+
+  const payload = typeof task.toJSON === 'function' ? task.toJSON() : { ...task };
+  payload.clanId = resource?.clanId || null;
+  payload.myTaskPermissions = myTaskPermissions;
   
-  res.status(200).json(successResponse('Task retrieved', { task }));
+  res.status(200).json(successResponse('Task retrieved', { task: payload }));
 });
 
 /**
@@ -122,7 +139,7 @@ exports.reviewTask = catchAsync(async (req, res) => {
   const { taskId } = req.params;
   const mentorId = req.user.id;
   
-  const task = await taskService.reviewTask(taskId, mentorId, req.body);
+  const task = await taskService.reviewTask(taskId, req.user, req.body);
   res.status(200).json(successResponse('Task reviewed successfully', { task }));
 });
 
@@ -134,7 +151,7 @@ exports.updateTaskStatus = catchAsync(async (req, res) => {
   const { taskId } = req.params;
   const { status } = req.body;
   
-  const task = await taskService.updateTaskStatus(taskId, req.user.id, req.user.role, status);
+  const task = await taskService.updateTaskStatus(taskId, req.user, status);
   res.status(200).json(successResponse('Task status updated', { task }));
 });
 
@@ -164,9 +181,11 @@ exports.getMenteeTaskStats = catchAsync(async (req, res) => {
   const { menteeId } = req.params;
   const { enrollmentId } = req.query;
   
-  // Security: Mentees can only view their own stats
-  if (req.user.role === 'mentee' && req.user.id !== menteeId) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
+  if (req.user.id !== menteeId) {
+    const canView = await authzService.canViewMentee(req.user, menteeId);
+    if (!canView) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
   }
   
   const stats = await taskService.getMenteeTaskStats(menteeId, enrollmentId);
@@ -183,7 +202,7 @@ exports.cancelTask = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
 
-  const task = await taskService.cancelTask(taskId, userId, userRole, reason);
+  const task = await taskService.cancelTask(taskId, req.user, reason);
   res.status(200).json(successResponse('Task cancelled successfully', { task }));
 });
 
@@ -227,7 +246,7 @@ exports.deleteCustomTask = catchAsync(async (req, res) => {
   const { taskId } = req.params;
   const mentorId = req.user.id;
 
-  const result = await taskService.deleteCustomTask(taskId, mentorId);
+  const result = await taskService.deleteCustomTask(taskId, req.user);
   res.status(200).json(successResponse(result.message, {}));
 });
 
@@ -238,7 +257,7 @@ exports.deleteCustomTask = catchAsync(async (req, res) => {
 exports.updateTaskDueDate = catchAsync(async (req, res) => {
   const { taskId } = req.params;
   const { dueDate } = req.body;
-  const task = await taskService.updateTaskDueDate(taskId, req.user.id, req.user.role, dueDate);
+  const task = await taskService.updateTaskDueDate(taskId, req.user, dueDate);
   res.status(200).json(successResponse('Deadline updated', { task }));
 });
 
@@ -248,7 +267,7 @@ exports.updateTaskDueDate = catchAsync(async (req, res) => {
  */
 exports.unassignTask = catchAsync(async (req, res) => {
   const { taskId } = req.params;
-  const result = await taskService.unassignTask(taskId, req.user.id, req.user.role);
+  const result = await taskService.unassignTask(taskId, req.user);
   res.status(200).json(successResponse(result.message, {}));
 });
 

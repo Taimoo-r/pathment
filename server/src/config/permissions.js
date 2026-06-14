@@ -29,7 +29,9 @@ const PERMISSIONS = {
 
   // Work
   TASK_ASSIGN: 'task.assign',
+  TASK_EDIT: 'task.edit',           // modify/cancel/reassign/unassign/delete existing tasks
   TASK_REVIEW: 'task.review',
+  TASK_EXTENSION: 'task.extension', // approve/reject extension requests
 
   // Shared resource library (org-global documents/links)
   LIBRARY_MANAGE: 'library.manage',
@@ -50,4 +52,12 @@ const PERMISSIONS = {
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 
-module.exports = { PERMISSIONS, ALL_PERMISSIONS };
+/** Task permissions a lead mentor may toggle per co-mentor. */
+const CO_MENTOR_TASK_PERMISSIONS = [
+  PERMISSIONS.TASK_ASSIGN,
+  PERMISSIONS.TASK_EDIT,
+  PERMISSIONS.TASK_REVIEW,
+  PERMISSIONS.TASK_EXTENSION
+];
+
+module.exports = { PERMISSIONS, ALL_PERMISSIONS, CO_MENTOR_TASK_PERMISSIONS };

@@ -1,4 +1,12 @@
 const Joi = require('joi');
+const { CO_MENTOR_TASK_PERMISSIONS } = require('../config/permissions');
+
+const permissionMapSchema = Joi.object(
+  CO_MENTOR_TASK_PERMISSIONS.reduce((acc, key) => {
+    acc[key] = Joi.boolean().required();
+    return acc;
+  }, {})
+).min(1);
 
 /**
  * Clan query/body validation. `listQuery` caps pagination server-side so a
@@ -11,5 +19,8 @@ module.exports = {
     search: Joi.string().trim().max(120).optional().allow(''),
     page: Joi.number().integer().min(1).optional(),
     limit: Joi.number().integer().min(1).max(100).optional()
+  }),
+  updateCoMentorPermissions: Joi.object({
+    permissions: permissionMapSchema.required()
   })
 };

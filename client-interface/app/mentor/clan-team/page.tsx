@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 import { apiClient } from '@/lib/services/api-client';
 import { clanApi } from '@/lib/services/clan-api';
+import { PERMISSIONS } from '@/lib/config/permissions';
 import { clanRequestsApi } from '@/lib/services/clan-requests-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { Drawer } from '@/components/shared/Drawer';
@@ -13,7 +14,18 @@ import { Drawer } from '@/components/shared/Drawer';
 interface Member {
   role: 'lead_mentor' | 'co_mentor' | 'core_team' | 'mentee';
   user: { id: string; firstName: string; lastName: string; email: string; role: string };
+  effectiveCoMentorPermissions?: Record<string, boolean>;
 }
+
+const CO_MENTOR_PERM_TOGGLES = [
+  { key: PERMISSIONS.TASK_ASSIGN, label: 'Assign tasks' },
+  { key: PERMISSIONS.TASK_EDIT, label: 'Edit tasks' },
+  { key: PERMISSIONS.TASK_REVIEW, label: 'Review submissions' },
+  { key: PERMISSIONS.TASK_EXTENSION, label: 'Handle extensions' },
+] as const;
+
+const defaultCoMentorPerms = (): Record<string, boolean> =>
+  CO_MENTOR_PERM_TOGGLES.reduce((acc, { key }) => ({ ...acc, [key]: true }), {});
 interface ClanDetail {
   id: string;
   name: string;
@@ -105,16 +117,26 @@ function ClanTeamCard({ clanId, myRole }: { clanId: string; myRole: string }) {
   const menteeCount = mentees.length;
 
   const Person = ({ m, removable }: { m: Member; removable: boolean }) => (
-    <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 text-sm font-medium flex items-center justify-center shrink-0">{initials(m.user)}</span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-900 truncate">{name(m.user)}</p>
-          <p className="text-xs text-slate-500 truncate">{m.user.email}</p>
+    <div className="rounded-xl border border-slate-200 px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 text-sm font-medium flex items-center justify-center shrink-0">{initials(m.user)}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-900 truncate">{name(m.user)}</p>
+            <p className="text-xs text-slate-500 truncate">{m.user.email}</p>
+          </div>
         </div>
+        {removable && canManage && (
+          <button onClick={() => remove(m.user.id, name(m.user))} className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 shrink-0" aria-label="Remove"><Trash2 className="w-4 h-4" /></button>
+        )}
       </div>
-      {removable && canManage && (
-        <button onClick={() => remove(m.user.id, name(m.user))} className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 shrink-0" aria-label="Remove"><Trash2 className="w-4 h-4" /></button>
+      {m.role === 'co_mentor' && canManage && (
+        <CoMentorPermissionToggles
+          clanId={clanId}
+          userId={m.user.id}
+          permissions={m.effectiveCoMentorPermissions || defaultCoMentorPerms()}
+          onUpdated={load}
+        />
       )}
     </div>
   );
@@ -163,6 +185,58 @@ function ClanTeamCard({ clanId, myRole }: { clanId: string; myRole: string }) {
 
       {adding && <AddTeamMemberDrawer clanId={clanId} onClose={() => setAdding(false)} onAdded={() => { setAdding(false); load(); }} />}
       {addingMentees && <AddMenteesDrawer clanId={clanId} clanName={clan.name} onClose={() => setAddingMentees(false)} onChanged={() => load()} />}
+    </div>
+  );
+}
+
+function CoMentorPermissionToggles({
+  clanId,
+  userId,
+  permissions,
+  onUpdated,
+}: {
+  clanId: string;
+  userId: string;
+  permissions: Record<string, boolean>;
+  onUpdated: () => void;
+}) {
+  const [local, setLocal] = useState(permissions);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocal(permissions);
+  }, [permissions]);
+
+  const toggle = async (key: string, next: boolean) => {
+    const updated = { ...defaultCoMentorPerms(), ...local, [key]: next };
+    setLocal(updated);
+    setSaving(key);
+    try {
+      await clanApi.updateCoMentorPermissions(clanId, userId, updated);
+      toast.success('Permissions updated');
+      onUpdated();
+    } catch (e) {
+      setLocal(permissions);
+      toast.error(extractApiErrorMessage(e, 'Could not update permissions'));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-x-3 gap-y-2">
+      {CO_MENTOR_PERM_TOGGLES.map(({ key, label }) => (
+        <label key={key} className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={local[key] !== false}
+            disabled={saving === key}
+            onChange={(e) => toggle(key, e.target.checked)}
+            className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+          />
+          {label}
+        </label>
+      ))}
     </div>
   );
 }

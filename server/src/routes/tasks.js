@@ -145,7 +145,7 @@ router.post(
 router.post(
   '/:taskId/cancel',
   authenticate,
-  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
+  requirePermission(PERMISSIONS.TASK_EDIT, scope.task('taskId')),
   taskController.cancelTask
 );
 
@@ -157,13 +157,13 @@ router.post(
 router.patch(
   '/:taskId',
   authenticate,
-  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
+  requirePermission(PERMISSIONS.TASK_EDIT, scope.task('taskId')),
   taskController.updateAssignedTask
 );
 router.post(
   '/:taskId/reassign',
   authenticate,
-  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
+  requirePermission(PERMISSIONS.TASK_EDIT, scope.task('taskId')),
   taskController.reassignTask
 );
 
@@ -187,7 +187,7 @@ router.patch(
 router.patch(
   '/:taskId/due-date',
   authenticate,
-  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
+  requirePermission(PERMISSIONS.TASK_EDIT, scope.task('taskId')),
   taskController.updateTaskDueDate
 );
 
@@ -199,7 +199,7 @@ router.patch(
 router.post(
   '/:taskId/unassign',
   authenticate,
-  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
+  requirePermission(PERMISSIONS.TASK_EDIT, scope.task('taskId')),
   taskController.unassignTask
 );
 
@@ -211,7 +211,7 @@ router.post(
 router.delete(
   '/:taskId',
   authenticate,
-  requirePermission(PERMISSIONS.TASK_ASSIGN, scope.task('taskId')),
+  requirePermission(PERMISSIONS.TASK_EDIT, scope.task('taskId')),
   taskController.deleteCustomTask
 );
 
