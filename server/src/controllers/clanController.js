@@ -54,8 +54,7 @@ const listClans = catchAsync(async (req, res) => {
  */
 const myMemberships = catchAsync(async (req, res) => {
   const memberships = await clanService.getMembershipsForUser(req.user.id);
-  const formatted = await clanService.formatMemberships(memberships);
-  res.status(200).json(successResponse('Memberships retrieved', { memberships: formatted }));
+  res.status(200).json(successResponse('Memberships retrieved', { memberships }));
 });
 
 /**
@@ -72,11 +71,7 @@ const mentorPrograms = catchAsync(async (req, res) => {
  */
 const getClan = catchAsync(async (req, res) => {
   const clan = await clanService.getClanById(req.params.id);
-  const payload = typeof clan.toJSON === 'function' ? clan.toJSON() : { ...clan };
-  if (payload.memberships) {
-    payload.memberships = await clanService.formatMemberships(payload.memberships);
-  }
-  res.status(200).json(successResponse('Clan retrieved', { clan: payload }));
+  res.status(200).json(successResponse('Clan retrieved', { clan }));
 });
 
 /**
@@ -110,6 +105,29 @@ const addMember = catchAsync(async (req, res) => {
 const removeMember = catchAsync(async (req, res) => {
   const membership = await clanService.removeMember(req.params.id, req.params.userId);
   res.status(200).json(successResponse('Member removed', { membership }));
+});
+
+/**
+ * GET /api/clans/:id/members/:userId/permissions  (admin / lead mentor)
+ * The toggle state for one co-mentor: the full key list + which are revoked.
+ */
+const getMemberPermissions = catchAsync(async (req, res) => {
+  const result = await clanService.getMemberPermissions(req.params.id, req.params.userId);
+  res.status(200).json(successResponse('Permissions retrieved', result));
+});
+
+/**
+ * PATCH /api/clans/:id/members/:userId/permissions  (admin / lead mentor)
+ * Fine-tune one co-mentor's permissions. Body: { denied: ['perm', …] } — the
+ * subset of the co-mentor defaults to revoke for this person (empty = full
+ * parity). Works for co-mentors from any source. Guarded by clan.manage_members,
+ * so co-mentors can't reach it.
+ */
+const setMemberPermissions = catchAsync(async (req, res) => {
+  const result = await clanService.setMemberPermissions(
+    req.params.id, req.params.userId, req.body.denied, req.user.id
+  );
+  res.status(200).json(successResponse('Permissions updated', result));
 });
 
 /**
@@ -190,20 +208,6 @@ const inviteToClan = catchAsync(async (req, res) => {
   res.status(201).json(successResponse('Invite sent', { invite }, 201));
 });
 
-/**
- * PATCH /api/clans/:id/members/:userId/permissions  (lead mentor / admin)
- * Toggle per-co-mentor task permissions.
- */
-const updateMemberPermissions = catchAsync(async (req, res) => {
-  const membership = await clanService.updateCoMentorPermissions(
-    req.params.id,
-    req.params.userId,
-    req.body.permissions,
-    req.user
-  );
-  res.status(200).json(successResponse('Co-mentor permissions updated', { membership }));
-});
-
 module.exports = {
   listClans,
   clanHealth,
@@ -215,11 +219,12 @@ module.exports = {
   updateClan,
   addMember,
   removeMember,
+  getMemberPermissions,
+  setMemberPermissions,
   availableMembers,
   candidates,
   reassignClan,
   grantClanRole,
   revokeClanRole,
-  inviteToClan,
-  updateMemberPermissions
+  inviteToClan
 };

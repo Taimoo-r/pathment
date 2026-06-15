@@ -43,15 +43,16 @@ exports.bulkCreateCustomTasks = catchAsync(async (req, res) => {
 exports.getMenteeTasks = catchAsync(async (req, res) => {
   const { menteeId } = req.params;
   const { status, enrollmentId, isCustomTask } = req.query;
-  
-  // Security: own mentee tasks, or clan-scoped mentor/co-mentor access
-  if (req.user.id !== menteeId) {
-    const canView = await authzService.canViewMentee(req.user, menteeId);
-    if (!canView) {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
-    }
+
+  // Authorization (scoped, derived): the mentee themselves, an admin, the matched
+  // mentor, OR any lead/co-mentor of the mentee's clan. This is mentee-centric —
+  // it returns ALL of the mentee's work regardless of who assigned it, so a
+  // co-mentor sees the same picture as the lead (not just their own assignments).
+  const assignments = req.loadAssignments ? await req.loadAssignments() : undefined;
+  if (!(await authzService.canViewMentee(req.user, menteeId, { assignments }))) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
   }
-  
+
   const tasks = await taskService.getMenteeTasks(menteeId, {
     status,
     enrollmentId,
@@ -96,26 +97,28 @@ exports.getTaskById = catchAsync(async (req, res) => {
   const { taskId } = req.params;
   
   const task = await taskService.getAssignedTaskById(taskId);
-  
-  // Security: own task, or clan-scoped mentor/co-mentor access (incl. mentee-platform co-mentors)
-  const isOwnMenteeTask = task.menteeId === req.user.id;
-  if (!isOwnMenteeTask) {
-    const canView = await authzService.canViewAssignedTask(req.user, taskId);
-    if (!canView) {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
-    }
+
+  // Ownership via scoped RBAC (replaces the legacy "you must be THE assigning
+  // mentor" check, which wrongly blocked co-mentors / cross-clan cover): the
+  // mentee sees their own task; anyone else must be able to view the task's
+  // mentee — admin, the matched mentor, or a lead/co-mentor of the mentee's clan
+  // who still holds mentee.view (respects a revoked co-mentor permission).
+  const assignments = req.loadAssignments ? await req.loadAssignments() : undefined;
+  const allowed = await authzService.canViewMentee(req.user, task.menteeId, { assignments });
+  if (!allowed) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
   }
 
   const resource = await authzService.scopeOfAssignedTask(taskId);
   const myTaskPermissions = {};
   for (const perm of CO_MENTOR_TASK_PERMISSIONS) {
-    myTaskPermissions[perm] = await authzService.can(req.user, perm, resource);
+    myTaskPermissions[perm] = await authzService.can(req.user, perm, resource, { assignments });
   }
 
   const payload = typeof task.toJSON === 'function' ? task.toJSON() : { ...task };
   payload.clanId = resource?.clanId || null;
   payload.myTaskPermissions = myTaskPermissions;
-  
+
   res.status(200).json(successResponse('Task retrieved', { task: payload }));
 });
 

@@ -5,7 +5,7 @@ const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const { endOfDayInZone } = require('../utils/timezone');
 const authzService = require('./authzService');
-const { PERMISSIONS: P } = require('../config/permissions');
+const { PERMISSIONS } = require('../config/permissions');
 
 /** Guess a resource's kind from its URL (mirrors the roadmap step normalizer). */
 function inferResourceType(url) {
@@ -292,7 +292,15 @@ class TaskService {
           as: 'submissions',
           separate: true,
           order: [['version', 'DESC']],
-          limit: 1
+          limit: 1,
+          // Feedback (notes/rating) + extension fields live on the submission;
+          // the cohort-review screen reads them, so include them here too.
+          include: [
+            {
+              model: models.TaskFeedback,
+              as: 'feedback'
+            }
+          ]
         },
         {
           model: models.Track,
@@ -322,9 +330,9 @@ class TaskService {
     } else if (filters.assignedToMe) {
       where.mentorId = user.id;
     } else {
-      const menteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_ASSIGN);
-      const reviewMenteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_REVIEW);
-      const editMenteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_EDIT);
+      const menteeIds = await authzService.getMenteeIdsInClansWithPermission(user, PERMISSIONS.TASK_ASSIGN);
+      const reviewMenteeIds = await authzService.getMenteeIdsInClansWithPermission(user, PERMISSIONS.TASK_REVIEW);
+      const editMenteeIds = await authzService.getMenteeIdsInClansWithPermission(user, PERMISSIONS.TASK_EDIT);
       const allMenteeIds = [...new Set([...menteeIds, ...reviewMenteeIds, ...editMenteeIds])];
       if (!allMenteeIds.length) return [];
       where.menteeId = { [Op.in]: allMenteeIds };
@@ -520,7 +528,9 @@ class TaskService {
       throw new NotFoundError('Task not found');
     }
 
-    await this._assertTaskPermission(user, taskId, P.TASK_REVIEW);
+    if (!(await authzService.canActOnTask(user.id, task, PERMISSIONS.TASK_REVIEW))) {
+      throw new ForbiddenError('You do not have permission to review this task');
+    }
 
     if (task.status !== 'submitted') {
       throw new ValidationError('Task is not in submitted state');
@@ -580,14 +590,9 @@ class TaskService {
       throw new NotFoundError('Task not found');
     }
 
-    const isAdmin = await authzService.hasAdminAccess(user);
-    if (!isAdmin) {
-      const isOwnMenteeTask = task.menteeId === user.id;
-      if (isOwnMenteeTask) {
-        // Mentee updating their own task (start, etc.)
-      } else {
-        await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
-      }
+    const isOwnerMentee = task.menteeId === user.id;
+    if (!isOwnerMentee && !(await authzService.canActOnTask(user.id, task, PERMISSIONS.TASK_EDIT))) {
+      throw new ForbiddenError('Not authorized');
     }
 
     const validStatuses = ['not_started', 'assigned', 'in_progress', 'submitted', 'revision_needed', 'completed', 'cancelled'];
@@ -858,7 +863,9 @@ class TaskService {
       throw new ValidationError('Only custom tasks can be deleted');
     }
 
-    await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
+    if (!(await authzService.canActOnTask(user.id, task, PERMISSIONS.TASK_EDIT))) {
+      throw new ForbiddenError('You do not have permission to delete this task');
+    }
 
     if (task.status === 'completed' || task.status === 'submitted') {
       throw new ValidationError('Cannot delete submitted or completed tasks');
@@ -968,9 +975,8 @@ class TaskService {
       throw new NotFoundError('Task not found');
     }
 
-    const isAdmin = await authzService.hasAdminAccess(user);
-    if (!isAdmin) {
-      await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
+    if (!(await authzService.canActOnTask(user.id, task, PERMISSIONS.TASK_EDIT))) {
+      throw new ForbiddenError('You do not have permission to cancel this task');
     }
 
     // Cannot cancel already completed tasks
@@ -1002,9 +1008,8 @@ class TaskService {
     });
     if (!task) throw new NotFoundError('Task not found');
 
-    const isAdmin = await authzService.hasAdminAccess(user);
-    if (!isAdmin) {
-      await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
+    if (!(await authzService.canActOnTask(user.id, task, PERMISSIONS.TASK_EDIT))) {
+      throw new ForbiddenError('You do not have permission to change this task\'s deadline');
     }
     if (task.status === 'completed') throw new ValidationError('Cannot change the deadline of a completed task');
     if (!dueDate) throw new ValidationError('A due date is required');
@@ -1056,9 +1061,8 @@ class TaskService {
     const task = await models.AssignedTask.findByPk(taskId);
     if (!task) throw new NotFoundError('Task not found');
 
-    const isAdmin = await authzService.hasAdminAccess(user);
-    if (!isAdmin) {
-      await this._assertTaskPermission(user, taskId, P.TASK_EDIT);
+    if (!(await authzService.canActOnTask(user.id, task, PERMISSIONS.TASK_EDIT))) {
+      throw new ForbiddenError('You do not have permission to unassign this task');
     }
     if (['submitted', 'completed'].includes(task.status)) {
       throw new ValidationError('This task has been submitted or completed — cancel it instead of unassigning');

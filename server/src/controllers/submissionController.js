@@ -68,12 +68,13 @@ exports.getSubmission = catchAsync(async (req, res) => {
 
   const submission = await submissionService.getSubmissionById(submissionId);
 
-  // Check permissions
-  if (req.user.id !== submission.assignedTask.menteeId) {
-    const canView = await authzService.canViewAssignedTask(req.user, submission.assignedTask.id);
-    if (!canView) {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
-    }
+  // Ownership via scoped RBAC (replaces the legacy "you must be THE assigning
+  // mentor" check that blocked co-mentors / cross-clan cover): the mentee sees
+  // their own submission; anyone else must be able to view the task's mentee.
+  const assignments = req.loadAssignments ? await req.loadAssignments() : undefined;
+  const allowed = await authzService.canViewMentee(req.user, submission.assignedTask.menteeId, { assignments });
+  if (!allowed) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
   }
 
   res.status(200).json(

@@ -1,31 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Crown, HeartHandshake, Loader2, Search, Shield, Trash2, UserPlus, Users2, X } from 'lucide-react';
+import { Check, Crown, HeartHandshake, Loader2, Search, Shield, SlidersHorizontal, Trash2, UserPlus, Users2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { apiClient } from '@/lib/services/api-client';
 import { clanApi } from '@/lib/services/clan-api';
-import { PERMISSIONS } from '@/lib/config/permissions';
 import { clanRequestsApi } from '@/lib/services/clan-requests-api';
 import { extractApiErrorMessage } from '@/lib/utils/api-error';
 import { Drawer } from '@/components/shared/Drawer';
+import { CoMentorPermissionsDrawer } from '@/components/shared/CoMentorPermissionsDrawer';
 
 interface Member {
   role: 'lead_mentor' | 'co_mentor' | 'core_team' | 'mentee';
   user: { id: string; firstName: string; lastName: string; email: string; role: string };
-  effectiveCoMentorPermissions?: Record<string, boolean>;
 }
-
-const CO_MENTOR_PERM_TOGGLES = [
-  { key: PERMISSIONS.TASK_ASSIGN, label: 'Assign tasks' },
-  { key: PERMISSIONS.TASK_EDIT, label: 'Edit tasks' },
-  { key: PERMISSIONS.TASK_REVIEW, label: 'Review submissions' },
-  { key: PERMISSIONS.TASK_EXTENSION, label: 'Handle extensions' },
-] as const;
-
-const defaultCoMentorPerms = (): Record<string, boolean> =>
-  CO_MENTOR_PERM_TOGGLES.reduce((acc, { key }) => ({ ...acc, [key]: true }), {});
 interface ClanDetail {
   id: string;
   name: string;
@@ -87,6 +76,7 @@ function ClanTeamCard({ clanId, myRole }: { clanId: string; myRole: string }) {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [addingMentees, setAddingMentees] = useState(false);
+  const [permMember, setPermMember] = useState<Member | null>(null);
   const canManage = myRole === 'lead_mentor';
 
   const load = useCallback(() => {
@@ -116,36 +106,31 @@ function ClanTeamCard({ clanId, myRole }: { clanId: string; myRole: string }) {
   const mentees = members.filter((m) => m.role === 'mentee');
   const menteeCount = mentees.length;
 
-  const Person = ({ m, removable }: { m: Member; removable: boolean }) => (
-    <div className="rounded-xl border border-slate-200 px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 text-sm font-medium flex items-center justify-center shrink-0">{initials(m.user)}</span>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">{name(m.user)}</p>
-            <p className="text-xs text-slate-500 truncate">{m.user.email}</p>
-          </div>
+  const Person = ({ m, removable, managePerms }: { m: Member; removable: boolean; managePerms?: boolean }) => (
+    <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 text-sm font-medium flex items-center justify-center shrink-0">{initials(m.user)}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-900 truncate">{name(m.user)}</p>
+          <p className="text-xs text-slate-500 truncate">{m.user.email}</p>
         </div>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        {managePerms && canManage && (
+          <button onClick={() => setPermMember(m)} className="p-1.5 rounded-md text-slate-400 hover:text-brand-600 hover:bg-brand-50" aria-label="Edit permissions" title="Edit permissions"><SlidersHorizontal className="w-4 h-4" /></button>
+        )}
         {removable && canManage && (
-          <button onClick={() => remove(m.user.id, name(m.user))} className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 shrink-0" aria-label="Remove"><Trash2 className="w-4 h-4" /></button>
+          <button onClick={() => remove(m.user.id, name(m.user))} className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50" aria-label="Remove"><Trash2 className="w-4 h-4" /></button>
         )}
       </div>
-      {m.role === 'co_mentor' && canManage && (
-        <CoMentorPermissionToggles
-          clanId={clanId}
-          userId={m.user.id}
-          permissions={m.effectiveCoMentorPermissions || defaultCoMentorPerms()}
-          onUpdated={load}
-        />
-      )}
     </div>
   );
 
-  const Section = ({ icon, title, items, removable }: { icon: React.ReactNode; title: string; items: Member[]; removable: boolean }) => (
+  const Section = ({ icon, title, items, removable, managePerms }: { icon: React.ReactNode; title: string; items: Member[]; removable: boolean; managePerms?: boolean }) => (
     items.length === 0 ? null : (
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2 inline-flex items-center gap-1.5">{icon} {title}</p>
-        <div className="grid sm:grid-cols-2 gap-2">{items.map((m) => <Person key={m.user.id} m={m} removable={removable} />)}</div>
+        <div className="grid sm:grid-cols-2 gap-2">{items.map((m) => <Person key={m.user.id} m={m} removable={removable} managePerms={managePerms} />)}</div>
       </div>
     )
   );
@@ -173,7 +158,7 @@ function ClanTeamCard({ clanId, myRole }: { clanId: string; myRole: string }) {
 
       <div className="mt-5 space-y-5">
         <Section icon={<Crown className="w-3.5 h-3.5" />} title="Lead mentor" items={lead} removable={false} />
-        <Section icon={<Shield className="w-3.5 h-3.5" />} title="Co-mentors" items={co} removable />
+        <Section icon={<Shield className="w-3.5 h-3.5" />} title="Co-mentors" items={co} removable managePerms />
         <Section icon={<Users2 className="w-3.5 h-3.5" />} title="Core team" items={core} removable />
         <Section icon={<HeartHandshake className="w-3.5 h-3.5" />} title={`Mentees (${menteeCount})`} items={mentees} removable />
         {co.length === 0 && core.length === 0 && mentees.length === 0 && (
@@ -185,63 +170,12 @@ function ClanTeamCard({ clanId, myRole }: { clanId: string; myRole: string }) {
 
       {adding && <AddTeamMemberDrawer clanId={clanId} onClose={() => setAdding(false)} onAdded={() => { setAdding(false); load(); }} />}
       {addingMentees && <AddMenteesDrawer clanId={clanId} clanName={clan.name} onClose={() => setAddingMentees(false)} onChanged={() => load()} />}
+      {permMember && <CoMentorPermissionsDrawer clanId={clanId} userId={permMember.user.id} name={name(permMember.user)} onClose={() => setPermMember(null)} onSaved={load} />}
     </div>
   );
 }
 
-function CoMentorPermissionToggles({
-  clanId,
-  userId,
-  permissions,
-  onUpdated,
-}: {
-  clanId: string;
-  userId: string;
-  permissions: Record<string, boolean>;
-  onUpdated: () => void;
-}) {
-  const [local, setLocal] = useState(permissions);
-  const [saving, setSaving] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLocal(permissions);
-  }, [permissions]);
-
-  const toggle = async (key: string, next: boolean) => {
-    const updated = { ...defaultCoMentorPerms(), ...local, [key]: next };
-    setLocal(updated);
-    setSaving(key);
-    try {
-      await clanApi.updateCoMentorPermissions(clanId, userId, updated);
-      toast.success('Permissions updated');
-      onUpdated();
-    } catch (e) {
-      setLocal(permissions);
-      toast.error(extractApiErrorMessage(e, 'Could not update permissions'));
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  return (
-    <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-x-3 gap-y-2">
-      {CO_MENTOR_PERM_TOGGLES.map(({ key, label }) => (
-        <label key={key} className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={local[key] !== false}
-            disabled={saving === key}
-            onChange={(e) => toggle(key, e.target.checked)}
-            className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-          />
-          {label}
-        </label>
-      ))}
-    </div>
-  );
-}
-
-interface CrossClan { id: string; kind: string; user: string | null; fromClan: string | null; toClan: string | null; note: string | null; status?: string; at: string }
+interface CrossClan { id: string; kind: string; user: string | null; userId?: string | null; toClanId?: string | null; fromClan: string | null; toClan: string | null; note: string | null; status?: string; at: string }
 interface MyCrossClan { id: string; kind: string; status: string; toClan: string | null; fromClan: string | null; note: string | null; at: string }
 
 const KIND_LABEL: Record<string, string> = {
@@ -329,6 +263,7 @@ function CrossClanSection({ clanId, clanName }: { clanId: string; clanName: stri
   const [rows, setRows] = useState<CrossClan[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [permCover, setPermCover] = useState<CrossClan | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -366,7 +301,10 @@ function CrossClanSection({ clanId, clanName }: { clanId: string; clanName: stri
       ) : (
         <div className="grid sm:grid-cols-2 gap-2">
           {rows.map((c) => {
-            const incoming = c.toClan === clanName;
+            const incoming = c.toClanId ? c.toClanId === clanId : c.toClan === clanName;
+            // An active cover INTO this clan grants co_mentor here → its
+            // permissions can be fine-tuned, just like a team co-mentor.
+            const canTune = incoming && c.status === 'active' && !!c.userId;
             return (
               <div key={c.id} className="flex items-start justify-between rounded-xl border border-slate-200 px-3 py-2">
                 <div className="min-w-0">
@@ -383,7 +321,12 @@ function CrossClanSection({ clanId, clanName }: { clanId: string; clanName: stri
                   </p>
                   {c.note && <p className="text-xs text-slate-400 mt-0.5 truncate">{c.note}</p>}
                 </div>
-                <button onClick={() => remove(c.id, c.user || 'this person')} className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 shrink-0" aria-label="Remove"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {canTune && (
+                    <button onClick={() => setPermCover(c)} className="p-1.5 rounded-md text-slate-400 hover:text-brand-600 hover:bg-brand-50" aria-label="Edit permissions" title="Edit permissions"><SlidersHorizontal className="w-4 h-4" /></button>
+                  )}
+                  <button onClick={() => remove(c.id, c.user || 'this person')} className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50" aria-label="Remove"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
             );
           })}
@@ -391,6 +334,9 @@ function CrossClanSection({ clanId, clanName }: { clanId: string; clanName: stri
       )}
 
       {adding && <AddCoverDrawer clanId={clanId} clanName={clanName} onClose={() => setAdding(false)} onAdded={() => { setAdding(false); load(); }} />}
+      {permCover && permCover.userId && (
+        <CoMentorPermissionsDrawer clanId={clanId} userId={permCover.userId} name={permCover.user || undefined} onClose={() => setPermCover(null)} />
+      )}
     </div>
   );
 }
@@ -639,6 +585,9 @@ function AddTeamMemberDrawer({ clanId, onClose, onAdded }: { clanId: string; onC
               </button>
             ))}
           </div>
+          {role === 'co_mentor' && (
+            <p className="mt-1.5 text-xs text-slate-400">Co-mentors get the same access as you by default. You can fine-tune their permissions after adding them.</p>
+          )}
         </div>
 
         <div>

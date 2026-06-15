@@ -6,7 +6,7 @@ const notificationOrchestrator = require('./notificationOrchestrator');
 const { NOTIFICATION_EVENTS } = require('../config/notificationMatrix');
 const { endOfDayInZone } = require('../utils/timezone');
 const authzService = require('./authzService');
-const { PERMISSIONS: P } = require('../config/permissions');
+const { PERMISSIONS } = require('../config/permissions');
 
 class SubmissionService {
   async _assertTaskPermission(user, taskId, permission) {
@@ -124,7 +124,7 @@ class SubmissionService {
 
     await notificationOrchestrator.dispatch({
       eventKey: NOTIFICATION_EVENTS.TASK_SUBMITTED,
-      recipients: (await authzService.getTaskNotificationRecipients(task, P.TASK_REVIEW))
+      recipients: (await authzService.getTaskNotificationRecipients(task, PERMISSIONS.TASK_REVIEW))
         .map((userId) => ({ userId })),
       payload: {
         title: `${submitterName} submitted work to review`,
@@ -192,7 +192,7 @@ class SubmissionService {
     //  ADD: Send notification to mentor
     await notificationOrchestrator.dispatch({
       eventKey: NOTIFICATION_EVENTS.EXTENSION_REQUESTED,
-      recipients: (await authzService.getTaskNotificationRecipients(task, P.TASK_EXTENSION))
+      recipients: (await authzService.getTaskNotificationRecipients(task, PERMISSIONS.TASK_EXTENSION))
         .map((userId) => ({ userId })),
       payload: {
         title: 'Extension request received',
@@ -226,7 +226,9 @@ class SubmissionService {
       throw new NotFoundError('Submission not found');
     }
 
-    await this._assertTaskPermission(user, submission.assignedTask.id, P.TASK_EXTENSION);
+    if (!(await authzService.canActOnTask(user.id, submission.assignedTask, PERMISSIONS.TASK_EXTENSION))) {
+      throw new ForbiddenError('You do not have permission to act on this task');
+    }
 
     if (!submission.extensionRequested) {
       throw new ValidationError('This is not an extension request');
@@ -309,7 +311,9 @@ class SubmissionService {
 
     const task = submission.assignedTask;
 
-    await this._assertTaskPermission(user, task.id, P.TASK_REVIEW);
+    if (!(await authzService.canActOnTask(user.id, task, PERMISSIONS.TASK_REVIEW))) {
+      throw new ForbiddenError('You do not have permission to review this submission');
+    }
 
     if (submission.status !== 'pending' && submission.status !== 'reviewing') {
       throw new ValidationError('Submission cannot be reviewed in current status');
@@ -558,10 +562,9 @@ class SubmissionService {
       throw new NotFoundError('Task not found');
     }
 
-    const isOwnMenteeTask = task.menteeId === user.id;
-    if (!isOwnMenteeTask) {
-      const allowed = await authzService.canViewAssignedTask(user, taskId);
-      if (!allowed) throw new ForbiddenError('Not authorized');
+    const isOwnerMentee = task.menteeId === user.id;
+    if (!isOwnerMentee && !(await authzService.canActOnTask(user.id, task, [PERMISSIONS.MENTEE_VIEW, PERMISSIONS.TASK_REVIEW]))) {
+      throw new ForbiddenError('Not authorized');
     }
 
     const submissions = await models.TaskSubmission.findAll({
@@ -701,7 +704,7 @@ class SubmissionService {
    * where the user holds task.review (respecting co-mentor overrides).
    */
   async getMentorApprovalsQueue(user) {
-    const menteeIds = await authzService.getMenteeIdsInClansWithPermission(user, P.TASK_REVIEW);
+    const menteeIds = await authzService.getMenteeIdsInClansWithPermission(user, PERMISSIONS.TASK_REVIEW);
     if (!menteeIds.length) return [];
 
     const submissions = await models.TaskSubmission.findAll({

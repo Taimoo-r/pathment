@@ -3,7 +3,7 @@ const router = express.Router();
 const clanController = require('../controllers/clanController');
 const { authenticate, authorize } = require('../middlewares/auth');
 const { requirePermission, requirePermissionMinScope, scope } = require('../middlewares/authz');
-const { validateQuery, validateBody } = require('../middlewares/validate');
+const { validateQuery } = require('../middlewares/validate');
 const clanSchemas = require('../validations/clanValidation');
 const { PERMISSIONS } = require('../config/permissions');
 
@@ -34,7 +34,12 @@ router.post('/', authenticate, requirePermission(PERMISSIONS.CLAN_CREATE, (req) 
 router.patch('/:id', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.updateClan);
 router.post('/:id/members', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.addMember);
 router.delete('/:id/members/:userId', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.removeMember);
-router.patch('/:id/members/:userId/permissions', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), validateBody(clanSchemas.updateCoMentorPermissions), clanController.updateMemberPermissions);
+
+// Fine-tune one co-mentor's permissions (lead mentor of THIS clan, or an admin).
+// Co-mentors don't hold clan.manage_members, so they can't edit anyone's perms.
+// Works for co-mentors from any source (team membership / cover / IAM grant).
+router.get('/:id/members/:userId/permissions', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.getMemberPermissions);
+router.patch('/:id/members/:userId/permissions', authenticate, requirePermission(PERMISSIONS.CLAN_MANAGE_MEMBERS, scope.clan('id')), clanController.setMemberPermissions);
 
 // Reassign a mentee to a different clan (cross-clan admin action). Program admins
 // may only move within programs they administer (enforced in the controller).

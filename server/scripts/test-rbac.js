@@ -237,12 +237,7 @@ async function mkUser(role, n) {
   ok('TASK_EXTENSION: co-mentor default yes', await authzService.can(fCo, P.TASK_EXTENSION, clanARes));
   ok('canOnAssignedTask: co-mentor can act on lead-assigned task', await authzService.canOnAssignedTask(fCo, P.TASK_REVIEW, at.id));
 
-  await clanService.updateCoMentorPermissions(clan.id, mentee.id, {
-    [P.TASK_ASSIGN]: true,
-    [P.TASK_EDIT]: true,
-    [P.TASK_REVIEW]: false,
-    [P.TASK_EXTENSION]: true,
-  }, fLead);
+  await clanService.setMemberPermissions(clan.id, mentee.id, [P.TASK_REVIEW], fLead.id);
   const fCoLimited = await models.User.findByPk(mentee.id);
   ok('co-mentor override: TASK_REVIEW disabled', !(await authzService.can(fCoLimited, P.TASK_REVIEW, clanARes)));
   ok('co-mentor override: TASK_ASSIGN still enabled', await authzService.can(fCoLimited, P.TASK_ASSIGN, clanARes));
@@ -259,6 +254,7 @@ async function mkUser(role, n) {
   await models.TaskResource.destroy({ where: {} });
   await models.RoadmapTask.destroy({ where: {} });
   await models.RoleAssignment.destroy({ where: {} });
+  await models.ClanMemberPermission.destroy({ where: {} });
   await models.ClanMembership.destroy({ where: {} });
   await models.Enrollment.destroy({ where: {} });
   await models.Clan.destroy({ where: {} });
